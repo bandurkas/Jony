@@ -136,6 +136,11 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
         repo.insert_signal_audit(conn, now_ms, coin, side, False, "cooldown",
                                  spot, ev)
         return
+    # Consume the cooldown NOW, before CB/slot/margin checks — the backtest's
+    # events_for_variant advances the cooldown for every debounced fire, so a
+    # blocked signal must not let the next window re-fire 5 minutes later.
+    last_fired[key] = now_ms
+    repo.update_state(conn, last_fired_json=json.dumps(last_fired))
 
     open_pos = repo.open_positions(conn)
     block = portfolio.can_open(open_pos, coin)
@@ -181,8 +186,6 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
         "tp2_pct": ex["tp2_pct"], "sl_pct": ex["sl_pct"], "hold_h": ex["hold_h"],
         "signal_payload": json.dumps(ev),
     })
-    last_fired[key] = now_ms
-    repo.update_state(conn, last_fired_json=json.dumps(last_fired))
     repo.insert_signal_audit(conn, now_ms, coin, side, True, None, spot, ev)
     notify(f"OPEN {coin} {side} {pick['symbol']} qty {qty:g} "
            f"credit ${credit:.2f}/ct (src {source}) margin ${margin:.2f} | "
@@ -205,6 +208,7 @@ def main() -> None:
                                 "last_min": -1, "ev": None}
                             for c in config.COIN_SPEC}
     last_snapshot_min = -1
+    last_exit_min = -1
 
     while True:
         try:
@@ -215,11 +219,17 @@ def main() -> None:
             wid = epoch_min // FIVE_MIN
             min_in_window = epoch_min % FIVE_MIN
 
+            state = repo.get_state(conn)
+
+            # Exits run every minute UNCONDITIONALLY — pausing the bot stops
+            # new entries, never risk management of what is already open.
+            if last_exit_min != epoch_min:
+                last_exit_min = epoch_min
+                state = manage_exits(conn, state, now_ms)
+
             if repo.is_paused(conn):
                 time.sleep(config.LOOP_SLEEP_S)
                 continue
-
-            state = repo.get_state(conn)
 
             for coin, w in win.items():
                 if w["wid"] != wid:
@@ -229,8 +239,6 @@ def main() -> None:
                 # per-minute gate check (once per distinct minute)
                 if w["last_min"] != epoch_min:
                     w["last_min"] = epoch_min
-                    if coin == list(config.COIN_SPEC)[0]:
-                        state = manage_exits(conn, state, now_ms)
                     k5, k15, k1h = fetch_klines(coin)
                     ev = evaluate_conditions(coin, k5, k15, k1h)
                     w["ev"] = ev

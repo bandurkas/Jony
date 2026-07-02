@@ -42,6 +42,12 @@ def get_state(conn: sqlite3.Connection) -> dict:
     return dict(conn.execute("SELECT * FROM bot_state WHERE id=1").fetchone())
 
 
+def try_get_state(conn: sqlite3.Connection) -> dict | None:
+    """None until the loop's init_state has run (API startup race)."""
+    row = conn.execute("SELECT * FROM bot_state WHERE id=1").fetchone()
+    return dict(row) if row else None
+
+
 def update_state(conn: sqlite3.Connection, **fields) -> None:
     keys = ", ".join(f"{k}=?" for k in fields)
     conn.execute(f"UPDATE bot_state SET {keys} WHERE id=1", tuple(fields.values()))
@@ -90,7 +96,7 @@ def insert_signal_audit(conn: sqlite3.Connection, ts_ms: int, coin: str | None,
                         reject_reason: str | None, spot: float | None,
                         payload: dict | None) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO signal_audit (ts_ms, coin, active_side, accepted,"
+        "INSERT INTO signal_audit (ts_ms, coin, active_side, accepted,"
         " reject_reason, spot, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (ts_ms, coin, active_side,
          None if accepted is None else int(accepted),

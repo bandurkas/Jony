@@ -1,9 +1,10 @@
 """Bybit v5 client (pybit) — klines with pagination (the public API caps at
 1000 bars/request; ret_7d needs 2016+ 5m bars) + options chain.
 
-Authenticates with the ex-Grogu account key when BYBIT_API_KEY/SECRET are set
-(paper mode never places orders — the key only enables authenticated reads
-and makes the later live flip an env change, not a code change)."""
+Authenticates with the ex-Grogu account key when BYBIT_API_KEY/SECRET are set.
+v1 has NO order-placement path at all — the key only enables authenticated
+reads; going live will require adding an execution module, not just flipping
+JONY_TRADING_MODE."""
 from __future__ import annotations
 
 import os

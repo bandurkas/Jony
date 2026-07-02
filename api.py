@@ -11,6 +11,12 @@ from services import config
 
 app = FastAPI(title="Jony", version="1.0")
 
+# The loop owns writes; applying the (idempotent) schema here only protects
+# reads from the startup race where the API answers before the loop's first tick.
+_conn = repo.connect()
+repo.apply_schema(_conn)
+_conn.close()
+
 
 @app.get("/health")
 def health():
@@ -21,7 +27,9 @@ def health():
 def state():
     conn = repo.connect()
     try:
-        st = repo.get_state(conn)
+        st = repo.try_get_state(conn)
+        if st is None:
+            return {"initialized": False}
         st["recent_pnls_json"] = json.loads(st["recent_pnls_json"])
         st["last_fired_json"] = json.loads(st["last_fired_json"])
         st["paused"] = repo.is_paused(conn)

@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
 );
 
 CREATE TABLE IF NOT EXISTS signal_audit (
-    ts_ms INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_ms INTEGER NOT NULL,
     coin TEXT,
     active_side TEXT,
     accepted INTEGER,                            -- 1/0/NULL
