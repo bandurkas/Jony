@@ -1,0 +1,23 @@
+services:
+  jony_loop:
+    build: .
+    command: python loop.py
+    env_file: .env
+    volumes:
+      - jony_data:/app/data
+    restart: unless-stopped
+
+  jony_api:
+    build: .
+    command: uvicorn api:app --host 0.0.0.0 --port 8200
+    env_file: .env
+    ports:
+      - "8200:8200"
+    volumes:
+      - jony_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - jony_loop
+
+volumes:
+  jony_data:
