@@ -89,8 +89,29 @@ def manage_exits(conn, state: dict, now_ms: int) -> dict:
     return state
 
 
+def close_all_now(conn, state: dict, now_ms: int) -> dict:
+    """Manual close-all (Mission Control button): buy back every open position
+    at the live ask/mark. Does NOT arm the circuit breaker — a manual stop is
+    an operator decision, not a strategy loss streak."""
+    open_pos = repo.open_positions(conn)
+    if not open_pos:
+        return state
+    marks_by_coin = {c: bybit_client.get_option_marks(c)
+                     for c in {p["coin"] for p in open_pos}}
+    for p in open_pos:
+        m = marks_by_coin.get(p["coin"], {}).get(p["option_symbol"])
+        if m is None or not (m.get("mark") or m.get("ask")):
+            print(f"[jony] close_all: no quote for {p['option_symbol']}, "
+                  f"skipped (retry next tick)", flush=True)
+            continue
+        _close(conn, state, p, now_ms, close_fill_price(m),
+               "manual_close_all", "closed_manual", arm_cb=False)
+        state = repo.get_state(conn)
+    return state
+
+
 def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
-           reason: str, status: str) -> None:
+           reason: str, status: str, arm_cb: bool = True) -> None:
     entry = p["entry_credit"]
     qty = p["qty"]
     pnl_pct = (entry - exit_debit) / entry if entry > 0 else 0.0
@@ -105,7 +126,7 @@ def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
     pnls = json.loads(state["recent_pnls_json"])
     pnls = (pnls + [pnl_pct])[-50:]
     cb_until = state["cb_cooldown_until_ms"]
-    if pnl_pct <= 0:
+    if pnl_pct <= 0 and arm_cb:
         cb_until = now_ms + config.CB_PAUSE_HOURS * 3_600_000
     repo.update_state(conn, equity_usd=equity,
                       recent_pnls_json=json.dumps(pnls),
@@ -113,7 +134,8 @@ def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
     notify(f"CLOSE {p['coin']} {p['side']} {p['option_symbol']} {reason} "
            f"pnl ${pnl_usd:+.2f} ({pnl_pct*100:+.1f}% of premium) | "
            f"equity ${equity:.2f}"
-           + (f" | CB until +{config.CB_PAUSE_HOURS}h" if pnl_pct <= 0 else ""))
+           + (f" | CB until +{config.CB_PAUSE_HOURS}h"
+              if pnl_pct <= 0 and arm_cb else ""))
 
 
 def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
@@ -226,6 +248,13 @@ def main() -> None:
             if last_exit_min != epoch_min:
                 last_exit_min = epoch_min
                 state = manage_exits(conn, state, now_ms)
+
+            # Mission Control "close all": API sets the flag, loop executes
+            # (position writes stay with the single writer). Runs even when
+            # paused — request_close_all pauses the bot as its first step.
+            if repo.pop_close_all(conn):
+                notify("CLOSE ALL requested — buying back all open positions")
+                state = close_all_now(conn, state, now_ms)
 
             if repo.is_paused(conn):
                 time.sleep(config.LOOP_SLEEP_S)

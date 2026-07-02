@@ -76,5 +76,39 @@ class TestExitMath(unittest.TestCase):
         self.assertLessEqual(pnl(90.0), -2.00)
 
 
+
+class TestControl(unittest.TestCase):
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        self.conn.execute("DELETE FROM positions")
+        self.conn.execute("DELETE FROM bot_state")
+        self.conn.execute("DELETE FROM bot_control")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+
+    def test_pause_resume(self):
+        self.assertFalse(repo.is_paused(self.conn))
+        repo.set_paused(self.conn, True)
+        self.assertTrue(repo.is_paused(self.conn))
+        repo.set_paused(self.conn, False)
+        self.assertFalse(repo.is_paused(self.conn))
+
+    def test_close_all_flag_pauses_and_pops_once(self):
+        repo.request_close_all(self.conn)
+        self.assertTrue(repo.is_paused(self.conn))
+        self.assertTrue(repo.pop_close_all(self.conn))
+        self.assertFalse(repo.pop_close_all(self.conn))  # reset after pop
+
+    def test_manual_close_does_not_arm_cb(self):
+        _mk_pos(self.conn)
+        p = repo.open_positions(self.conn)[0]
+        jony_loop._close(self.conn, repo.get_state(self.conn), p,
+                         now_ms=1000, exit_debit=55.0, reason="manual_close_all",
+                         status="closed_manual", arm_cb=False)
+        st = repo.get_state(self.conn)
+        self.assertEqual(st["cb_cooldown_until_ms"], 0)  # loss, but no CB
+
+
 if __name__ == "__main__":
     unittest.main()

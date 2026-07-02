@@ -23,6 +23,18 @@ def connect() -> sqlite3.Connection:
 def apply_schema(conn: sqlite3.Connection) -> None:
     schema = open(os.path.join(os.path.dirname(__file__), "schema.sql")).read()
     conn.executescript(schema)
+    # CREATE TABLE IF NOT EXISTS doesn't retroactively add columns to a table
+    # from an earlier deploy — migrate here, ignoring "duplicate column"
+    # (same pattern as Tyagach's _ensure_columns).
+    migrations = [
+        "ALTER TABLE bot_control ADD COLUMN close_all_requested INTEGER NOT NULL DEFAULT 0",
+    ]
+    for m in migrations:
+        try:
+            conn.execute(m)
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e).lower():
+                raise
     conn.commit()
 
 
@@ -57,6 +69,33 @@ def update_state(conn: sqlite3.Connection, **fields) -> None:
 def is_paused(conn: sqlite3.Connection) -> bool:
     row = conn.execute("SELECT paused FROM bot_control WHERE id=1").fetchone()
     return bool(row and row["paused"])
+
+
+# bot_control is the ONE table the API process also writes (pause/close-all
+# buttons) — a deliberate, tiny exception to the loop-is-single-writer rule,
+# same as Tyagach. WAL serializes the writes.
+
+def set_paused(conn: sqlite3.Connection, paused: bool) -> None:
+    conn.execute("INSERT OR IGNORE INTO bot_control (id, paused) VALUES (1, 0)")
+    conn.execute("UPDATE bot_control SET paused=? WHERE id=1", (int(paused),))
+    conn.commit()
+
+
+def request_close_all(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT OR IGNORE INTO bot_control (id, paused) VALUES (1, 0)")
+    conn.execute("UPDATE bot_control SET close_all_requested=1, paused=1 WHERE id=1")
+    conn.commit()
+
+
+def pop_close_all(conn: sqlite3.Connection) -> bool:
+    """Read-and-reset the close-all flag (loop side)."""
+    row = conn.execute(
+        "SELECT close_all_requested FROM bot_control WHERE id=1").fetchone()
+    if row and row["close_all_requested"]:
+        conn.execute("UPDATE bot_control SET close_all_requested=0 WHERE id=1")
+        conn.commit()
+        return True
+    return False
 
 
 def open_positions(conn: sqlite3.Connection) -> list[dict]:

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS bot_state (
 
 CREATE TABLE IF NOT EXISTS bot_control (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    paused INTEGER NOT NULL DEFAULT 0
+    paused INTEGER NOT NULL DEFAULT 0,
+    close_all_requested INTEGER NOT NULL DEFAULT 0  -- API sets, loop executes+resets
 );
 
 CREATE TABLE IF NOT EXISTS positions (
