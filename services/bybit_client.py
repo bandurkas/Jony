@@ -14,6 +14,33 @@ from datetime import datetime, timezone
 from pybit.unified_trading import HTTP
 
 
+RETRY_DELAYS_S = (1, 2, 4)  # 3 attempts total per call
+
+
+def _with_retry(label: str, fn):
+    """Retries a single Bybit call with our own backoff instead of trusting
+    pybit's built-in 10006 handler — that handler unconditionally reads
+    response.headers["X-Bapi-Limit-Reset-Timestamp"] and Bybit doesn't always
+    send that header on a rate-limit response, so pybit raises a bare
+    KeyError instead of sleeping+retrying (observed live on Jony
+    2026-07-02, ~10x/24h). By the time our own delay elapses the rate-limit
+    window has normally reset, so the retry succeeds without ever touching
+    pybit's broken branch again."""
+    last_err: Exception | None = None
+    for attempt, delay in enumerate((0,) + RETRY_DELAYS_S):
+        if delay:
+            time.sleep(delay)
+        try:
+            return fn()
+        except Exception as e:
+            last_err = e
+            print(f"[bybit] {label} attempt {attempt + 1}/{len(RETRY_DELAYS_S) + 1} "
+                  f"failed: {e}", flush=True)
+    print(f"[bybit] {label} gave up after {len(RETRY_DELAYS_S) + 1} attempts: "
+          f"{last_err}", flush=True)
+    return None
+
+
 class BybitClient:
     def __init__(self):
         key = os.getenv("BYBIT_API_KEY", "").strip()
@@ -24,21 +51,26 @@ class BybitClient:
             self.session = HTTP(testnet=False)
 
     def get_klines(self, symbol: str, interval: str, limit: int) -> list[dict]:
-        """Oldest→newest candles; paginates when limit > 1000."""
+        """Oldest→newest candles; paginates when limit > 1000. A page that
+        fails all retries stops pagination but keeps whatever earlier pages
+        already succeeded (partial history), instead of discarding
+        everything — evaluate_conditions already treats a short window as
+        not-ready, so a slightly incomplete list degrades gracefully."""
         out: list[dict] = []
         end_ms: int | None = None
         remaining = limit
         while remaining > 0:
             batch = min(remaining, 1000)
-            try:
-                kwargs = dict(category="linear", symbol=symbol,
-                              interval=interval, limit=batch)
-                if end_ms is not None:
-                    kwargs["end"] = end_ms
-                raw = self.session.get_kline(**kwargs)["result"]["list"]
-            except Exception as e:
-                print(f"[bybit] klines error ({symbol},{interval}): {e}", flush=True)
-                return []
+            kwargs = dict(category="linear", symbol=symbol,
+                          interval=interval, limit=batch)
+            if end_ms is not None:
+                kwargs["end"] = end_ms
+            result = _with_retry(
+                f"klines({symbol},{interval})",
+                lambda kw=kwargs: self.session.get_kline(**kw)["result"]["list"])
+            if result is None:
+                break
+            raw = result
             if not raw:
                 break
             # raw is newest→oldest
@@ -55,11 +87,11 @@ class BybitClient:
 
     def get_options_tickers(self, base_coin: str) -> list[dict]:
         """Live options chain with bid/ask/mark, parsed symbol fields."""
-        try:
-            items = self.session.get_tickers(
-                category="option", baseCoin=base_coin)["result"]["list"]
-        except Exception as e:
-            print(f"[bybit] options tickers error ({base_coin}): {e}", flush=True)
+        items = _with_retry(
+            f"options tickers({base_coin})",
+            lambda: self.session.get_tickers(
+                category="option", baseCoin=base_coin)["result"]["list"])
+        if items is None:
             return []
         out = []
         for it in items:
