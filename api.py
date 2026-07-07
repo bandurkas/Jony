@@ -163,10 +163,30 @@ def chart(kline_limit: int = 288):
 def positions(limit: int = 50):
     conn = repo.connect()
     try:
-        return {"open": repo.open_positions(conn),
-                "recent": repo.recent_positions(conn, limit)}
+        open_pos = repo.open_positions(conn)
+        recent = repo.recent_positions(conn, limit)
     finally:
         conn.close()
+    # Enrich open positions with live mark-to-market so the dashboard's
+    # global Active-Contracts rail can show Jony's unrealized PnL like the
+    # other bots. Same formula as the loop's equity snapshot:
+    # unrealized = (entry_credit - mark) * qty. Best-effort, read-only.
+    from services.bybit_client import bybit_client
+    try:
+        marks_by_coin = {c: bybit_client.get_option_marks(c)
+                         for c in {p["coin"] for p in open_pos}}
+    except Exception:
+        marks_by_coin = {}
+    for p in open_pos:
+        m = marks_by_coin.get(p["coin"], {}).get(p["option_symbol"])
+        if m and m.get("mark"):
+            mark = m["mark"]
+            p["current_mark_usd"] = round(mark, 6)
+            p["unrealized_pnl_usd"] = round((p["entry_credit"] - mark) * p["qty"], 4)
+        else:
+            p["current_mark_usd"] = None
+            p["unrealized_pnl_usd"] = None
+    return {"open": open_pos, "recent": recent}
 
 
 @app.get("/equity")
