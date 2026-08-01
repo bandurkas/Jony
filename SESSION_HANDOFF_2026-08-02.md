@@ -546,6 +546,108 @@ Bybit (проскальзывание/ликвидность при 10 пара�
 эти пробелы (`test_close_rolls_back_on_exception_between_writes`,
 `test_manual_close_all_clears_stuck_alert_on_next_tick`).
 
+## 15. Финал сессии — Boba1/opt-app работа + переход на Tyagach
+
+### Boba1 корреляция с Jony — ПРОВЕРЕНО, решение принято
+
+Пользователь попросил перепроверить корреляцию с Boba1 и решить —
+архивировать или улучшать (edge "по лезвию ножа"). Сначала посчитал на
+реальных сделках (20 дней пересечения, Pearson 0.236) — но выборка
+слишком тонкая (у Jony много нулевых дней). Пересчитал на 2-летнем
+бэктесте обоих ботов на ОДНОМ и том же окне (скопировал свежие
+`research/fresh_data/btc_{5m,15m,1h}.json` из Jony в
+`~/Desktop/options/data/btc_long_*.json`, т.к. локально Mac не может
+сам зафетчить свежие данные с Bybit — SSL/network, а кэш на VPS3 был
+только годовой давности):
+
+- **Корреляция практически нулевая**: Pearson **-0.061** на 716 днях,
+  по кварталам от +0.14 до -0.18 (шум). `P(Boba1 плохой день | Jony
+  плохой день) = 33.9%` ≈ безусловная `P(Boba1 плохой день) = 33.0%`.
+  Boba1 (безусловный BTC-стрэддл 24ч, без направленного фильтра) и
+  Jony (ETH+BTC с regime/vol/MTF-гейтами) структурно не коррелируют.
+- **Пользователь решил: НЕ архивировать Boba1 по корреляции** — держим
+  оба бота, наблюдаем дальше. Ничего не менял в живом коде Boba1.
+- **Отдельная, не решённая находка**: реальная live-paper статистика
+  Boba1 (6 недель, 118 legs, стартовал 2026-06-21 с $2000) — win rate
+  61.9%, средний $-0.15/leg, итог -$17.83 (почти в нуле). Бэктест на
+  том же окне: win rate 74.5%, средний $+1.29/leg. Прогнал 2000
+  случайных 118-leg подвыборок из бэктеста — реальный результат
+  попадает в ~8-й перцентиль (невезение, не доказанный провал edge).
+  **Тот же паттерн, что и у Jony** (реальный WR 47.6% против
+  симулированных 73-83%) — возможная общая тема для будущего
+  исследования (реальный спред/проскальзывание шире модели?), не
+  начата.
+
+### opt-app git-порядок — ЗАВЕРШЕНО
+
+Разобрался с "main отстаёт на 41 коммит и разошёлся с archive/grogu" —
+оказалось НЕ настоящее расхождение, чистый fast-forward (origin/main —
+прямой предок archive/grogu, ни одного конфликта). Привёл в порядок:
+1. Fast-forward `main` → `archive/grogu` (локально + push, 0 риска).
+2. Закоммитил 2 реальных забытых файла: `SESSION_HANDOFF_2026-08-01.md`
+   (прошлый хендофф, который просто забыли закоммитить) +
+   `BTC_STRADDLE_HANDOFF.md` (правка с находками по `SL_DOLLAR_FRAC` от
+   11.07 — deferred backlog: 2.0→0.75 для депозита ≥$5k, на paper/$600
+   смысла нет).
+3. Удалил 3 неактуальных файла от 24 июня, упоминающих архивированных
+   Grogu1/Sniper1 (`DEPLOYMENT_READY.md`, `check_positions.sh`,
+   `backend/tests/test_eth_straddle_vrp_filter.py`) — нигде не
+   встречались в истории git.
+4. `main` и `archive/grogu` теперь указывают на один и тот же коммит
+   (`025fadbe`) и на GitHub, и локально. VPS3 по-прежнему деплоится с
+   `archive/grogu` (не трогал) — переименование/консолидация имён веток
+   как возможный будущий шаг, не сделано.
+
+### Открытые задачи на будущее (записаны, не начаты)
+
+- **Jony: частичное закрытие позиций** — сейчас API/фронтенд умеет
+  закрывать только ВСЕ позиции сразу (`close_all_now`/Mission Control).
+  Нужен новый endpoint (например `POST /close_position/{id}`), логика в
+  `loop.py` по аналогии с `close_all_now` но на одну позицию, кнопка на
+  фронтенде.
+- **Jony: readiness gauge** — сигнал готовности ко входу одной цифрой в
+  % (100% = вход), портировать логику из архивного Sniper1
+  (`~/Desktop/options` archive/grogu:`backend/services/paper_strategy.py`
+  → `entry_proximity()`, 0-100% + zone label, взвешенная сумма
+  adx/mtf/vol/regime/bull факторов, капается ниже 100 пока debounce-окно
+  не подтверждено на close-tick минуте). Фронтенд-часть — "потом".
+- **Real-vs-backtest win rate gap** — общий паттерн у Jony и Boba1
+  (реальный WR заметно ниже бэктестового) — не исследовано.
+
+## 16. Переход на Tyagach — СЛЕДУЮЩАЯ СЕССИЯ НАЧИНАЕТ ЗДЕСЬ
+
+Локального клона нет на этой машине — репо только на VPS3
+(`/root/tyagach/tyagach`, GitHub `github.com/bandurkas/TG.git`, branch
+`main`). Контейнеры (`tyagach-tyagach_api-1`, `tyagach-tyagach_loop-1`)
+здоровы, uptime 3 недели. API-порт 8100, но **обычные пути
+(`/state`, `/health`, `/params`, `/positions`) все дают 404** — нужно
+сначала посмотреть исходники (`api.py` или аналог) на VPS3/GitHub, чтобы
+узнать реальные роуты, вместо угадывания по конвенции Jony/opt-app.
+
+Последние коммиты (`git log --oneline -8` на VPS3):
+```
+3254f7d feat(tyagach): 12-15h UTC entry veto + fill sanity floor (P1+P2 of 07-09 review)
+98d0dec research(tyagach): end-to-end strategy review — fill friction 85% of BS-mid, 12-15h UTC entry dead zone
+caf9fbe research(tyagach): 5m/10m OB depth sweep — both REJECTED net-of-fees (0/816 each)
+fedfdcf fix(tyagach): live equity — periodic snapshots with unrealized PnL + equity_usd in /state
+38ca1ca feat(tyagach): per-cell OB config (depth_frac/r_target/expiry_days)
+570a20d research(tyagach): OB entry-depth x r_target x expiry sweep (~3500 combos)
+48167c7 Deactivate MB (live override), enable OB on all 4 TFs, TP/SL/TF in open notification
+ecb7024 research(tyagach): A/B same-direction scope — cross-TF stacking wins, keep live rule
+```
+
+**Явная зацепка на продолжение**: коммит `3254f7d` явно называет себя
+"P1+P2 of 07-09 review" — то есть был обзор стратегии 2026-07-09
+(`98d0dec` "end-to-end strategy review"), из которого закрыты только
+первые два пункта. **Проверить, есть ли P3+ пункты того же ревью,
+которые ещё не сделаны** — самая очевидная стартовая точка. Не нашёл
+файл самого ревью локально (нет клона) — искать на VPS3 в
+`/root/tyagach/tyagach` или в git log/diff коммита `98d0dec`.
+
+Никакого другого контекста по Tyagach в этой сессии не собирал — начинать
+с нуля (прочитать код, найти живые роуты API, посмотреть `/state`
+эквивалент, сверить с памятью `project_bot_fleet.md`).
+
 29/29 тестов проходят. Закоммичено (`b3e1f64`), запушено, задеплоено на
 VPS3 (`git merge` чисто, `docker compose build && up -d
 --force-recreate`), проверено на живом API: `cb_consec_limit` пропал из
