@@ -125,12 +125,17 @@ def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
     equity = state["equity_usd"] + pnl_usd
     pnls = json.loads(state["recent_pnls_json"])
     pnls = (pnls + [pnl_pct])[-50:]
-    cb_until = state["cb_cooldown_until_ms"]
+    # CB is per (coin,side) — a losing streak on one leg must not pause entries
+    # on the others (backtest 2026-08-01: isolating this vs. the old single
+    # global cb_cooldown_until_ms raised trades/day ~25% and improved holdout
+    # return/maxDD together, not a tradeoff between them).
+    cb_key = f"{p['coin']}:{p['side']}"
+    cb_by_key = json.loads(state["cb_until_json"])
     if pnl_pct <= 0 and arm_cb:
-        cb_until = now_ms + config.CB_PAUSE_HOURS * 3_600_000
+        cb_by_key[cb_key] = now_ms + config.CB_PAUSE_HOURS * 3_600_000
     repo.update_state(conn, equity_usd=equity,
                       recent_pnls_json=json.dumps(pnls),
-                      cb_cooldown_until_ms=cb_until)
+                      cb_until_json=json.dumps(cb_by_key))
     notify(f"CLOSE {p['coin']} {p['side']} {p['option_symbol']} {reason} "
            f"pnl ${pnl_usd:+.2f} ({pnl_pct*100:+.1f}% of premium) | "
            f"equity ${equity:.2f}"
@@ -146,7 +151,9 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
                                  spot, ev)
         return
 
-    if portfolio.cb_active(state["cb_cooldown_until_ms"], now_ms):
+    cb_key = f"{coin}:{side}"
+    cb_by_key = json.loads(state["cb_until_json"])
+    if portfolio.cb_active(cb_by_key.get(cb_key, 0), now_ms):
         repo.insert_signal_audit(conn, now_ms, coin, side, False, "cb_active",
                                  spot, ev)
         return

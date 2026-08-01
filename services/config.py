@@ -9,8 +9,12 @@ TRADING_MODE = os.getenv("JONY_TRADING_MODE", "paper").strip().lower()
 # ── Account engine (backtest-locked; do not tune without a new backtest) ──
 START_EQUITY_USD = float(os.getenv("JONY_START_EQUITY_USD", "800"))
 MARGIN_PCT_PER_TRADE = float(os.getenv("JONY_MARGIN_PCT", "0.15"))
-MAX_OPEN_POSITIONS = int(os.getenv("JONY_MAX_OPEN", "4"))
-PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "3"))
+# MAX_OPEN/PER_COIN_CAP raised 4->6 / 3->4 alongside the per-(coin,side) CB
+# above: 2yr basket backtest (2026-08-01), train+holdout, config C — holdout
+# +320.4% vs +152.7% for the old shared-CB/tighter-cap config, maxDD 9.4% vs
+# 4.5% (accepted tradeoff). See ~/Desktop/options/SESSION_HANDOFF_2026-08-01.md.
+MAX_OPEN_POSITIONS = int(os.getenv("JONY_MAX_OPEN", "6"))
+PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "4"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
 IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this

@@ -48,8 +48,9 @@ class TestExitMath(unittest.TestCase):
         self.assertAlmostEqual(row["pnl_usd"], -10.6, places=1)
         st = repo.get_state(self.conn)
         self.assertAlmostEqual(st["equity_usd"], 800 - 10.6, places=1)
-        # loss → CB armed for 8h
-        self.assertEqual(st["cb_cooldown_until_ms"], 1000 + 8 * 3_600_000)
+        # loss → CB armed for 8h, on the (coin,side) key only
+        cb = json.loads(st["cb_until_json"])
+        self.assertEqual(cb["ETH:C"], 1000 + 8 * 3_600_000)
         self.assertEqual(json.loads(st["recent_pnls_json"])[-1],
                          (30 - 55) / 30)
 
@@ -60,8 +61,23 @@ class TestExitMath(unittest.TestCase):
                          now_ms=1000, exit_debit=5.0, reason="tp2",
                          status="closed_tp2")
         st = repo.get_state(self.conn)
-        self.assertEqual(st["cb_cooldown_until_ms"], 0)
+        self.assertEqual(json.loads(st["cb_until_json"]), {})
         self.assertGreater(st["equity_usd"], 800)
+
+    def test_cb_isolated_per_coin_side(self):
+        # a loss on ETH:C must not arm CB on ETH:P
+        _mk_pos(self.conn, side="C")
+        p = repo.open_positions(self.conn)[0]
+        jony_loop._close(self.conn, repo.get_state(self.conn), p,
+                         now_ms=1000, exit_debit=55.0, reason="sl",
+                         status="closed_sl")
+        st = repo.get_state(self.conn)
+        cb = json.loads(st["cb_until_json"])
+        self.assertIn("ETH:C", cb)
+        self.assertNotIn("ETH:P", cb)
+        from services import portfolio
+        self.assertTrue(portfolio.cb_active(cb.get("ETH:C", 0), 1000))
+        self.assertFalse(portfolio.cb_active(cb.get("ETH:P", 0), 1000))
 
     def test_thresholds(self):
         # mark-based trigger levels for a Call entry=30:
@@ -107,7 +123,7 @@ class TestControl(unittest.TestCase):
                          now_ms=1000, exit_debit=55.0, reason="manual_close_all",
                          status="closed_manual", arm_cb=False)
         st = repo.get_state(self.conn)
-        self.assertEqual(st["cb_cooldown_until_ms"], 0)  # loss, but no CB
+        self.assertEqual(json.loads(st["cb_until_json"]), {})  # loss, but no CB
 
 
 if __name__ == "__main__":

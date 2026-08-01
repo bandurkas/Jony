@@ -30,11 +30,11 @@ class TestSizing(unittest.TestCase):
         self.assertEqual(qty, 0.0)         # free 10 < 28 → blocked
 
     def test_caps(self):
-        pos = [{"coin": "ETH"}] * 3
+        pos = [{"coin": "ETH"}] * 4
         self.assertEqual(portfolio.can_open(pos, "ETH"), "per_coin_cap")
         self.assertIsNone(portfolio.can_open(pos, "BTC"))
-        pos4 = [{"coin": "ETH"}] * 2 + [{"coin": "BTC"}] * 2
-        self.assertEqual(portfolio.can_open(pos4, "BTC"), "max_open_positions")
+        pos6 = [{"coin": "ETH"}] * 3 + [{"coin": "BTC"}] * 3
+        self.assertEqual(portfolio.can_open(pos6, "BTC"), "max_open_positions")
 
     def test_dyn_size(self):
         self.assertEqual(portfolio.dyn_size_factor([0.1] * 10), 1.0)
@@ -74,8 +74,8 @@ class TestPickAtm(unittest.TestCase):
 
 class TestConfigLocked(unittest.TestCase):
     def test_account_engine_constants(self):
-        self.assertEqual(config.MAX_OPEN_POSITIONS, 4)
-        self.assertEqual(config.PER_COIN_CAP, 3)
+        self.assertEqual(config.MAX_OPEN_POSITIONS, 6)
+        self.assertEqual(config.PER_COIN_CAP, 4)
         self.assertEqual(config.MARGIN_PCT_PER_TRADE, 0.15)
         self.assertEqual(config.CB_CONSEC_LIMIT, 1)
         self.assertEqual(config.CB_PAUSE_HOURS, 8)

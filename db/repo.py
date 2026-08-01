@@ -28,6 +28,7 @@ def apply_schema(conn: sqlite3.Connection) -> None:
     # (same pattern as Tyagach's _ensure_columns).
     migrations = [
         "ALTER TABLE bot_control ADD COLUMN close_all_requested INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE bot_state ADD COLUMN cb_until_json TEXT NOT NULL DEFAULT '{}'",
     ]
     for m in migrations:
         try:

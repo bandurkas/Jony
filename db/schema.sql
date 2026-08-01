@@ -5,7 +5,17 @@ CREATE TABLE IF NOT EXISTS bot_state (
     started_at_ms INTEGER NOT NULL,
     start_equity_usd REAL NOT NULL,
     equity_usd REAL NOT NULL,
-    cb_cooldown_until_ms INTEGER NOT NULL DEFAULT 0,
+    cb_cooldown_until_ms INTEGER NOT NULL DEFAULT 0,  -- unused since the CB-isolation
+                                                       -- change (2026-08-01) — kept so
+                                                       -- old rows/backups still parse;
+                                                       -- superseded by cb_until_json.
+    cb_until_json TEXT NOT NULL DEFAULT '{}',     -- {"ETH:P": until_ms, ...} — per
+                                                   -- (coin,side) circuit breaker, so a
+                                                   -- losing streak on one leg doesn't
+                                                   -- pause entries on the others (backtest:
+                                                   -- +25% trades/day, holdout return/maxDD
+                                                   -- both improved vs the old global CB —
+                                                   -- see chat memory 2026-08-01)
     recent_pnls_json TEXT NOT NULL DEFAULT '[]',
     last_fired_json TEXT NOT NULL DEFAULT '{}'   -- {"ETH:P": ts_ms, ...} cooldowns
 );
