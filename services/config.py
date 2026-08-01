@@ -9,12 +9,17 @@ TRADING_MODE = os.getenv("JONY_TRADING_MODE", "paper").strip().lower()
 # ── Account engine (backtest-locked; do not tune without a new backtest) ──
 START_EQUITY_USD = float(os.getenv("JONY_START_EQUITY_USD", "800"))
 MARGIN_PCT_PER_TRADE = float(os.getenv("JONY_MARGIN_PCT", "0.15"))
-# MAX_OPEN/PER_COIN_CAP raised 4->6 / 3->4 alongside the per-(coin,side) CB
-# above: 2yr basket backtest (2026-08-01), train+holdout, config C — holdout
-# +320.4% vs +152.7% for the old shared-CB/tighter-cap config, maxDD 9.4% vs
-# 4.5% (accepted tradeoff). See ~/Desktop/options/SESSION_HANDOFF_2026-08-01.md.
-MAX_OPEN_POSITIONS = int(os.getenv("JONY_MAX_OPEN", "6"))
-PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "4"))
+# MAX_OPEN/PER_COIN_CAP raised 6->10 / 4->6 (2026-08-02): margin sizing
+# (PORT_MARGIN_CAP below) was already the real risk budget — these count
+# caps sat below what margin allows, throttling trades margin would have
+# taken anyway. 10/6 is the elbow where the 2yr backtest's returns plateau
+# (margin becomes binding beyond it): holdout +2440.5%->+6091.9%, aggregate
+# holdout maxDD improves 8.6%->8.3%. Real live-signal-history replay (bot's
+# actual trades since 2026-07-02, not synthetic) confirms with no tradeoff:
+# 37->42 trades, win rate 73.0%->83.3%, return +45.0%->+76.0%, maxDD
+# 4.1%->3.5%. See ~/Desktop/Jony/SESSION_HANDOFF_2026-08-02.md §10-11.
+MAX_OPEN_POSITIONS = int(os.getenv("JONY_MAX_OPEN", "10"))
+PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "6"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
 IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this
