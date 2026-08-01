@@ -84,15 +84,15 @@ def params():
             "max_open_positions": config.MAX_OPEN_POSITIONS,
             "per_coin_cap": config.PER_COIN_CAP,
             "port_margin_cap": config.PORT_MARGIN_CAP,
-            "cb_consec_limit": config.CB_CONSEC_LIMIT,
             "cb_pause_hours": config.CB_PAUSE_HOURS,
             "cooldown_min": config.COOLDOWN_BARS * 5,
             "target_expiry_h": config.TARGET_EXPIRY_H,
         },
         "backtest": {
-            "finding": "finding_basket_eth_btc_call_mo4 (2026-07-02)",
-            "full_return_pct": 126.3, "max_dd_pct": 20.0,
-            "holdout_return_pct": 3.7, "trades_per_day": 1.05,
+            "finding": "config E + exit retune + per-key CB + MAX_OPEN=10/CAP=6 (2026-08-02)",
+            "train_return_pct": 449695.4, "train_max_dd_pct": 13.0,
+            "holdout_return_pct": 6091.9, "holdout_max_dd_pct": 8.3,
+            "trades_per_day": 2.18,
         },
     }
 

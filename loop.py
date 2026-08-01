@@ -42,11 +42,20 @@ def close_fill_price(m: dict) -> float:
     return (m.get("mark") or 0.0) * 1.01
 
 
-def manage_exits(conn, state: dict, now_ms: int) -> dict:
+def manage_exits(conn, state: dict, now_ms: int,
+                 stuck_alerted: set[int] | None = None) -> dict:
     """TP2 / SL / time-stop / expiry settlement for every open position.
-    Decision on mark price (Sniper1 convention), fill at ask (fallback mark+1%)."""
+    Decision on mark price (Sniper1 convention), fill at ask (fallback mark+1%).
+
+    stuck_alerted: position ids already alerted for failing to settle past
+    expiry (Bybit outage) — process-lifetime set, passed in by main() so a
+    stuck position pages once, not every minute it stays stuck; retry
+    continues unconditionally either way. None (e.g. in tests) = alerting
+    disabled, matching the prior unbounded-silent-retry behavior."""
     open_pos = repo.open_positions(conn)
     if not open_pos:
+        if stuck_alerted:
+            stuck_alerted.clear()
         return state
     marks_by_coin: dict[str, dict] = {}
     for coin in {p["coin"] for p in open_pos}:
@@ -62,6 +71,14 @@ def manage_exits(conn, state: dict, now_ms: int) -> dict:
                 # worst case only if spot is unavailable this tick.
                 k5 = bybit_client.get_klines(config.COIN_SPEC[p["coin"]]["symbol"], "5", 1)
                 if not k5:
+                    overdue_min = (now_ms - p["expiry_ms"]) / 60_000
+                    if (stuck_alerted is not None
+                            and overdue_min >= config.STUCK_SETTLEMENT_ALERT_MIN
+                            and p["id"] not in stuck_alerted):
+                        stuck_alerted.add(p["id"])
+                        notify(f"STUCK {p['coin']} {p['side']} {p['option_symbol']} — "
+                              f"{overdue_min:.0f}min past expiry, no quote/spot to "
+                              f"settle (Bybit outage?). Retrying every tick.")
                     continue
                 spot = k5[-1]["close"]
                 intrinsic = max(0.0, spot - p["strike"]) if p["side"] == "C" \
@@ -86,6 +103,14 @@ def manage_exits(conn, state: dict, now_ms: int) -> dict:
         if reason:
             _close(conn, state, p, now_ms, close_fill_price(m), reason, status)
             state = repo.get_state(conn)
+
+    # Prune any id that resolved via a path other than expiry-settle (normal
+    # TP2/SL/time_stop above, or a manual close-all between ticks — that one
+    # doesn't route through this function at all) — checked generically
+    # against what's still open, rather than a discard() at every closing
+    # branch, so no resolution path can leave a stale id alerted forever.
+    if stuck_alerted:
+        stuck_alerted &= {p["id"] for p in repo.open_positions(conn)}
     return state
 
 
@@ -117,25 +142,43 @@ def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
     pnl_pct = (entry - exit_debit) / entry if entry > 0 else 0.0
     fee_close = portfolio.fee_usd(p["strike"] * qty, exit_debit * qty)
     pnl_usd = (entry - exit_debit) * qty - p["fee_open_usd"] - fee_close
-    repo.close_position(conn, p["id"], status=status, closed_at_ms=now_ms,
-                        exit_debit=exit_debit, exit_reason=reason,
-                        pnl_pct=round(pnl_pct * 100, 2),
-                        pnl_usd=round(pnl_usd, 4))
+    # Both writes commit together (commit=False here, one conn.commit() at
+    # the end) — closing a position and NOT absorbing its pnl into
+    # equity/recent_pnls/CB state must never happen as two separate
+    # commits: a crash between them would leave the position permanently
+    # closed_* while equity/CB/dyn-size never see the pnl (manage_exits only
+    # revisits status='open' rows, so this wouldn't self-heal). The whole
+    # block is also wrapped in try/rollback: an in-process exception here
+    # (e.g. malformed JSON in state) must not leave a committed-later,
+    # semantically-stale close_position write pending on `conn` for some
+    # unrelated future commit() to silently flush — main()'s outer
+    # try/except logs and continues on the SAME connection, so without an
+    # explicit rollback the pending write would outlive the exception that
+    # should have discarded it.
+    try:
+        repo.close_position(conn, p["id"], status=status, closed_at_ms=now_ms,
+                            exit_debit=exit_debit, exit_reason=reason,
+                            pnl_pct=round(pnl_pct * 100, 2),
+                            pnl_usd=round(pnl_usd, 4), commit=False)
 
-    equity = state["equity_usd"] + pnl_usd
-    pnls = json.loads(state["recent_pnls_json"])
-    pnls = (pnls + [pnl_pct])[-50:]
-    # CB is per (coin,side) — a losing streak on one leg must not pause entries
-    # on the others (backtest 2026-08-01: isolating this vs. the old single
-    # global cb_cooldown_until_ms raised trades/day ~25% and improved holdout
-    # return/maxDD together, not a tradeoff between them).
-    cb_key = f"{p['coin']}:{p['side']}"
-    cb_by_key = json.loads(state["cb_until_json"])
-    if pnl_pct <= 0 and arm_cb:
-        cb_by_key[cb_key] = now_ms + config.CB_PAUSE_HOURS * 3_600_000
-    repo.update_state(conn, equity_usd=equity,
-                      recent_pnls_json=json.dumps(pnls),
-                      cb_until_json=json.dumps(cb_by_key))
+        equity = state["equity_usd"] + pnl_usd
+        pnls = json.loads(state["recent_pnls_json"])
+        pnls = (pnls + [pnl_pct])[-50:]
+        # CB is per (coin,side) — a losing streak on one leg must not pause
+        # entries on the others (backtest 2026-08-01: isolating this vs. the
+        # old single global cb_cooldown_until_ms raised trades/day ~25% and
+        # improved holdout return/maxDD together, not a tradeoff).
+        cb_key = f"{p['coin']}:{p['side']}"
+        cb_by_key = json.loads(state["cb_until_json"])
+        if pnl_pct <= 0 and arm_cb:
+            cb_by_key[cb_key] = now_ms + config.CB_PAUSE_HOURS * 3_600_000
+        repo.update_state(conn, equity_usd=equity,
+                          recent_pnls_json=json.dumps(pnls),
+                          cb_until_json=json.dumps(cb_by_key), commit=False)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     notify(f"CLOSE {p['coin']} {p['side']} {p['option_symbol']} {reason} "
            f"pnl ${pnl_usd:+.2f} ({pnl_pct*100:+.1f}% of premium) | "
            f"equity ${equity:.2f}"
@@ -151,6 +194,18 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
                                  spot, ev)
         return
 
+    # CB is checked BEFORE cooldown is consumed — while CB is active for this
+    # key, last_fired[key] is never advanced (the backtest's replay_account
+    # applies CB as a separate filter AFTER cooldown has already advanced
+    # unconditionally at event-generation time, a structurally different
+    # order). This is safe ONLY because CB_PAUSE_HOURS is always far longer
+    # than one cooldown window (guarded by
+    # test_portfolio.py::test_cb_pause_dominates_cooldown) — by the time CB
+    # clears, cooldown against the stale last_fired[key] is trivially
+    # satisfied, so it can never be the actual blocking constraint. If
+    # CB_PAUSE_HOURS is ever shortened toward COOLDOWN_BARS*5min, this
+    # ordering would need to change too (e.g. advance cooldown on every
+    # ready signal regardless of CB, matching the backtest).
     cb_key = f"{coin}:{side}"
     cb_by_key = json.loads(state["cb_until_json"])
     if portfolio.cb_active(cb_by_key.get(cb_key, 0), now_ms):
@@ -238,6 +293,7 @@ def main() -> None:
                             for c in config.COIN_SPEC}
     last_snapshot_min = -1
     last_exit_min = -1
+    stuck_alerted: set[int] = set()
 
     while True:
         try:
@@ -254,7 +310,7 @@ def main() -> None:
             # new entries, never risk management of what is already open.
             if last_exit_min != epoch_min:
                 last_exit_min = epoch_min
-                state = manage_exits(conn, state, now_ms)
+                state = manage_exits(conn, state, now_ms, stuck_alerted)
 
             # Mission Control "close all": API sets the flag, loop executes
             # (position writes stay with the single writer). Runs even when

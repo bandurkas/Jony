@@ -23,7 +23,12 @@ PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "6"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
 IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this
-CB_CONSEC_LIMIT = 1             # circuit breaker: losses before pause
+# CB arms unconditionally on any single losing close (loop.py::_close) — no
+# consecutive-loss counter exists live or in the backtest engine
+# (research/jony_engine.py::replay_account has the identical any-single-loss
+# rule). A prior CB_CONSEC_LIMIT constant implied a tunable threshold that
+# nothing ever read; removed 2026-08-02 rather than left as a misleading
+# no-op (see ~/Desktop/Jony/SESSION_HANDOFF_2026-08-02.md §14).
 CB_PAUSE_HOURS = 8
 
 # ── Entry mechanics (live Sniper1 conventions, validated) ──
@@ -51,6 +56,9 @@ KLINE_LIMIT_5M = 2200           # > BARS_7D=2016, headroom for ret_7d
 KLINE_LIMIT_15M = 300
 KLINE_LIMIT_1H = 300
 EQUITY_SNAPSHOT_EVERY_MIN = 30
+STUCK_SETTLEMENT_ALERT_MIN = 15  # alert once if a position can't settle
+                                 # this long past expiry (Bybit outage) —
+                                 # self-healing retry continues either way
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

@@ -77,10 +77,19 @@ class TestConfigLocked(unittest.TestCase):
         self.assertEqual(config.MAX_OPEN_POSITIONS, 10)
         self.assertEqual(config.PER_COIN_CAP, 6)
         self.assertEqual(config.MARGIN_PCT_PER_TRADE, 0.15)
-        self.assertEqual(config.CB_CONSEC_LIMIT, 1)
         self.assertEqual(config.CB_PAUSE_HOURS, 8)
         self.assertEqual(config.COOLDOWN_BARS, 6)
         self.assertEqual(config.FLICKER_TOLERANCE, 1)
+
+    def test_cb_pause_dominates_cooldown(self):
+        # loop.py::try_fire checks CB before consuming cooldown (see comment
+        # there) — safe only as long as a CB pause always outlasts a
+        # cooldown window, so cooldown against a stale last_fired[key] can
+        # never be the binding constraint right after CB clears. If this
+        # ever fails, try_fire's CB/cooldown ordering needs revisiting.
+        cooldown_ms = config.COOLDOWN_BARS * 300_000
+        cb_pause_ms = config.CB_PAUSE_HOURS * 3_600_000
+        self.assertGreater(cb_pause_ms, cooldown_ms)
 
 
 if __name__ == "__main__":

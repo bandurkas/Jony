@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 os.environ["JONY_DB_PATH"] = os.path.join(tempfile.mkdtemp(), "jony_test.db")
 
@@ -79,6 +80,58 @@ class TestExitMath(unittest.TestCase):
         self.assertTrue(portfolio.cb_active(cb.get("ETH:C", 0), 1000))
         self.assertFalse(portfolio.cb_active(cb.get("ETH:P", 0), 1000))
 
+    def test_close_and_state_update_are_one_transaction(self):
+        # close_position(commit=False) + update_state(commit=False) must not
+        # be visible to another connection until the caller's single
+        # conn.commit() — this is what makes _close() atomic (a crash
+        # between the two writes must never leave positions.status=closed_*
+        # without equity/CB also having absorbed the pnl).
+        pid = _mk_pos(self.conn)
+        p = repo.open_positions(self.conn)[0]
+        other = repo.connect()
+        try:
+            repo.close_position(self.conn, pid, status="closed_sl",
+                                closed_at_ms=1000, exit_debit=55.0,
+                                exit_reason="sl", pnl_pct=-83.33,
+                                pnl_usd=-10.6, commit=False)
+            repo.update_state(self.conn, equity_usd=789.4, commit=False)
+            # uncommitted: a second connection must still see the old state
+            other_row = dict(other.execute(
+                "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+            self.assertEqual(other_row["status"], "open")
+            self.assertEqual(repo.get_state(other)["equity_usd"], 800.0)
+
+            self.conn.commit()
+            other_row = dict(other.execute(
+                "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+            self.assertEqual(other_row["status"], "closed_sl")
+            self.assertEqual(repo.get_state(other)["equity_usd"], 789.4)
+        finally:
+            other.close()
+
+    def test_close_rolls_back_on_exception_between_writes(self):
+        # An in-process exception between close_position and update_state
+        # (both commit=False) must not leave the close_position write
+        # pending on `conn` for some later unrelated commit() to silently
+        # flush — _close() must roll back and re-raise.
+        pid = _mk_pos(self.conn)
+        p = repo.open_positions(self.conn)[0]
+        with patch.object(repo, "update_state", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                jony_loop._close(self.conn, repo.get_state(self.conn), p,
+                                 now_ms=1000, exit_debit=55.0, reason="sl",
+                                 status="closed_sl")
+        # rolled back: position must still read as open, not closed_sl.
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+        # and a later, totally unrelated commit must not resurrect the
+        # rolled-back write.
+        repo.update_state(self.conn, equity_usd=750.0)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+
     def test_thresholds(self):
         # mark-based trigger levels for a Call entry=30:
         # TP2 at pnl>=0.80 → mark<=6; SL at pnl<=-0.75 → mark>=52.5
@@ -124,6 +177,91 @@ class TestControl(unittest.TestCase):
                          status="closed_manual", arm_cb=False)
         st = repo.get_state(self.conn)
         self.assertEqual(json.loads(st["cb_until_json"]), {})  # loss, but no CB
+
+
+class TestStuckSettlement(unittest.TestCase):
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        self.conn.execute("DELETE FROM positions")
+        self.conn.execute("DELETE FROM bot_state")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+
+    def test_alerts_once_past_threshold_and_keeps_retrying(self):
+        expiry_ms = 1_000_000
+        pid = _mk_pos(self.conn, opened_at=0)
+        self.conn.execute("UPDATE positions SET expiry_ms=? WHERE id=?",
+                          (expiry_ms, pid))
+        self.conn.commit()
+        state = repo.get_state(self.conn)
+        stuck_alerted = set()
+        # Bybit totally down: no marks, no klines either.
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value={}), \
+             patch.object(jony_loop.bybit_client, "get_klines", return_value=[]), \
+             patch("loop.notify") as mock_notify:
+            # 5 min past expiry — below the 15min alert threshold, no alert yet.
+            jony_loop.manage_exits(self.conn, state, expiry_ms + 5 * 60_000, stuck_alerted)
+            self.assertEqual(stuck_alerted, set())
+            mock_notify.assert_not_called()
+
+            # 20 min past expiry — over threshold, alerts once.
+            jony_loop.manage_exits(self.conn, state, expiry_ms + 20 * 60_000, stuck_alerted)
+            self.assertEqual(stuck_alerted, {pid})
+            mock_notify.assert_called_once()
+            self.assertIn("STUCK", mock_notify.call_args[0][0])
+
+            # Next tick, still stuck: retried (still open), but not re-alerted.
+            jony_loop.manage_exits(self.conn, state, expiry_ms + 21 * 60_000, stuck_alerted)
+            mock_notify.assert_called_once()
+            row = dict(self.conn.execute(
+                "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+            self.assertEqual(row["status"], "open")
+
+    def test_manual_close_all_clears_stuck_alert_on_next_tick(self):
+        # close_all_now doesn't touch stuck_alerted at all (it can't — it's
+        # a different function/call path) — verify the generic prune in
+        # manage_exits picks it up on the very next tick once the position
+        # is simply no longer open, even with Bybit still fully down.
+        expiry_ms = 1_000_000
+        pid = _mk_pos(self.conn, opened_at=0)
+        self.conn.execute("UPDATE positions SET expiry_ms=? WHERE id=?",
+                          (expiry_ms, pid))
+        self.conn.commit()
+        state = repo.get_state(self.conn)
+        stuck_alerted = {pid}  # already alerted from a prior outage tick
+
+        marks = {"ETH-TEST": {"mark": 5.0, "bid": 4.9, "ask": 5.1}}
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value=marks), \
+             patch("loop.notify"):
+            # operator hits "Close All" (Mission Control) — resolves via a
+            # totally different code path than manage_exits' settlement branch.
+            jony_loop.close_all_now(self.conn, state, expiry_ms + 20 * 60_000)
+            state = repo.get_state(self.conn)
+            # next tick: position is gone (no open positions at all now) —
+            # manage_exits' early-return path must also clear stuck_alerted,
+            # not just the per-position generic prune at the end of the loop.
+            jony_loop.manage_exits(self.conn, state, expiry_ms + 21 * 60_000,
+                                   stuck_alerted)
+        self.assertEqual(stuck_alerted, set())
+
+    def test_settles_and_clears_alert_once_bybit_recovers(self):
+        expiry_ms = 1_000_000
+        pid = _mk_pos(self.conn, side="C", opened_at=0)
+        self.conn.execute("UPDATE positions SET expiry_ms=?, strike=2500 WHERE id=?",
+                          (expiry_ms, pid))
+        self.conn.commit()
+        state = repo.get_state(self.conn)
+        stuck_alerted = {pid}  # already alerted from a prior outage tick
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value={}), \
+             patch.object(jony_loop.bybit_client, "get_klines",
+                          return_value=[{"close": 2600.0}]), \
+             patch("loop.notify"):
+            jony_loop.manage_exits(self.conn, state, expiry_ms + 20 * 60_000, stuck_alerted)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "closed_time")
+        self.assertEqual(stuck_alerted, set())  # cleared once it actually settled
 
 
 if __name__ == "__main__":

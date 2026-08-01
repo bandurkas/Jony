@@ -61,10 +61,11 @@ def try_get_state(conn: sqlite3.Connection) -> dict | None:
     return dict(row) if row else None
 
 
-def update_state(conn: sqlite3.Connection, **fields) -> None:
+def update_state(conn: sqlite3.Connection, *, commit: bool = True, **fields) -> None:
     keys = ", ".join(f"{k}=?" for k in fields)
     conn.execute(f"UPDATE bot_state SET {keys} WHERE id=1", tuple(fields.values()))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def is_paused(conn: sqlite3.Connection) -> bool:
@@ -115,12 +116,13 @@ def insert_position(conn: sqlite3.Connection, p: dict) -> int:
 
 def close_position(conn: sqlite3.Connection, pos_id: int, *, status: str,
                    closed_at_ms: int, exit_debit: float, exit_reason: str,
-                   pnl_pct: float, pnl_usd: float) -> None:
+                   pnl_pct: float, pnl_usd: float, commit: bool = True) -> None:
     conn.execute(
         "UPDATE positions SET status=?, closed_at_ms=?, exit_debit=?,"
         " exit_reason=?, pnl_pct=?, pnl_usd=? WHERE id=?",
         (status, closed_at_ms, exit_debit, exit_reason, pnl_pct, pnl_usd, pos_id))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def insert_equity_snapshot(conn: sqlite3.Connection, ts_ms: int, equity: float,
