@@ -6,3 +6,6 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+research/fresh_data/
+research/*.pkl
+research/*.csv

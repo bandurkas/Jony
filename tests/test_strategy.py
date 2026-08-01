@@ -16,10 +16,10 @@ class TestBacktestLockedParams(unittest.TestCase):
 
     def test_gates_match_backtest(self):
         self.assertEqual(PUT_GEN["vol_threshold"], 0.50)
-        self.assertEqual(PUT_GEN["regime_filter"], ("range",))
+        self.assertEqual(PUT_GEN["regime_filter"], ("range", "transition"))
         self.assertIsNone(PUT_GEN["mtf_anchor_tf"])
-        self.assertEqual(CALL_GEN["vol_threshold"], 0.60)
-        self.assertEqual(CALL_GEN["regime_filter"], ("range", "transition"))
+        self.assertEqual(CALL_GEN["vol_threshold"], 0.45)
+        self.assertEqual(CALL_GEN["regime_filter"], ("range", "transition", "trend"))
         self.assertEqual(CALL_GEN["mtf_anchor_tf"], "1h")
         self.assertEqual(CALL_GEN["bull_market_ratio_max"], 1.05)
 

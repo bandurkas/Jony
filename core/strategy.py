@@ -3,8 +3,20 @@
 finding_basket_eth_btc_call_mo4). Ported from opt-app paper_strategy's
 evaluate_conditions/_evaluate_side, generalized per-coin.
 
-DO NOT tune numbers here without a new validated backtest:
-frequency levers are rejected 5x over (see opt memory REJECTED section).
+DO NOT tune numbers here without a new validated backtest: these frequency
+levers were rejected 5x over against the OLD account config (shared CB,
+MAX_OPEN=4/PER_COIN_CAP=3). Re-tested 2026-08-01 against the per-(coin,side)
+CB + MAX_OPEN=6/PER_COIN_CAP=4 config that shipped the same day (see
+~/Desktop/Jony/research/ — sweep_thresholds.py + quarter_robustness.py),
+since that account-level change altered the trade population these levers
+operate on. Config "E" below beat the live baseline on train AND holdout AND
+every one of 4 independent quarters (fresh-capital replay, not compounded) —
+holdout return +320.8%->+1809.3%, holdout maxDD 9.4%->9.1% (but 13-13.5% in
+2 of 4 quarters — the CALL regime+trend lever is the one still worth
+watching live: selling calls in a trending market is bounded per-trade by
+SL_pct but a cluster of them in a real blow-off top wasn't stress-tested by
+this 2yr window). Any FURTHER tuning needs the same train+holdout+quarters
+discipline, not ad hoc numbers.
 """
 from __future__ import annotations
 
@@ -18,15 +30,15 @@ HIST = 240                # bars fed to MTF/regime/vol, matches opt-app
 
 PUT_GEN = {
     "vol_threshold": 0.50,
-    "regime_filter": ("range",),          # strict — +transition REJECTED 2026-07-02
+    "regime_filter": ("range", "transition"),  # +transition added 2026-08-01 (config E)
     "mtf_direction_filter": "up",
     "mtf_anchor_tf": None,                # 3-way >=2/3 consensus
     "bull_market_ratio_max": None,
 }
 
 CALL_GEN = {
-    "vol_threshold": 0.60,
-    "regime_filter": ("range", "transition"),
+    "vol_threshold": 0.45,                # 0.60->0.45 2026-08-01 (config E)
+    "regime_filter": ("range", "transition", "trend"),  # +trend added 2026-08-01 (config E)
     "mtf_direction_filter": "down",
     "mtf_anchor_tf": "1h",                # validated CALL-only anchor
     "bull_market_ratio_max": 1.05,
