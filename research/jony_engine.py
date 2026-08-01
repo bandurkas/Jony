@@ -243,10 +243,18 @@ def build_coin_base(coin: str) -> dict:
     return base
 
 
-def evaluate_gates(base: dict, put_gen: dict | None = None, call_gen: dict | None = None) -> pd.DataFrame:
+def evaluate_gates(base: dict, put_gen: dict | None = None, call_gen: dict | None = None,
+                   vol_guard: dict | None = None) -> pd.DataFrame:
     """Cheap, vectorized per-variant layer on top of build_coin_base(): applies
     vol_threshold/regime_filter/mtf/bull_market_ratio_max to produce ready_P/
-    ready_C. put_gen/call_gen default to jc.PUT_GEN/CALL_GEN (live-deployed)."""
+    ready_C. put_gen/call_gen default to jc.PUT_GEN/CALL_GEN (live-deployed).
+
+    vol_guard (experimental, off by default — see research/sweep_vol_guard.py):
+    {"lookback_h": int, "max_accel": float}. Blocks entry when current rv1h
+    has risen more than max_accel-x versus lookback_h hours ago — distinct
+    from vol_threshold (which requires vol to be elevated vs its OWN trailing
+    percentile, rewarding entry mid-spike). Missing lookback history (warmup)
+    defaults to allowed, same convention as bull_filter_ok."""
     put_gen = jc.PUT_GEN if put_gen is None else put_gen
     call_gen = jc.CALL_GEN if call_gen is None else call_gen
     n = len(base["start_ms"])
@@ -280,6 +288,17 @@ def evaluate_gates(base: dict, put_gen: dict | None = None, call_gen: dict | Non
     ready_put_raw = vol_high_put & put_regime_ok & put_mtf_ok
     ready_call_raw = vol_high_call & call_regime_ok & call_mtf_ok & bull_ok
 
+    if vol_guard is not None:
+        lb = vol_guard["lookback_h"]
+        accel_1h = rv1h_native / rv1h_native.shift(lb)
+        guard_ok_1h = accel_1h.isna() | (accel_1h <= vol_guard["max_accel"])
+        df_guard = pd.DataFrame({"start_ms": base["start_ms_1h"], "guard_ok": guard_ok_1h.values})
+        bcast_guard = pd.merge_asof(pd.DataFrame({"start_ms": base["start_ms"]}), df_guard,
+                                    on="start_ms", direction="backward")
+        guard_ok = bcast_guard["guard_ok"].fillna(True).astype(bool).values
+        ready_put_raw = ready_put_raw & guard_ok
+        ready_call_raw = ready_call_raw & guard_ok
+
     ready_P = base["allowed_P"] & ready_put_raw
     ready_C = base["allowed_C"] & ready_call_raw
 
@@ -308,7 +327,9 @@ def _vec_bs_price(side: str, S: np.ndarray, K: float, T: np.ndarray, sigma: floa
 
 def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.ndarray, low: np.ndarray,
                          start_ms: np.ndarray, sigma: float, tp2_pct: float, sl_pct: float,
-                         hold_h: float, strike_round: float, expiry_h: float = jc.TARGET_EXPIRY_H):
+                         hold_h: float, strike_round: float, expiry_h: float = jc.TARGET_EXPIRY_H,
+                         vol_track: np.ndarray | None = None, vol_stop_accel: float | None = None,
+                         vol_stop_require_loss: bool = False):
     """Prices off the option's REAL tenor (weekly, expiry_h=168h by default —
     matches config.TARGET_EXPIRY_H / pick_atm_option's weekly selection), not
     the planned holding time. hold_h only caps how long we keep walking
@@ -322,7 +343,15 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     Vectorized over the forward-bar window (numpy arrays, not DataFrame
     iterrows) — the original per-bar Python loop with scalar bs.price() calls
     cost ~62s for 3195 trades; this is the same first-passage-time scan
-    expressed as array ops."""
+    expressed as array ops.
+
+    vol_track/vol_stop_accel (experimental, off by default — see
+    research/sweep_vol_guard.py): vol_track is a 5m-grid-aligned realized-vol
+    series (same length as close/high/low, UNCLAMPED — i.e. not the
+    SIGMA_CLAMP'd pricing sigma). If rv at any bar during the hold reaches
+    vol_stop_accel-x the entry-time rv, the position is bought back early at
+    that bar's close-based mark, regardless of price-based TP2/SL. Priority
+    on a same-bar tie: sl > vol_stop > tp2 (protecting capital first)."""
     spot0 = close[entry_idx]
     strike = round(spot0 / strike_round) * strike_round
     T0 = expiry_h / (24 * 365)
@@ -352,12 +381,39 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     tp_hits = np.flatnonzero(premium_low <= tp2_mid)
     first_sl = sl_hits[0] if len(sl_hits) else None
     first_tp = tp_hits[0] if len(tp_hits) else None
-    if first_sl is not None and (first_tp is None or first_sl <= first_tp):
-        # tie (same bar) matches the original sequential check order: SL wins
-        return {"resolution": "sl", "pnl_pct": -sl_pct, "exit_ts": int(start_ms[lo_idx + first_sl]),
-                "strike": strike, "entry_credit": entry_credit}
-    if first_tp is not None:
-        return {"resolution": "tp2", "pnl_pct": tp2_pct, "exit_ts": int(start_ms[lo_idx + first_tp]),
+
+    first_vol = None
+    if vol_track is not None and vol_stop_accel is not None:
+        entry_vol = vol_track[entry_idx]
+        if entry_vol > 0:
+            accel = vol_track[lo_idx:hi_idx] / entry_vol
+            vol_hit_mask = accel >= vol_stop_accel
+            if vol_stop_require_loss:
+                # only fire while the position is ALSO already underwater —
+                # round-1 sweep found a pure vol-level trigger clips winners
+                # that see a transient vol uptick before recovering to TP2;
+                # this restricts it to the loss case the idea was meant for.
+                premium_close = _vec_bs_price(side, close[lo_idx:hi_idx], strike, T, sigma)
+                vol_hit_mask = vol_hit_mask & (premium_close > entry_credit)
+            vol_hits = np.flatnonzero(vol_hit_mask)
+            if len(vol_hits):
+                first_vol = vol_hits[0]
+
+    # priority rank for same-bar ties: sl(0) > vol_stop(1) > tp2(2)
+    candidates = [(idx, rank, kind) for idx, rank, kind in
+                 ((first_sl, 0, "sl"), (first_vol, 1, "vol_stop"), (first_tp, 2, "tp2")) if idx is not None]
+    if candidates:
+        idx, _, kind = min(candidates)  # earliest bar; ties broken by rank
+        if kind == "sl":
+            return {"resolution": "sl", "pnl_pct": -sl_pct, "exit_ts": int(start_ms[lo_idx + idx]),
+                    "strike": strike, "entry_credit": entry_credit}
+        if kind == "tp2":
+            return {"resolution": "tp2", "pnl_pct": tp2_pct, "exit_ts": int(start_ms[lo_idx + idx]),
+                    "strike": strike, "entry_credit": entry_credit}
+        mid = bs.price(side, close[lo_idx + idx], strike, T[idx], sigma)
+        buyback = mid * (1 + HALF_SPREAD)
+        pnl_pct = (entry_credit - buyback) / entry_credit if entry_credit > 0 else 0.0
+        return {"resolution": "vol_stop", "pnl_pct": pnl_pct, "exit_ts": int(start_ms[lo_idx + idx]),
                 "strike": strike, "entry_credit": entry_credit}
 
     final_mid = bs.price(side, close[hi_idx - 1], strike, T[-1], sigma)
@@ -369,13 +425,16 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
 
 def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None,
                 call_gen: dict | None = None, put_exit: dict | None = None,
-                call_exit: dict | None = None) -> list[dict]:
+                call_exit: dict | None = None, vol_guard: dict | None = None,
+                vol_stop_accel: float | None = None, vol_stop_require_loss: bool = False) -> list[dict]:
     """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
-    accept overrides — used by the exit-parameter sweep."""
+    accept overrides — used by the exit-parameter sweep. vol_guard/
+    vol_stop_accel are the experimental entry-guard/exit-stop from
+    research/sweep_vol_guard.py — both off (None) by default."""
     put_exit = jc.PUT_EXIT if put_exit is None else put_exit
     call_exit = jc.CALL_EXIT if call_exit is None else call_exit
     base = build_coin_base(coin)
-    sig = evaluate_gates(base, put_gen=put_gen, call_gen=call_gen)
+    sig = evaluate_gates(base, put_gen=put_gen, call_gen=call_gen, vol_guard=vol_guard)
     d5 = load_klines(coin, "5m")
     close, high, low = d5["close"].values, d5["high"].values, d5["low"].values
     start_ms_arr = d5["start_ms"].values
@@ -383,6 +442,15 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
     rv1h = rolling_realized_vol(d1h["close"], lookback=24).clip(*SIGMA_CLAMP)
     # map each 5m bar to nearest-past 1h sigma reading
     sig = pd.merge_asof(sig, d1h[["start_ms"]].assign(sigma=rv1h.values), on="start_ms", direction="backward")
+
+    vol_track_arr = None
+    if vol_stop_accel is not None:
+        # UNCLAMPED rv1h broadcast to the 5m grid — used only for the
+        # vol_stop trigger, not for BS pricing (which uses the clamped sigma).
+        df_rv_native = pd.DataFrame({"start_ms": base["start_ms_1h"], "rv1h_native": base["rv1h_native"]})
+        bcast = pd.merge_asof(pd.DataFrame({"start_ms": start_ms_arr}), df_rv_native,
+                              on="start_ms", direction="backward")
+        vol_track_arr = bcast["rv1h_native"].values
 
     ready_P = sig["ready_P"].values
     ready_C = sig["ready_C"].values
@@ -407,7 +475,9 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 continue
             ex = put_exit if side == "P" else call_exit
             out = simulate_option_exit(side, i, close, high, low, start_ms_arr, float(sigma),
-                                       ex["tp2_pct"], ex["sl_pct"], ex["hold_h"], jc.STRIKE_ROUND[coin])
+                                       ex["tp2_pct"], ex["sl_pct"], ex["hold_h"], jc.STRIKE_ROUND[coin],
+                                       vol_track=vol_track_arr, vol_stop_accel=vol_stop_accel,
+                                       vol_stop_require_loss=vol_stop_require_loss)
             cooldown_until[side] = start_ms_sig[i] + jc.COOLDOWN_BARS * 300_000
             if out is None:
                 continue
