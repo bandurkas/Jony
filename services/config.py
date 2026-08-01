@@ -34,6 +34,11 @@ CB_PAUSE_HOURS = 8
 # ── Entry mechanics (live Sniper1 conventions, validated) ──
 FLICKER_TOLERANCE = 1           # tol1 debounce
 ENTRY_FIRE_SECOND = 50          # fire near candle close
+FIVE_MIN = 5                    # window size (minutes) for the per-coin gate
+                                 # debounce in loop.py; also the canonical
+                                 # source for core/proximity.py's window_id()
+                                 # so the live loop and the dashboard gauge
+                                 # can never drift onto different window sizes
 COOLDOWN_BARS = 6               # 30 min per (coin, side)
 TARGET_EXPIRY_H = 168           # weekly options both sides — matches the
                                 # backtest's credit pricing (hold_h caps the

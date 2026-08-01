@@ -145,6 +145,9 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
         "vol_high": False, "regime_ok": False, "mtf_direction_ok": False,
         "bull_filter_ok": True, "vol_pctile": None, "regime": None,
         "mtf_direction": None, "ema_ratio": None,
+        "tfs_aligned": None,  # 0-3, how many of 5m/15m/1h agree on `mtf_direction` —
+                               # display-only continuous MTF proxy for the entry-
+                               # proximity gauge (core/proximity.py); not itself a gate.
     }
     if not k5 or not k15 or not k1h:
         return out
@@ -164,6 +167,7 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
     s1h = k1h[-HIST:]
     mtf = consensus(analyze_tf(s5), analyze_tf(s15), analyze_tf(s1h))
     out["mtf_direction"] = mtf["direction"]
+    out["tfs_aligned"] = mtf["tfs_aligned"]
 
     closes_1h = [c["close"] for c in s1h]
     rolling_vols: list[float] = []
