@@ -284,7 +284,8 @@ def evaluate_gates(base: dict, put_gen: dict | None = None, call_gen: dict | Non
     ready_C = base["allowed_C"] & ready_call_raw
 
     return pd.DataFrame({"start_ms": base["start_ms"], "spot": base["spot"],
-                         "ready_P": ready_P, "ready_C": ready_C, "coin": base["coin"]})
+                         "ready_P": ready_P, "ready_C": ready_C, "coin": base["coin"],
+                         "regime": base["regime"]})
 
 
 def _vec_bs_price(side: str, S: np.ndarray, K: float, T: np.ndarray, sigma: float, r: float = 0.0) -> np.ndarray:
@@ -367,7 +368,12 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
 
 
 def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None,
-                call_gen: dict | None = None) -> list[dict]:
+                call_gen: dict | None = None, put_exit: dict | None = None,
+                call_exit: dict | None = None) -> list[dict]:
+    """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
+    accept overrides — used by the exit-parameter sweep."""
+    put_exit = jc.PUT_EXIT if put_exit is None else put_exit
+    call_exit = jc.CALL_EXIT if call_exit is None else call_exit
     base = build_coin_base(coin)
     sig = evaluate_gates(base, put_gen=put_gen, call_gen=call_gen)
     d5 = load_klines(coin, "5m")
@@ -382,6 +388,7 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
     ready_C = sig["ready_C"].values
     start_ms_sig = sig["start_ms"].values
     sigma_arr = sig["sigma"].values
+    regime_arr = sig["regime"].values
 
     trades = []
     cooldown_until = {"P": -1, "C": -1}
@@ -398,7 +405,7 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
             sigma = sigma_arr[i]
             if pd.isna(sigma) or sigma <= 0:
                 continue
-            ex = jc.exit_params(side)
+            ex = put_exit if side == "P" else call_exit
             out = simulate_option_exit(side, i, close, high, low, start_ms_arr, float(sigma),
                                        ex["tp2_pct"], ex["sl_pct"], ex["hold_h"], jc.STRIKE_ROUND[coin])
             cooldown_until[side] = start_ms_sig[i] + jc.COOLDOWN_BARS * 300_000
@@ -409,15 +416,19 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 "exit_ts": int(out["exit_ts"]), "resolution": out["resolution"],
                 "pnl_pct": out["pnl_pct"], "strike": out["strike"],
                 "entry_credit": out["entry_credit"], "lot": {"ETH": 0.1, "BTC": 0.01}[coin],
+                "regime": str(regime_arr[i]),
             })
     return trades
 
 
 def replay_account(trades: list[dict], mo: int, cap: int, start_equity: float = jc.START_EQUITY_USD,
-                   cb_mode: str = "per_key") -> dict:
+                   cb_mode: str = "per_key", size_mult_fn=None) -> dict:
     """cb_mode: 'per_key' (live default since 2026-08-01 — CB keyed by
     'coin:side', a loss on one leg doesn't pause the others) or 'global'
-    (pre-2026-08-01 behavior — any loss pauses ALL entries for CB_PAUSE_HOURS)."""
+    (pre-2026-08-01 behavior — any loss pauses ALL entries for CB_PAUSE_HOURS).
+    size_mult_fn(trade) -> float, default None (= 1.0 for every trade) — used
+    to test regime-aware position sizing (e.g. half-size CALLs when
+    regime=='trend') on top of the live dyn_size_factor logic."""
     trades = sorted(trades, key=lambda t: t["entry_ts"])
     equity = start_equity
     peak = equity
@@ -446,8 +457,9 @@ def replay_account(trades: list[dict], mo: int, cap: int, start_equity: float = 
             n_skipped_cap += 1
             continue
         used_margin = sum(p["margin"] for p in open_positions)
+        mult = size_mult_fn(t) if size_mult_fn is not None else 1.0
         qty, margin = jc.size_position(equity, used_margin, recent_pnls,
-                                       t["strike"], t["entry_credit"], t["lot"])
+                                       t["strike"], t["entry_credit"], t["lot"], size_mult=mult)
         if qty <= 0:
             continue
         notional = t["strike"] * qty

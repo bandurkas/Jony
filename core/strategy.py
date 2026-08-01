@@ -12,11 +12,28 @@ since that account-level change altered the trade population these levers
 operate on. Config "E" below beat the live baseline on train AND holdout AND
 every one of 4 independent quarters (fresh-capital replay, not compounded) —
 holdout return +320.8%->+1809.3%, holdout maxDD 9.4%->9.1% (but 13-13.5% in
-2 of 4 quarters — the CALL regime+trend lever is the one still worth
-watching live: selling calls in a trending market is bounded per-trade by
-SL_pct but a cluster of them in a real blow-off top wasn't stress-tested by
-this 2yr window). Any FURTHER tuning needs the same train+holdout+quarters
-discipline, not ad hoc numbers.
+2 of 4 quarters — the CALL regime+trend lever flagged as worth watching:
+selling calls in a trending market is bounded per-trade by SL_pct but a
+cluster of them in a real blow-off top wasn't stress-tested by this 2yr
+window).
+
+Exit params re-tested 2026-08-01 same day (see research/sweep_exits.py +
+validate_combined.py) specifically to address that flagged risk: CALL
+tp2_pct 0.80->0.70 (take profit sooner — needs only 70% premium decay
+instead of 80%) turned out to cut Q1/Q2 holdout-quarter maxDD from
+13.4-13.5% to 10.2-10.4% on its own, MORE than a CALL-trend-regime
+position-size cut tested alongside it (which was dropped — redundant once
+the faster exit closes the position sooner, and empirically worse: 12.9%/
+10.5% maxDD at half size vs 10.4%/10.2% at full size with the faster exit).
+Mechanism: exiting sooner means less time-in-market exposed to a trend
+continuing against the position — that's the actual driver of the tail
+risk, not the trend-regime entry itself. Combined with PUT sl_pct 2.00->1.75
+and PUT hold_h 96->120 (also single-lever-validated): holdout return
++1809.3%->+2440.5%, holdout maxDD 9.1%->8.6%, better or equal in 7 of 8
+quarter-level return/maxDD pairs vs the pre-exit-tune numbers above.
+
+Any FURTHER tuning needs the same train+holdout+quarters discipline, not
+ad hoc numbers.
 """
 from __future__ import annotations
 
@@ -44,8 +61,8 @@ CALL_GEN = {
     "bull_market_ratio_max": 1.05,
 }
 
-PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 2.00, "hold_h": 96}
-CALL_EXIT = {"tp2_pct": 0.80, "sl_pct": 0.75, "hold_h": 24}
+PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 1.75, "hold_h": 120}  # sl 2.00->1.75, hold 96->120 2026-08-01
+CALL_EXIT = {"tp2_pct": 0.70, "sl_pct": 0.75, "hold_h": 24}  # tp2 0.80->0.70 2026-08-01
 
 # Basket composition (the backtest's winner): BTC Put is FORBIDDEN
 # (-7.5%/trade, no VRP edge — BTC falls less in panic vol).

@@ -11,8 +11,8 @@ class TestBacktestLockedParams(unittest.TestCase):
     """If any of these fail, someone tuned constants without a backtest."""
 
     def test_exits_match_backtest(self):
-        self.assertEqual(PUT_EXIT, {"tp2_pct": 0.70, "sl_pct": 2.00, "hold_h": 96})
-        self.assertEqual(CALL_EXIT, {"tp2_pct": 0.80, "sl_pct": 0.75, "hold_h": 24})
+        self.assertEqual(PUT_EXIT, {"tp2_pct": 0.70, "sl_pct": 1.75, "hold_h": 120})
+        self.assertEqual(CALL_EXIT, {"tp2_pct": 0.70, "sl_pct": 0.75, "hold_h": 24})
 
     def test_gates_match_backtest(self):
         self.assertEqual(PUT_GEN["vol_threshold"], 0.50)

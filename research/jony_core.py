@@ -178,8 +178,10 @@ PUT_GEN = {"vol_threshold": 0.50, "regime_filter": ("range", "transition"),
           "mtf_direction_filter": "up", "mtf_anchor_tf": None, "bull_market_ratio_max": None}
 CALL_GEN = {"vol_threshold": 0.45, "regime_filter": ("range", "transition", "trend"),
            "mtf_direction_filter": "down", "mtf_anchor_tf": "1h", "bull_market_ratio_max": 1.05}
-PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 2.00, "hold_h": 96}
-CALL_EXIT = {"tp2_pct": 0.80, "sl_pct": 0.75, "hold_h": 24}
+# exit tune deployed 2026-08-01 (was PUT sl_pct=2.00/hold_h=96, CALL
+# tp2_pct=0.80; see sweep_exits.py/validate_combined.py for the backtest).
+PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 1.75, "hold_h": 120}
+CALL_EXIT = {"tp2_pct": 0.70, "sl_pct": 0.75, "hold_h": 24}
 COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C",)}
 
 
@@ -295,10 +297,14 @@ def margin_per_lot(strike: float, premium: float, lot: float) -> float:
 
 
 def size_position(equity: float, used_margin: float, recent_pnls: list[float],
-                  strike: float, premium: float, lot: float) -> tuple[float, float]:
+                  strike: float, premium: float, lot: float, size_mult: float = 1.0) -> tuple[float, float]:
+    """size_mult: research-only extra scale on top of dyn_size_factor (default
+    1.0 = live behavior unchanged) — used to test regime-aware sizing (e.g.
+    smaller CALL positions specifically when regime=='trend') without
+    touching the live dyn_size_factor loss-streak logic."""
     free = max(0.0, equity * PORT_MARGIN_CAP - used_margin)
     dyn = dyn_size_factor(recent_pnls)
-    budget = min(equity * MARGIN_PCT_PER_TRADE * dyn, free)
+    budget = min(equity * MARGIN_PCT_PER_TRADE * dyn, free) * size_mult
     m_lot = margin_per_lot(strike, premium, lot)
     if m_lot <= 0:
         return 0.0, 0.0
