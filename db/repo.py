@@ -100,9 +100,57 @@ def pop_close_all(conn: sqlite3.Connection) -> bool:
     return False
 
 
+def upsert_window_status(conn: sqlite3.Connection, coin: str, *, wid: int,
+                         min_in_window: int, disqualified: bool, ev: dict,
+                         checked_at_ms: int) -> None:
+    """Loop-side write, once per distinct minute per coin (same cadence as
+    the gate check itself in loop.py) — see core/proximity.py for why the
+    API needs this rather than recomputing debounce state itself."""
+    conn.execute(
+        "INSERT INTO window_status (coin, wid, min_in_window, disqualified, ev_json, checked_at_ms)"
+        " VALUES (?, ?, ?, ?, ?, ?)"
+        " ON CONFLICT(coin) DO UPDATE SET wid=excluded.wid, min_in_window=excluded.min_in_window,"
+        " disqualified=excluded.disqualified, ev_json=excluded.ev_json, checked_at_ms=excluded.checked_at_ms",
+        (coin, wid, min_in_window, int(disqualified), json.dumps(ev), checked_at_ms))
+    conn.commit()
+
+
+def get_window_status(conn: sqlite3.Connection, coin: str) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM window_status WHERE coin=?", (coin,)).fetchone()
+    if row is None:
+        return None
+    d = dict(row)
+    d["ev"] = json.loads(d.pop("ev_json"))
+    d["disqualified"] = bool(d["disqualified"])
+    return d
+
+
 def open_positions(conn: sqlite3.Connection) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT * FROM positions WHERE status='open' ORDER BY opened_at_ms")]
+
+
+def get_open_position(conn: sqlite3.Connection, pos_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM positions WHERE id=? AND status='open'", (pos_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def request_close_position(conn: sqlite3.Connection, pos_id: int, now_ms: int) -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO close_requests (position_id, requested_at_ms) VALUES (?, ?)",
+        (pos_id, now_ms))
+    conn.commit()
+
+
+def pop_close_requests(conn: sqlite3.Connection) -> list[int]:
+    """Read-and-reset all pending single-position close requests (loop side)."""
+    ids = [r["position_id"] for r in conn.execute("SELECT position_id FROM close_requests")]
+    if ids:
+        conn.execute("DELETE FROM close_requests")
+        conn.commit()
+    return ids
 
 
 def insert_position(conn: sqlite3.Connection, p: dict) -> int:

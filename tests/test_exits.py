@@ -178,6 +178,57 @@ class TestControl(unittest.TestCase):
         st = repo.get_state(self.conn)
         self.assertEqual(json.loads(st["cb_until_json"]), {})  # loss, but no CB
 
+    def test_close_position_request_queues_and_pops_once(self):
+        pid = _mk_pos(self.conn)
+        repo.request_close_position(self.conn, pid, now_ms=500)
+        # duplicate request for the same id is a no-op (INSERT OR IGNORE) —
+        # a double-click on the dashboard button must not queue two closes
+        repo.request_close_position(self.conn, pid, now_ms=600)
+        self.assertEqual(repo.pop_close_requests(self.conn), [pid])
+        self.assertEqual(repo.pop_close_requests(self.conn), [])  # reset after pop
+        # does NOT pause the bot, unlike request_close_all
+        self.assertFalse(repo.is_paused(self.conn))
+
+    def test_close_position_now_closes_one_leaves_others_open(self):
+        pid_a = _mk_pos(self.conn, side="C")
+        pid_b = _mk_pos(self.conn, side="P")
+        state = repo.get_state(self.conn)
+        marks = {"ETH-TEST": {"mark": 5.0, "bid": 4.9, "ask": 5.1}}
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value=marks):
+            jony_loop.close_position_now(self.conn, state, pid_a, now_ms=1000)
+        row_a = dict(self.conn.execute(
+            "SELECT status, exit_reason FROM positions WHERE id=?", (pid_a,)).fetchone())
+        row_b = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid_b,)).fetchone())
+        self.assertEqual(row_a["status"], "closed_manual")
+        self.assertEqual(row_a["exit_reason"], "manual_close_one")
+        self.assertEqual(row_b["status"], "open")  # untouched
+        st = repo.get_state(self.conn)
+        self.assertEqual(json.loads(st["cb_until_json"]), {})  # no CB from a manual close
+
+    def test_close_position_now_is_noop_if_already_closed(self):
+        # the position could resolve via TP2/SL/expiry between the API
+        # queuing the request and the loop picking it up next tick — that
+        # race must be a harmless no-op, not an error.
+        pid = _mk_pos(self.conn)
+        state = repo.get_state(self.conn)
+        jony_loop._close(self.conn, state, repo.open_positions(self.conn)[0],
+                         now_ms=900, exit_debit=5.0, reason="tp2", status="closed_tp2")
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks") as mock_marks:
+            result = jony_loop.close_position_now(self.conn, state, pid, now_ms=1000)
+            mock_marks.assert_not_called()
+        self.assertEqual(result, state)
+
+    def test_close_position_now_skips_without_quote_and_stays_open(self):
+        pid = _mk_pos(self.conn)
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value={}):
+            jony_loop.close_position_now(self.conn, state, pid, now_ms=1000)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+
 
 class TestStuckSettlement(unittest.TestCase):
     def setUp(self):

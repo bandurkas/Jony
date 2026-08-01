@@ -22,9 +22,8 @@ from core.strategy import (
 from db import repo
 from services import config, portfolio
 from services.bybit_client import bybit_client, pick_atm_option
+from services.config import FIVE_MIN
 from services.telegram_notify import notify
-
-FIVE_MIN = 5
 
 
 def fetch_klines(coin: str) -> tuple[list, list, list]:
@@ -133,6 +132,30 @@ def close_all_now(conn, state: dict, now_ms: int) -> dict:
                "manual_close_all", "closed_manual", arm_cb=False)
         state = repo.get_state(conn)
     return state
+
+
+def close_position_now(conn, state: dict, pos_id: int, now_ms: int) -> dict:
+    """Manual single-position close (Mission Control partial-close button):
+    buy back exactly one open position at the live ask/mark. Same pricing/
+    accounting path as close_all_now, does NOT arm the circuit breaker (a
+    manual close is an operator decision, not a strategy loss streak), and
+    does NOT pause the bot -- entries on other coins/sides continue.
+
+    The position may already be closed by the time the loop picks up the
+    request (a TP2/SL/expiry could have resolved it in the same tick window
+    the API queued this in) -- that's a no-op, not an error, since the
+    request has already been consumed by pop_close_requests()."""
+    p = repo.get_open_position(conn, pos_id)
+    if p is None:
+        return state
+    m = bybit_client.get_option_marks(p["coin"]).get(p["option_symbol"])
+    if m is None or not (m.get("mark") or m.get("ask")):
+        print(f"[jony] close_position {pos_id}: no quote for {p['option_symbol']}, "
+              f"skipped (will retry on next manual request)", flush=True)
+        return state
+    _close(conn, state, p, now_ms, close_fill_price(m),
+           "manual_close_one", "closed_manual", arm_cb=False)
+    return repo.get_state(conn)
 
 
 def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
@@ -319,6 +342,14 @@ def main() -> None:
                 notify("CLOSE ALL requested — buying back all open positions")
                 state = close_all_now(conn, state, now_ms)
 
+            # Mission Control partial close: one or more single-position
+            # requests queued via POST /close_position/{id}. Runs even when
+            # paused, same reasoning as close-all above — but unlike
+            # close-all, this does NOT pause the bot itself.
+            for pos_id in repo.pop_close_requests(conn):
+                notify(f"CLOSE position {pos_id} requested (manual)")
+                state = close_position_now(conn, state, pos_id, now_ms)
+
             if repo.is_paused(conn):
                 time.sleep(config.LOOP_SLEEP_S)
                 continue
@@ -345,6 +376,11 @@ def main() -> None:
                         repo.insert_signal_audit(
                             conn, now_ms, coin, ev.get("active_side"), None,
                             "disqualified", ev.get("spot"), ev)
+                    # For the dashboard entry-proximity gauge (core/proximity.py)
+                    # — the API process can't see this in-memory `win` dict.
+                    repo.upsert_window_status(
+                        conn, coin, wid=wid, min_in_window=min_in_window,
+                        disqualified=w["disq"], ev=ev, checked_at_ms=now_ms)
 
                 # fire at the window's last minute, near candle close
                 if (min_in_window == FIVE_MIN - 1

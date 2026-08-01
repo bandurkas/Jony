@@ -6,10 +6,13 @@ from __future__ import annotations
 
 import json
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from core import strategy
+from core.proximity import entry_proximity
 from db import repo
 from services import config
 
@@ -117,6 +120,30 @@ def resume():
         conn.close()
 
 
+@app.get("/proximity")
+def proximity():
+    """Entry-proximity gauge per coin (display-only — see core/proximity.py).
+    Reads whatever loop.py's last per-minute gate check persisted; never
+    recomputes klines/indicators itself (this process is read-only)."""
+    conn = repo.connect()
+    try:
+        import time as _t
+        now_ms = int(_t.time() * 1000)
+        out = {}
+        for coin in strategy.COIN_SIDES:
+            ws = repo.get_window_status(conn, coin)
+            if ws is None:
+                out[coin] = entry_proximity({}, None, now_ms)
+                out[coin]["active_side"] = None
+                continue
+            p = entry_proximity(ws["ev"], ws, now_ms)
+            p["active_side"] = ws["ev"].get("active_side")
+            out[coin] = p
+        return out
+    finally:
+        conn.close()
+
+
 @app.post("/close_all")
 def close_all():
     """Sets the flag; the LOOP executes the buybacks on its next tick
@@ -125,6 +152,23 @@ def close_all():
     try:
         repo.request_close_all(conn)
         return {"ok": True, "note": "loop will buy back all open positions on next tick"}
+    finally:
+        conn.close()
+
+
+@app.post("/close_position/{pos_id}")
+def close_position(pos_id: int):
+    """Partial close: queues a single-position buyback for the loop to
+    execute on its next tick (~5s), same single-writer pattern as /close_all
+    but scoped to one position and WITHOUT pausing the bot. 404s immediately
+    if the position isn't currently open, so the dashboard doesn't show a
+    stale "closing…" state for a position that already resolved."""
+    conn = repo.connect()
+    try:
+        if repo.get_open_position(conn, pos_id) is None:
+            raise HTTPException(status_code=404, detail=f"position {pos_id} not open")
+        repo.request_close_position(conn, pos_id, int(time.time() * 1000))
+        return {"ok": True, "note": "loop will buy back this position on next tick"}
     finally:
         conn.close()
 
