@@ -265,8 +265,8 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
 
 START_EQUITY_USD = 800.0
 MARGIN_PCT_PER_TRADE = 0.15
-MAX_OPEN_POSITIONS = 6  # bumped 4->6 2026-08-01 alongside per-(coin,side) CB
-PER_COIN_CAP = 4        # bumped 3->4 2026-08-01 alongside per-(coin,side) CB
+MAX_OPEN_POSITIONS = 10  # bumped 6->10 2026-08-02, see sweep_position_caps.py
+PER_COIN_CAP = 6         # bumped 4->6 2026-08-02, see sweep_position_caps.py
 PORT_MARGIN_CAP = 0.80
 IM_RATE = 0.10
 DYN_SIZE_WR_FLOOR = 0.40
