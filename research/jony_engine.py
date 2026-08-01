@@ -426,11 +426,20 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
 def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None,
                 call_gen: dict | None = None, put_exit: dict | None = None,
                 call_exit: dict | None = None, vol_guard: dict | None = None,
-                vol_stop_accel: float | None = None, vol_stop_require_loss: bool = False) -> list[dict]:
+                vol_stop_accel: float | None = None, vol_stop_require_loss: bool = False,
+                vol_stop_sides: tuple[str, ...] | None = None,
+                vol_stop_regimes: tuple[str, ...] | None = None) -> list[dict]:
     """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
     accept overrides — used by the exit-parameter sweep. vol_guard/
     vol_stop_accel are the experimental entry-guard/exit-stop from
-    research/sweep_vol_guard.py — both off (None) by default."""
+    research/sweep_vol_guard.py — both off (None) by default.
+
+    vol_stop_sides/vol_stop_regimes (round-3 surgical scoping, 2026-08-02):
+    restrict vol_stop_accel to fire only for trades whose side/regime match
+    (e.g. side='C', regime in ('trend','transition') — the exact condition
+    behind the 2026-07-28 losing stretch). None = unrestricted (round-2
+    behavior). Trades outside the scope get vol_track=None, i.e. price-only
+    exits, same as baseline."""
     put_exit = jc.PUT_EXIT if put_exit is None else put_exit
     call_exit = jc.CALL_EXIT if call_exit is None else call_exit
     base = build_coin_base(coin)
@@ -474,9 +483,12 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
             if pd.isna(sigma) or sigma <= 0:
                 continue
             ex = put_exit if side == "P" else call_exit
+            in_scope = ((vol_stop_sides is None or side in vol_stop_sides) and
+                       (vol_stop_regimes is None or str(regime_arr[i]) in vol_stop_regimes))
             out = simulate_option_exit(side, i, close, high, low, start_ms_arr, float(sigma),
                                        ex["tp2_pct"], ex["sl_pct"], ex["hold_h"], jc.STRIKE_ROUND[coin],
-                                       vol_track=vol_track_arr, vol_stop_accel=vol_stop_accel,
+                                       vol_track=vol_track_arr if in_scope else None,
+                                       vol_stop_accel=vol_stop_accel if in_scope else None,
                                        vol_stop_require_loss=vol_stop_require_loss)
             cooldown_until[side] = start_ms_sig[i] + jc.COOLDOWN_BARS * 300_000
             if out is None:
