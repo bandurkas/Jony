@@ -434,3 +434,31 @@ https://claude.ai/code/artifact/40b405a1-2566-41d2-9bf0-ec3a861959fc
 Bybit (проскальзывание/ликвидность при 10 параллельных позициях — ни один
 бэктест этого не моделирует, узнаем только на paper-деплое). Живой код
 всё ещё не тронут в этой сессии — только research.
+
+## 12. ЗАДЕПЛОЕНО (2026-08-02) — MAX_OPEN_POSITIONS=10/PER_COIN_CAP=6 живёт на VPS3
+
+Пользователь подтвердил ("да") — прошли полный цикл:
+- **Код**: `services/config.py` (`JONY_MAX_OPEN` 6→10, `JONY_PER_COIN_CAP`
+  4→6, комментарий с обоснованием и ссылкой на §10-11), `tests/test_portfolio.py`
+  (`test_caps` границы под новые лимиты, `test_account_engine_constants`).
+- **Тесты**: 23/23 прошли.
+- **Ревью**: скилл `/review` рассчитан на GitHub PR (в репо их нет, прямые
+  пуши в `main`) — сделал ручное ревью: `api.py` читает лимиты из config
+  динамически (обновится сам), `core/strategy.py` содержит только
+  историческую заметку про старые лимиты (не трогал), `services/portfolio.py`
+  точно зеркалит `research/jony_core.py`, `PORT_MARGIN_CAP=0.80`
+  риск-контроль не тронут этим изменением, нет hardcoded override в
+  `docker-compose.yml`/`.env.example`. Замечаний нет.
+- **Коммит**: `aa8315e`, запушен.
+- **Деплой на VPS3**: `git fetch && git merge origin/main --no-edit` (чисто,
+  без конфликтов) → `docker compose build && up -d --force-recreate` →
+  контейнеры `jony-jony_loop-1`/`jony-jony_api-1` пересозданы, здоровы.
+- **Проверка**: `curl localhost:8200/params` (порт 8200, не 8000!) →
+  `account.max_open_positions: 10`, `account.per_coin_cap: 6` — подтверждено
+  на живом API. Лог: `[jony] started, mode=paper, equity=$840.28`, без ошибок.
+
+**Тема закрыта, задеплоено.** Единственное, что не проверено ни одним
+бэктестом — реальная исполняемость/проскальзывание на Bybit при 10
+параллельных позициях; узнаем только по факту работы paper-бота дальше.
+Если понадобится откат — `git revert aa8315e` + передеплой, или просто
+`JONY_MAX_OPEN=6`/`JONY_PER_COIN_CAP=4` в окружении контейнера.
