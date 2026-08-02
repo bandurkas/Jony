@@ -429,7 +429,8 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 vol_stop_accel: float | None = None, vol_stop_require_loss: bool = False,
                 vol_stop_sides: tuple[str, ...] | None = None,
                 vol_stop_regimes: tuple[str, ...] | None = None,
-                expiry_h: float = jc.TARGET_EXPIRY_H) -> list[dict]:
+                expiry_h: float = jc.TARGET_EXPIRY_H,
+                sigma_calib: dict | None = None) -> list[dict]:
     """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
     accept overrides — used by the exit-parameter sweep. vol_guard/
     vol_stop_accel are the experimental entry-guard/exit-stop from
@@ -447,7 +448,17 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
     simulate_option_exit. Defaults to jc.TARGET_EXPIRY_H (168h, weekly, live
     default). put_exit/call_exit hold_h is NOT auto-rescaled here — callers
     testing a shorter tenor must pass an hold_h-adjusted put_exit/call_exit
-    themselves (see sweep_tenor.py's scale_exit)."""
+    themselves (see sweep_tenor.py's scale_exit).
+
+    sigma_calib (2026-08-02, see sweep_sigma_calibration.py): pricing-sigma
+    recalibration, {'b0', 'b1', 'floor', 'ceiling'} -> sigma =
+    clip(b0 + b1*rv1h_native, floor, ceiling), replacing the raw
+    SIGMA_CLAMP clip. Fit from 6wk of real Bybit markIv vs this engine's own
+    rv1h_native over the same window (fresh_data/iv_history_eth.jsonl) —
+    the live pricing sigma was found to run structurally hotter than real
+    option IV. None (default) = unchanged SIGMA_CLAMP behavior. Entry gates
+    are untouched either way (percentile-rank based on raw rv1h_native, a
+    monotonic sigma transform doesn't change which trades fire)."""
     put_exit = jc.PUT_EXIT if put_exit is None else put_exit
     call_exit = jc.CALL_EXIT if call_exit is None else call_exit
     base = build_coin_base(coin)
@@ -456,7 +467,12 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
     close, high, low = d5["close"].values, d5["high"].values, d5["low"].values
     start_ms_arr = d5["start_ms"].values
     d1h = load_klines(coin, "1h")
-    rv1h = rolling_realized_vol(d1h["close"], lookback=24).clip(*SIGMA_CLAMP)
+    rv1h_raw = rolling_realized_vol(d1h["close"], lookback=24)
+    if sigma_calib is None:
+        rv1h = rv1h_raw.clip(*SIGMA_CLAMP)
+    else:
+        rv1h = (sigma_calib["b0"] + sigma_calib["b1"] * rv1h_raw).clip(
+            sigma_calib["floor"], sigma_calib["ceiling"])
     # map each 5m bar to nearest-past 1h sigma reading
     sig = pd.merge_asof(sig, d1h[["start_ms"]].assign(sigma=rv1h.values), on="start_ms", direction="backward")
 
