@@ -20,6 +20,33 @@ calling coin_trades()/replay_account() is sufficient, no code path needs
 touching for this sweep.
 
 Run: python3 sweep_port_margin_cap.py
+
+RESULT, REJECTED / CLOSED (2026-08-02, continuation session): the sweep
+above shows no backtest ceiling up to 0.99 (unlike Tyagach), but this
+conclusion doesn't survive review. Checked Bybit's real options margin
+docs (https://www.bybit.com/en/help-center/article/Initial-Maintenance-Margin-Calculations-Options):
+short-option maintenance margin is computed DYNAMICALLY from the live
+option mark price (`Position MM = [Max(MM_Factor x IndexPrice, MM_Factor x
+OptionMarkPrice) + OptionMarkPrice + LiquidationFeeRate x IndexPrice] x
+|PositionSize|`, liquidation at MM/MarginBalance=100%) -- not fixed at
+entry. This engine's IM_RATE=0.10 (jony_core.py) is a static
+entry-time-only approximation with no such revaluation, so it structurally
+cannot see the risk of required margin spiking against an already-losing
+short position during a vol shock -- exactly what happened live 2026-07-27/28
+(realized vol x4.2-4.7 in a day, see SESSION_HANDOFF_2026-08-02.md §4). The
+exploding backtest returns at higher caps (up to +1.5M% train) are also a
+compounding artifact of a handful of extra early-admitted trades, not a
+real edge signal (confirmed: n_taken only rises ~5-9% across 0.80->0.99,
+aggregate return rises ~2.5x). Per-quarter dd is flat-to-noisy vs cap level
+(Q2 non-monotonic: 13.0%->10.6%->12.4%), not a clean risk readout either.
+
+Decision (user, 2026-08-02): PORT_MARGIN_CAP stays at 0.80. No live
+execution path exists yet (bybit_client.py: "v1 has NO order-placement path
+at all"), so there is no real financial exposure from this parameter today
+either way -- but chasing headroom this sweep can't actually validate isn't
+worth it. Revisit only alongside building real dynamic-MM/liquidation
+modeling (or once live execution exists and real margin behavior can be
+observed directly), not from this backtest alone.
 """
 from __future__ import annotations
 
