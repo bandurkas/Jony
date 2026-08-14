@@ -77,6 +77,8 @@ your_previous_advice — твоя рекомендация в прошлый р�
   уведомление человеку.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
+tg_summary — одна строка ≤90 символов для мобильного пуша (суть + действие),
+brief — 2-4 слова причины на позицию. Без воды: пуш читают с телефона.
 CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить позже.
 """
 
@@ -221,6 +223,11 @@ ADVICE_TOOL = {
                                 "(острая ситуация). lockdown применяй редко."),
             },
             "market_view": {"type": "string"},
+            "tg_summary": {
+                "type": "string",
+                "description": ("Одна строка ≤90 символов для мобильного "
+                                "пуша: суть ситуации и что делаем. Без воды."),
+            },
             "positions": {
                 "type": "array",
                 "items": {
@@ -230,14 +237,16 @@ ADVICE_TOOL = {
                         "action": {"type": "string",
                                    "enum": ["HOLD", "CLOSE", "WATCH"]},
                         "reason": {"type": "string"},
+                        "brief": {"type": "string",
+                                  "description": "2-4 слова: почему (для пуша)"},
                     },
-                    "required": ["id", "action", "reason"],
+                    "required": ["id", "action", "reason", "brief"],
                 },
             },
             "summary": {"type": "string"},
         },
-        "required": ["market_risk", "risk_posture", "market_view", "positions",
-                     "summary"],
+        "required": ["market_risk", "risk_posture", "market_view", "tg_summary",
+                     "positions", "summary"],
     },
 }
 
@@ -276,7 +285,8 @@ def _normalize_advice(advice: dict) -> dict:
         if (isinstance(rec, dict) and isinstance(rec.get("id"), int)
                 and rec.get("action") in ("HOLD", "CLOSE", "WATCH")):
             clean.append({"id": rec["id"], "action": rec["action"],
-                          "reason": str(rec.get("reason", ""))})
+                          "reason": str(rec.get("reason", "")),
+                          "brief": str(rec.get("brief", ""))[:40]})
     advice["positions"] = clean
     if advice.get("risk_posture") not in ("normal", "tight", "lockdown"):
         advice["risk_posture"] = "normal"
@@ -362,16 +372,55 @@ def check_wake(client: BybitClient, now_ms: int) -> str | None:
     return None
 
 
-def format_tg(advice: dict, n_open: int) -> str:
+def _short_symbol(symbol: str) -> str:
+    # "ETH-21AUG26-1875-P-USDT" -> "ETH P1875"
+    parts = symbol.split("-")
+    if len(parts) >= 4:
+        return f"{parts[0]} {parts[3]}{parts[2]}"
+    return symbol
+
+
+def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
+              posture_change: tuple[str, str] | None,
+              equity: float | None, start_equity: float | None) -> str:
+    """Mobile-first push, target ≤6 short lines:
+       header (risk+posture) / one-line model summary /
+       one line per non-HOLD position / account footer.
+       Full reasons stay in advice.jsonl and /advice/recent — not the push."""
     risk = advice.get("market_risk", "?")
     icon = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk, "❔")
-    lines = [f"{icon} Jony advisor — риск {risk}, позиций {n_open}",
-             advice.get("market_view", "")]
+    head = f"{icon} Jony · {risk} · {advice.get('risk_posture', '?')}"
+    if posture_change:
+        head += f"  ({posture_change[0]}→{posture_change[1]})"
+    lines = [head]
+    tg_sum = (advice.get("tg_summary") or "").strip()
+    if tg_sum:
+        lines.append(tg_sum[:120])
+    n_hold = 0
     for rec in advice.get("positions", []):
-        if rec.get("action") in ("CLOSE", "WATCH"):
-            act = "❗CLOSE" if rec["action"] == "CLOSE" else "👀 WATCH"
-            lines.append(f"{act} #{rec['id']}: {rec.get('reason', '')}")
-    lines.append(advice.get("summary", ""))
+        pid = rec["id"]
+        snap = pos_by_id.get(pid, {})
+        if rec["action"] == "HOLD" and pid not in executed:
+            n_hold += 1
+            continue
+        sym = _short_symbol(snap.get("symbol", f"#{pid}"))
+        pnl = snap.get("unrealized_usd")
+        pnl_s = f" {pnl:+.1f}$" if pnl is not None else ""
+        brief = rec.get("brief") or ""
+        if pid in executed:
+            lines.append(f"🤖 закрыл {sym}{pnl_s} · {brief}")
+        elif rec["action"] == "CLOSE":
+            lines.append(f"❗ {sym}{pnl_s} · {brief} — закрой сам")
+        else:
+            lines.append(f"👀 {sym}{pnl_s} · {brief}")
+    foot = ""
+    if equity is not None:
+        foot = f"💰 ${equity:.0f}"
+        if start_equity:
+            foot += f" ({(equity - start_equity) / start_equity * 100:+.1f}%)"
+    n_open = len(pos_by_id)
+    foot += f" · позиций {n_open}" + (f" (hold {n_hold})" if n_hold else "")
+    lines.append(foot.strip(" ·"))
     return "\n".join(x for x in lines if x)
 
 
@@ -463,15 +512,10 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
                          for r in advice.get("positions", [])))
     if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable and pos):
         try:
-            msg = format_tg(advice, len(pos))
-            if new_posture != cur_posture:
-                msg = f"⚙️ posture {cur_posture} → {new_posture}\n" + msg
-            if exec_ids:
-                msg += "\n" + "\n".join(
-                    f"🤖 АВТО-ЗАКРЫТИЕ #{pid} (профит "
-                    f"${pos_by_id[pid].get('unrealized_usd', 0):+.2f})"
-                    for pid in exec_ids)
-            notify(msg)
+            notify(format_tg(
+                advice, pos_by_id, exec_ids,
+                (cur_posture, new_posture) if new_posture != cur_posture else None,
+                state.get("equity_usd"), state.get("start_equity_usd")))
         except Exception as e:
             print(f"[advisor] telegram failed: {e}", flush=True)
     print(f"[advisor] tick ok: risk={advice.get('market_risk')} "

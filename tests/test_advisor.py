@@ -128,7 +128,8 @@ class TestNormalizeAdvice(unittest.TestCase):
                           {"id": 3, "action": "SELL"}],
             "summary": "s"})
         self.assertEqual(a["positions"],
-                         [{"id": 1, "action": "CLOSE", "reason": "x"}])
+                         [{"id": 1, "action": "CLOSE", "reason": "x",
+                           "brief": ""}])
 
     def test_bad_posture_defaults_normal(self):
         a = advisor._normalize_advice({"risk_posture": "panic", "positions": []})
@@ -138,6 +139,40 @@ class TestNormalizeAdvice(unittest.TestCase):
         a = advisor._normalize_advice("garbage")
         self.assertEqual(a["positions"], [])
         self.assertEqual(a["risk_posture"], "normal")
+
+
+class TestFormatTg(unittest.TestCase):
+    ADVICE = {"market_risk": "high", "risk_posture": "tight",
+              "tg_summary": "BTC у страйка 63k, фиксируем колл; ETH put держим",
+              "positions": [
+                  {"id": 60, "action": "CLOSE", "reason": "long text " * 20,
+                   "brief": "touch 92%"},
+                  {"id": 50, "action": "CLOSE", "reason": "r", "brief": "ITM, режь"},
+                  {"id": 49, "action": "WATCH", "reason": "r", "brief": "у страйка"},
+                  {"id": 46, "action": "HOLD", "reason": "r", "brief": "ок"}]}
+    POS = {60: {"symbol": "BTC-21AUG26-63000-C-USDT", "unrealized_usd": 0.1},
+           50: {"symbol": "ETH-21AUG26-1925-P-USDT", "unrealized_usd": -4.3},
+           49: {"symbol": "ETH-21AUG26-1900-P-USDT", "unrealized_usd": 1.6},
+           46: {"symbol": "ETH-21AUG26-1875-P-USDT", "unrealized_usd": 2.5}}
+
+    def test_compact_structure(self):
+        msg = advisor.format_tg(self.ADVICE, self.POS, [60], ("normal", "tight"),
+                                866.07, 800.0)
+        lines = msg.splitlines()
+        self.assertLessEqual(len(lines), 6)          # header+summary+3 pos+foot
+        self.assertLess(len(msg), 350)               # ~3x shorter than old style
+        self.assertIn("🔴 Jony · high · tight  (normal→tight)", lines[0])
+        self.assertIn("🤖 закрыл BTC C63000 +0.1$ · touch 92%", msg)
+        self.assertIn("❗ ETH P1925 -4.3$ · ITM, режь — закрой сам", msg)
+        self.assertIn("👀 ETH P1900 +1.6$", msg)
+        self.assertNotIn("long text", msg)           # full reasons never pushed
+        self.assertNotIn("P1875", msg)               # HOLD omitted
+        self.assertIn("💰 $866 (+8.3%) · позиций 4 (hold 1)", msg)
+
+    def test_short_symbol(self):
+        self.assertEqual(advisor._short_symbol("ETH-21AUG26-1875-P-USDT"),
+                         "ETH P1875")
+        self.assertEqual(advisor._short_symbol("weird"), "weird")
 
 
 if __name__ == "__main__":
