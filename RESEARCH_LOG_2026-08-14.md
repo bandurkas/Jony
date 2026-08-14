@@ -124,3 +124,23 @@ hold_h ∈ {24,72,120} на сигме CALIB (реалистичная). Отб�
 data/advice.jsonl + GET /advice/recent + Telegram при actionable.
 Ключ только в VPS3 .env (600), не в git. Первая рекомендация: CLOSE трёх
 ETH 1875 путов (+19-21% кредита), WATCH 1900/1925, HOLD молодых BTC C.
+
+## Track B выполнен (2026-08-14, вторая половина сессии) — все 3 трека задеплоены
+
+1. **BTC:P включён** (`core/strategy.py::COIN_SIDES` BTC → ("C","P")) — по
+   честной валидации Phase 6; старый запрет был вердиктом кривого харнеса.
+2. **PER_KEY_CAP=1** (`services/config.py`, env `JONY_PER_KEY_CAP`;
+   `portfolio.can_open` + side; причина блока "per_key_cap" в signal_audit).
+   Новые стеки одного ключа невозможны; существующая книга (4×BTC:C,
+   3×ETH:P 1875) разойдётся сама по мере закрытий.
+3. **Kill-switch ключей**: env `JONY_DISABLED_KEYS="ETH:C,..."` без правки
+   кода (парсится в core/strategy.py — core/ не зависит от services/).
+4. **Advisor v2**: + funding rate, open interest, ATM weekly IV обеих сторон
+   и iv_minus_rv24 (VRP-подсказка), дистанции от 7д хай/лоу; преемственность
+   (видит свою прошлую рекомендацию); `GET /advice/score` — self-scoring
+   (для CLOSE: сколько сохранил бы выход в момент совета против финального
+   PnL; для HOLD — наоборот; hit_rate по типам действий).
+
+Тесты 49/49. Деплой: loop/api/advisor пересобраны, equity/книга целы.
+Live-check: state ok, advisor tick ok (рекомендации соответствуют механике),
+score-эндпоинт пустой до первых закрытий позиций с историей советов — норма.
