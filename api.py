@@ -251,3 +251,14 @@ def audit(limit: int = 200):
         return rows
     finally:
         conn.close()
+
+
+@app.get("/advice/recent")
+def advice_recent(limit: int = 24):
+    """Newest-first advisor recommendations (written by advisor.py)."""
+    import pathlib
+    path = pathlib.Path("data/advice.jsonl")
+    if not path.exists():
+        return []
+    lines = path.read_text().strip().splitlines()
+    return [json.loads(ln) for ln in lines[-limit:]][::-1]

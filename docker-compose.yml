@@ -19,5 +19,15 @@ services:
     depends_on:
       - jony_loop
 
+  jony_advisor:
+    build: .
+    command: python advisor.py
+    env_file: .env
+    volumes:
+      - jony_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - jony_loop
+
 volumes:
   jony_data:
