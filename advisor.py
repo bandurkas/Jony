@@ -28,7 +28,7 @@ from pathlib import Path
 import requests
 
 from db import repo
-from services.bybit_client import BybitClient
+from services.bybit_client import BybitClient, pick_atm_option
 from services.telegram_notify import notify
 
 API_URL = "https://api.anthropic.com/v1/messages"
@@ -44,6 +44,11 @@ SYSTEM = """Ты — риск-советник по проданным (short) �
 позиций. Не жадничать: если позиция набрала заметный профит и рыночный фон
 ухудшается — рекомендуй забирать. Учитывай: короткие путы страдают при
 падении, короткие коллы — при росте; ускорение волатильности вредит обоим.
+Подсказки по данным: iv_minus_rv24 > 0 — продажа волы оплачивается (фон для
+удержания лучше); funding_rate экстремумы и резкий рост OI — признак
+перегретого позиционирования; dist_from_7d_high/low — где спот в диапазоне.
+your_previous_advice — твоя рекомендация час назад: сохраняй преемственность
+(не дёргай HOLD↔CLOSE без причины), но признавай смену обстановки.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
 CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить через час.
@@ -56,6 +61,7 @@ def pct(a: float, b: float) -> float | None:
 
 def market_block(client: BybitClient) -> dict:
     out = {}
+    now_ms = int(time.time() * 1000)
     for coin, sym in (("BTC", "BTCUSDT"), ("ETH", "ETHUSDT")):
         kl = client.get_klines(sym, "60", 168)  # 7d of 1h bars, oldest-first
         closes = [k["close"] for k in kl]
@@ -65,15 +71,38 @@ def market_block(client: BybitClient) -> dict:
         rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
         rv24 = (sum(r * r for r in rets[-24:]) / 24) ** 0.5 * math.sqrt(24 * 365)
         rv24_prev = (sum(r * r for r in rets[-48:-24]) / 24) ** 0.5 * math.sqrt(24 * 365)
-        out[coin] = {
+        hi7, lo7 = max(closes), min(closes)
+        row = {
             "spot": last,
             "chg_1h_pct": pct(last, closes[-2]),
             "chg_24h_pct": pct(last, closes[-25]),
             "chg_7d_pct": pct(last, closes[0]),
+            "dist_from_7d_high_pct": pct(last, hi7),
+            "dist_from_7d_low_pct": pct(last, lo7),
             "rv24_annualized": round(rv24, 3),
             "rv24_prev_day": round(rv24_prev, 3),
             "vol_accelerating": rv24 > rv24_prev * 1.3,
         }
+        try:  # funding + open interest (perp ticker)
+            t = client.session.get_tickers(category="linear", symbol=sym)["result"]["list"][0]
+            row["funding_rate_pct"] = round(float(t.get("fundingRate", 0)) * 100, 4)
+            row["open_interest_value_usd"] = round(float(t.get("openInterestValue", 0)))
+        except Exception:
+            pass
+        try:  # ATM weekly IV both sides -> VRP vs realized vol
+            chain = client.get_options_tickers(coin)
+            ivs = {}
+            for opt_side in ("P", "C"):
+                atm = pick_atm_option(chain, last, opt_side, 168, 6, now_ms)
+                if atm and atm.get("mark_iv"):
+                    ivs[opt_side] = round(atm["mark_iv"], 3)
+            if ivs:
+                row["atm_weekly_iv"] = ivs
+                iv_mid = sum(ivs.values()) / len(ivs)
+                row["iv_minus_rv24"] = round(iv_mid - rv24, 3)  # >0: selling vol is paid
+        except Exception:
+            pass
+        out[coin] = row
     return out
 
 
@@ -178,6 +207,16 @@ def tick(client: BybitClient) -> dict | None:
         state = repo.try_get_state(conn) or {}
     finally:
         conn.close()
+    prev = None
+    if ADVICE_PATH.exists():
+        try:
+            lines = ADVICE_PATH.read_text().strip().splitlines()
+            if lines:
+                prev_rec = json.loads(lines[-1])
+                prev = {"hours_ago": round((now_ms - prev_rec["ts_ms"]) / 3.6e6, 1),
+                        "advice": prev_rec["advice"]}
+        except Exception:
+            pass
     payload = {
         "now_utc": time.strftime("%Y-%m-%d %H:%M", time.gmtime()),
         "account": {"equity_usd": state.get("equity_usd"),
@@ -185,6 +224,7 @@ def tick(client: BybitClient) -> dict | None:
                     "open_positions": len(pos)},
         "market": market,
         "open_positions": pos,
+        "your_previous_advice": prev,
     }
     advice = call_claude(payload)
     record = {"ts_ms": now_ms, "model": MODEL, "input": payload, "advice": advice}

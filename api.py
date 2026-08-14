@@ -262,3 +262,50 @@ def advice_recent(limit: int = 24):
         return []
     lines = path.read_text().strip().splitlines()
     return [json.loads(ln) for ln in lines[-limit:]][::-1]
+
+
+@app.get("/advice/score")
+def advice_score():
+    """Advisor self-scoring: for every past CLOSE/HOLD call on a position
+    that has since closed, compare the MTM profit at advice time with the
+    final realized pnl. saved_usd > 0 on a CLOSE call means following it
+    would have kept money that was later given back; on a HOLD call
+    saved_usd > 0 means holding earned more than exiting then."""
+    import pathlib
+    path = pathlib.Path("data/advice.jsonl")
+    if not path.exists():
+        return {"n_advices": 0, "details": []}
+    records = [json.loads(ln) for ln in path.read_text().strip().splitlines()]
+    conn = repo.connect()
+    try:
+        final = {r["id"]: dict(r) for r in conn.execute(
+            "SELECT * FROM positions WHERE status != 'open'")}
+    finally:
+        conn.close()
+    details = []
+    for rec in records:
+        by_id = {p["id"]: p for p in rec["input"].get("open_positions", [])}
+        for adv in rec["advice"].get("positions", []):
+            pos = final.get(adv["id"])
+            snap = by_id.get(adv["id"])
+            if not pos or not snap or snap.get("unrealized_usd") is None:
+                continue
+            at_advice = snap["unrealized_usd"]
+            realized = pos["pnl_usd"]
+            saved = (at_advice - realized if adv["action"] == "CLOSE"
+                     else realized - at_advice)
+            details.append({"ts_ms": rec["ts_ms"], "pos_id": adv["id"],
+                            "action": adv["action"],
+                            "unrealized_at_advice": at_advice,
+                            "final_pnl": realized,
+                            "saved_usd": round(saved, 2)})
+    agg = {}
+    for act in ("CLOSE", "HOLD", "WATCH"):
+        rows = [d for d in details if d["action"] == act]
+        if rows:
+            agg[act] = {"n": len(rows),
+                        "total_saved_usd": round(sum(d["saved_usd"] for d in rows), 2),
+                        "hit_rate": round(sum(1 for d in rows if d["saved_usd"] > 0)
+                                          / len(rows), 3)}
+    return {"n_advices": len(records), "aggregate": agg,
+            "details": details[-100:]}
