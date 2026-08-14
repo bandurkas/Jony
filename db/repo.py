@@ -140,6 +140,24 @@ def get_open_position(conn: sqlite3.Connection, pos_id: int) -> dict | None:
     return dict(row) if row else None
 
 
+def request_entry(conn: sqlite3.Connection, coin: str, side: str,
+                  now_ms: int, payload: str) -> None:
+    conn.execute(
+        "INSERT INTO entry_requests (coin, side, requested_at_ms, payload)"
+        " VALUES (?, ?, ?, ?)", (coin, side, now_ms, payload))
+    conn.commit()
+
+
+def pop_entry_requests(conn: sqlite3.Connection) -> list[dict]:
+    """Read-and-reset pending advisor entry requests (loop side)."""
+    rows = [dict(r) for r in conn.execute(
+        "SELECT * FROM entry_requests ORDER BY id")]
+    if rows:
+        conn.execute("DELETE FROM entry_requests")
+        conn.commit()
+    return rows
+
+
 def get_risk_posture(conn: sqlite3.Connection) -> tuple[str, int]:
     row = conn.execute(
         "SELECT risk_posture, posture_updated_ms FROM bot_control WHERE id=1"

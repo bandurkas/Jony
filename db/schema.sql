@@ -48,6 +48,18 @@ CREATE TABLE IF NOT EXISTS close_requests (
     requested_at_ms INTEGER NOT NULL
 );
 
+-- Advisor-proposed entries: advisor inserts a row, loop pops it and runs the
+-- SAME try_fire path as a mechanical signal (CB, cooldown, caps, margin all
+-- re-checked by the single writer) with the advisor's rationale as the
+-- signal payload (source=advisor -> per-source scoring in /advice/score).
+CREATE TABLE IF NOT EXISTS entry_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    coin TEXT NOT NULL,
+    side TEXT NOT NULL,
+    requested_at_ms INTEGER NOT NULL,
+    payload TEXT                                 -- JSON advisor rationale
+);
+
 CREATE TABLE IF NOT EXISTS positions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     coin TEXT NOT NULL,

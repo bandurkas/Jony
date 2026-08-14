@@ -323,6 +323,42 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
            f"TP2 {ex['tp2_pct']:.0%} SL {ex['sl_pct']:.0%} hold {ex['hold_h']}h")
 
 
+def process_entry_requests(conn, state: dict, now_ms: int) -> dict:
+    """Advisor-proposed entries. Stricter than mechanical signals: they run
+    ONLY in posture 'normal' (an elevated-risk regime must not add exposure),
+    and only while not paused (checked by the caller's placement). Everything
+    else — CB, cooldown, caps incl. per-key, margin sizing, contract pick —
+    is re-checked by routing through the SAME try_fire path; the advisor
+    cannot bypass a single risk limit. source=advisor rides in the signal
+    payload for per-source scoring."""
+    for req in repo.pop_entry_requests(conn):
+        coin, side = req["coin"], req["side"]
+        if coin not in config.COIN_SPEC or side not in COIN_SIDES.get(coin, ()):
+            continue
+        if portfolio.effective_posture(*repo.get_risk_posture(conn),
+                                       now_ms) != "normal":
+            repo.insert_signal_audit(conn, now_ms, coin, side, False,
+                                     "advisor_entry_posture", None,
+                                     {"source": "advisor"})
+            continue
+        k5 = bybit_client.get_klines(config.COIN_SPEC[coin]["symbol"], "5", 1)
+        if not k5:
+            repo.insert_signal_audit(conn, now_ms, coin, side, False,
+                                     "advisor_entry_no_spot", None,
+                                     {"source": "advisor"})
+            continue
+        try:
+            rationale = json.loads(req["payload"] or "{}")
+        except ValueError:
+            rationale = {}
+        ev = {"active_side": side, "spot": k5[-1]["close"],
+              "source": "advisor", **rationale}
+        notify(f"ADVISOR ENTRY {coin} {side} — проверяю лимиты и открываю")
+        try_fire(conn, state, coin, ev, now_ms)
+        state = repo.get_state(conn)
+    return state
+
+
 def main() -> None:
     conn = repo.connect()
     repo.apply_schema(conn)
@@ -377,6 +413,10 @@ def main() -> None:
             if repo.is_paused(conn):
                 time.sleep(config.LOOP_SLEEP_S)
                 continue
+
+            # Advisor entry proposals — after the pause check on purpose:
+            # a paused bot takes no new positions from anyone.
+            state = process_entry_requests(conn, state, now_ms)
 
             for coin, w in win.items():
                 if w["wid"] != wid:

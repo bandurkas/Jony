@@ -27,6 +27,7 @@ from pathlib import Path
 
 import requests
 
+from core.strategy import COIN_SIDES, DISABLED_KEYS
 from db import repo
 from services.bybit_client import BybitClient, pick_atm_option
 from services.telegram_notify import notify
@@ -75,6 +76,13 @@ your_previous_advice — твоя рекомендация в прошлый р�
 - CLOSE по профитной позиции закрывает её реально (после двух согласных
   вызовов подряд, либо сразу при lockdown). CLOSE по убыточной — только
   уведомление человеку.
+- entry_proposal открывает РЕАЛЬНУЮ позицию (бот перепроверит лимиты).
+  Предлагай вход только при СОВПАДЕНИИ условий: ключ в keys_available;
+  iv_minus_rv24 > 0 (продажу волы платят); волатильность НЕ ускоряется;
+  funding умеренный; спот не у 7д экстремума; моментум за сторону (7д рост
+  → продажа PUT, 7д падение → продажа CALL). Особо следи за окном для
+  BTC P — исторически лучший ключ. Качество важнее частоты: обычно
+  entry_proposal = null, максимум 1-2 предложения в сутки.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
 tg_summary — одна строка ≤90 символов для мобильного пуша (суть + действие),
@@ -189,7 +197,8 @@ def positions_block(client: BybitClient, now_ms: int) -> list[dict]:
         credit_total = p["entry_credit"] * p["qty"]
         t_years = max(0.0, (p["expiry_ms"] - now_ms) / (8760 * 3.6e6))
         row = {
-            "id": p["id"], "symbol": p["option_symbol"], "side": p["side"],
+            "id": p["id"], "symbol": p["option_symbol"],
+            "coin": p["coin"], "side": p["side"],
             "qty": p["qty"], "entry_credit": p["entry_credit"],
             "current_mark": mark, "unrealized_usd": unreal,
             "profit_pct_of_credit": round(unreal / credit_total * 100, 1)
@@ -244,6 +253,20 @@ ADVICE_TOOL = {
                 },
             },
             "summary": {"type": "string"},
+            "entry_proposal": {
+                "type": ["object", "null"],
+                "description": ("Предложение ОДНОГО нового входа, только если "
+                                "условия действительно хорошие; обычно null. "
+                                "Исполнится лишь после жёстких проверок кода."),
+                "properties": {
+                    "coin": {"type": "string", "enum": ["ETH", "BTC"]},
+                    "side": {"type": "string", "enum": ["P", "C"]},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"},
+                    "brief": {"type": "string"},
+                },
+                "required": ["coin", "side", "confidence", "reason", "brief"],
+            },
         },
         "required": ["market_risk", "risk_posture", "market_view", "tg_summary",
                      "positions", "summary"],
@@ -290,6 +313,11 @@ def _normalize_advice(advice: dict) -> dict:
     advice["positions"] = clean
     if advice.get("risk_posture") not in ("normal", "tight", "lockdown"):
         advice["risk_posture"] = "normal"
+    ep = advice.get("entry_proposal")
+    if not (isinstance(ep, dict) and ep.get("coin") in ("ETH", "BTC")
+            and ep.get("side") in ("P", "C")
+            and isinstance(ep.get("confidence"), (int, float))):
+        advice["entry_proposal"] = None
     for k in ("market_view", "summary"):
         v = advice.get(k)
         if isinstance(v, str) and "</" in v:
@@ -300,6 +328,10 @@ def _normalize_advice(advice: dict) -> dict:
 
 EXECUTE_MODE = os.getenv("ADVISOR_EXECUTE", "profit_only")  # off|profit_only|full
 MAX_EXEC_PER_HOUR = int(os.getenv("ADVISOR_MAX_EXEC_PER_HOUR", "4"))
+ENTRIES_MODE = os.getenv("ADVISOR_ENTRIES", "on")           # on|off
+ENTRY_MIN_CONFIDENCE = float(os.getenv("ADVISOR_ENTRY_MIN_CONF", "0.6"))
+MAX_ENTRIES_PER_DAY = int(os.getenv("ADVISOR_MAX_ENTRIES_PER_DAY", "2"))
+ENTRY_MIN_GAP_H = float(os.getenv("ADVISOR_ENTRY_MIN_GAP_H", "4"))
 WAKE_MIN_GAP_MIN = int(os.getenv("ADVISOR_WAKE_MIN_GAP_MIN", "10"))
 WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
 WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
@@ -341,6 +373,55 @@ def decide_executions(advice: dict, pos_by_id: dict, prev_advice: dict | None,
         if len(out) >= budget:
             break
     return out
+
+
+def enabled_free_keys(open_positions: list[dict]) -> list[str]:
+    """Keys the bot may legally open right now under per_key_cap=1."""
+    taken = {f"{p['coin']}:{p['side']}" for p in open_positions
+             if p.get("coin") and p.get("side")}
+    out = []
+    for coin, sides in COIN_SIDES.items():
+        for side in sides:
+            key = f"{coin}:{side}"
+            if key not in DISABLED_KEYS and key not in taken:
+                out.append(key)
+    return out
+
+
+def decide_entry(advice: dict, market: dict, positions: list[dict],
+                 posture: str, recent_entry_ts: list[int],
+                 now_ms: int) -> dict | None:
+    """Hard deterministic guardrails for an advisor entry proposal. Returns
+    the proposal dict if it may execute, else None. Pure function.
+    - ENTRIES_MODE on, confidence floor, valid enabled key
+    - posture must be 'normal' (never add exposure in an elevated regime)
+    - key free under per_key_cap (loop re-checks anyway)
+    - VRP must be paid (iv_minus_rv24 > 0) and vol must not be accelerating
+    - rate: <= MAX_ENTRIES_PER_DAY / rolling 24h, >= ENTRY_MIN_GAP_H apart"""
+    prop = advice.get("entry_proposal")
+    if ENTRIES_MODE != "on" or not isinstance(prop, dict):
+        return None
+    coin, side = prop.get("coin"), prop.get("side")
+    key = f"{coin}:{side}"
+    if coin not in ("ETH", "BTC") or side not in ("P", "C"):
+        return None
+    if side not in COIN_SIDES.get(coin, ()) or key in DISABLED_KEYS:
+        return None
+    if (prop.get("confidence") or 0) < ENTRY_MIN_CONFIDENCE:
+        return None
+    if posture != "normal":
+        return None
+    if key in {f"{p.get('coin')}:{p.get('side')}" for p in positions}:
+        return None
+    mkt = market.get(coin) or {}
+    if (mkt.get("iv_minus_rv24") or 0) <= 0 or mkt.get("vol_accelerating"):
+        return None
+    day = [t for t in recent_entry_ts if now_ms - t < 24 * 3_600_000]
+    if len(day) >= MAX_ENTRIES_PER_DAY:
+        return None
+    if day and now_ms - max(day) < ENTRY_MIN_GAP_H * 3_600_000:
+        return None
+    return prop
 
 
 def check_wake(client: BybitClient, now_ms: int) -> str | None:
@@ -424,25 +505,29 @@ def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
     return "\n".join(x for x in lines if x)
 
 
-def _load_history(now_ms: int) -> tuple[dict | None, list[int]]:
-    """(previous advice record, timestamps of auto-closes in the last hour)."""
+def _load_history(now_ms: int) -> tuple[dict | None, list[int], list[int]]:
+    """(previous advice record, auto-close timestamps <1h,
+    advisor-entry timestamps <24h)."""
     prev = None
     exec_ts: list[int] = []
+    entry_ts: list[int] = []
     if not ADVICE_PATH.exists():
-        return prev, exec_ts
+        return prev, exec_ts, entry_ts
     try:
         lines = ADVICE_PATH.read_text().strip().splitlines()
         if lines:
             prev_rec = json.loads(lines[-1])
             prev = {"hours_ago": round((now_ms - prev_rec["ts_ms"]) / 3.6e6, 1),
                     "advice": prev_rec["advice"]}
-        for ln in lines[-30:]:
+        for ln in lines[-80:]:
             rec = json.loads(ln)
             if now_ms - rec["ts_ms"] < 3_600_000:
                 exec_ts += [rec["ts_ms"]] * len(rec.get("executed", []))
+            if rec.get("entry_requested") and now_ms - rec["ts_ms"] < 24 * 3_600_000:
+                entry_ts.append(rec["ts_ms"])
     except Exception as e:
         print(f"[advisor] history read failed: {e}", flush=True)
-    return prev, exec_ts
+    return prev, exec_ts, entry_ts
 
 
 def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
@@ -455,7 +540,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         cur_posture, _ = repo.get_risk_posture(conn)
     finally:
         conn.close()
-    prev, recent_exec_ts = _load_history(now_ms)
+    prev, recent_exec_ts, recent_entry_ts = _load_history(now_ms)
     payload = {
         "now_utc": time.strftime("%Y-%m-%d %H:%M", time.gmtime()),
         "wake_reason": wake_reason,
@@ -463,6 +548,8 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         "account": {"equity_usd": state.get("equity_usd"),
                     "start_equity_usd": state.get("start_equity_usd"),
                     "open_positions": len(pos)},
+        "keys_available": enabled_free_keys(pos),
+        "advisor_entries_today": len(recent_entry_ts),
         "market": market,
         "open_positions": pos,
         "your_previous_advice": prev,
@@ -499,28 +586,47 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         finally:
             conn.close()
 
+    # 3) entry proposal -> loop's entry queue (guardrails in decide_entry)
+    entry = decide_entry(advice, market, pos, new_posture,
+                         recent_entry_ts, now_ms)
+    if entry:
+        conn = repo.connect()
+        try:
+            repo.request_entry(conn, entry["coin"], entry["side"], now_ms,
+                               json.dumps({"advisor_reason": entry.get("reason", ""),
+                                           "confidence": entry.get("confidence")},
+                                          ensure_ascii=False))
+        finally:
+            conn.close()
+
     record = {"ts_ms": now_ms, "model": MODEL, "wake_reason": wake_reason,
               "posture": new_posture, "executed": exec_ids,
-              "input": payload, "advice": advice}
+              "entry_requested": entry, "input": payload, "advice": advice}
     ADVICE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ADVICE_PATH.open("a") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    actionable = (advice.get("market_risk") == "high" or exec_ids
+    actionable = (advice.get("market_risk") == "high" or exec_ids or entry
                   or new_posture != cur_posture
                   or any(r.get("action") in ("CLOSE", "WATCH")
                          for r in advice.get("positions", [])))
-    if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable and pos):
+    if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable
+                                and (pos or entry)):
         try:
-            notify(format_tg(
+            msg = format_tg(
                 advice, pos_by_id, exec_ids,
                 (cur_posture, new_posture) if new_posture != cur_posture else None,
-                state.get("equity_usd"), state.get("start_equity_usd")))
+                state.get("equity_usd"), state.get("start_equity_usd"))
+            if entry:
+                msg += (f"\n🚀 вход {entry['coin']} {entry['side']}"
+                        f" · {entry.get('brief', '')}")
+            notify(msg)
         except Exception as e:
             print(f"[advisor] telegram failed: {e}", flush=True)
     print(f"[advisor] tick ok: risk={advice.get('market_risk')} "
-          f"posture={new_posture} executed={exec_ids} n_pos={len(pos)} "
-          f"wake={wake_reason!r}", flush=True)
+          f"posture={new_posture} executed={exec_ids} "
+          f"entry={entry and (entry['coin'] + ':' + entry['side'])} "
+          f"n_pos={len(pos)} wake={wake_reason!r}", flush=True)
     return advice
 
 

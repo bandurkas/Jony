@@ -175,5 +175,60 @@ class TestFormatTg(unittest.TestCase):
         self.assertEqual(advisor._short_symbol("weird"), "weird")
 
 
+def _entry_advice(coin="BTC", side="P", conf=0.8):
+    return {"entry_proposal": {"coin": coin, "side": side, "confidence": conf,
+                               "reason": "r", "brief": "b"}}
+
+
+GOOD_MKT = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": False},
+            "ETH": {"iv_minus_rv24": 0.05, "vol_accelerating": False}}
+
+
+class TestDecideEntry(unittest.TestCase):
+    def test_good_proposal_passes(self):
+        p = advisor.decide_entry(_entry_advice(), GOOD_MKT, [], "normal", [], 0)
+        self.assertIsNotNone(p)
+        self.assertEqual((p["coin"], p["side"]), ("BTC", "P"))
+
+    def test_null_and_low_confidence_rejected(self):
+        self.assertIsNone(advisor.decide_entry(
+            {"entry_proposal": None}, GOOD_MKT, [], "normal", [], 0))
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(conf=0.4), GOOD_MKT, [], "normal", [], 0))
+
+    def test_posture_must_be_normal(self):
+        for posture in ("tight", "lockdown"):
+            self.assertIsNone(advisor.decide_entry(
+                _entry_advice(), GOOD_MKT, [], posture, [], 0))
+
+    def test_key_already_taken_rejected(self):
+        pos = [{"coin": "BTC", "side": "P"}]
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, pos, "normal", [], 0))
+        # other key still fine
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice("ETH", "P"), GOOD_MKT, pos, "normal", [], 0))
+
+    def test_vrp_and_vol_guard(self):
+        bad_vrp = {"BTC": {"iv_minus_rv24": -0.02, "vol_accelerating": False}}
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), bad_vrp, [], "normal", [], 0))
+        accel = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": True}}
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), accel, [], "normal", [], 0))
+
+    def test_daily_rate_and_gap(self):
+        now = 100 * 3_600_000
+        two_today = [now - 5 * 3_600_000, now - 10 * 3_600_000]
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", two_today, now))
+        recent_one = [now - 3_600_000]  # 1h ago < 4h gap
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", recent_one, now))
+        old_one = [now - 6 * 3_600_000]
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", old_one, now))
+
+
 if __name__ == "__main__":
     unittest.main()

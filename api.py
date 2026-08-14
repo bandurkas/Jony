@@ -325,5 +325,24 @@ def advice_score():
                         "total_saved_usd": round(sum(d["saved_usd"] for d in rows), 2),
                         "hit_rate": round(sum(1 for d in rows if d["saved_usd"] > 0)
                                           / len(rows), 3)}
-    return {"n_advices": len(records), "aggregate": agg,
+
+    # entry source comparison: advisor-proposed vs mechanical-signal entries
+    conn = repo.connect()
+    try:
+        all_pos = [dict(r) for r in conn.execute("SELECT * FROM positions")]
+    finally:
+        conn.close()
+    entries = {}
+    for label, match in (("advisor", True), ("bot", False)):
+        rows = [p for p in all_pos
+                if ('"source": "advisor"' in (p.get("signal_payload") or "")) == match]
+        closed_rows = [p for p in rows if p["status"] != "open"
+                       and p["pnl_usd"] is not None]
+        entries[label] = {
+            "n_opened": len(rows), "n_closed": len(closed_rows),
+            "pnl_usd": round(sum(p["pnl_usd"] for p in closed_rows), 2),
+            "win_rate": round(sum(1 for p in closed_rows if p["pnl_usd"] > 0)
+                              / len(closed_rows), 3) if closed_rows else None,
+        }
+    return {"n_advices": len(records), "aggregate": agg, "entries": entries,
             "details": details[-100:]}

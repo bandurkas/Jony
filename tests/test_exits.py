@@ -390,6 +390,42 @@ class TestPostureExits(unittest.TestCase):
         ).fetchone())
         self.assertEqual(last["reject_reason"], "lockdown")
 
+    def test_advisor_entry_request_full_path(self):
+        # queue an advisor entry; process_entry_requests must route it through
+        # try_fire and open a real position tagged source=advisor
+        now = 5_000_000
+        repo.request_entry(self.conn, "ETH", "C", now, '{"advisor_reason": "x"}')
+        fake_chain = [{"symbol": "ETH-TEST-OPT", "side": "C",
+                       "expiry_ms": now + 100 * 3_600_000, "strike": 2500.0,
+                       "bid": 30.0, "ask": 31.0, "mark_price": 30.5,
+                       "underlying_price": 2500.0, "delta": 0.5, "mark_iv": 0.5}]
+        with patch("loop.notify"), \
+             patch.object(jony_loop.bybit_client, "get_klines",
+                          return_value=[{"close": 2500.0}]), \
+             patch.object(jony_loop.bybit_client, "get_options_tickers",
+                          return_value=fake_chain):
+            jony_loop.process_entry_requests(self.conn,
+                                             repo.get_state(self.conn), now)
+        pos = repo.open_positions(self.conn)
+        self.assertEqual(len(pos), 1)
+        self.assertEqual(pos[0]["option_symbol"], "ETH-TEST-OPT")
+        self.assertIn('"source": "advisor"', pos[0]["signal_payload"])
+        # queue must be consumed
+        self.assertEqual(repo.pop_entry_requests(self.conn), [])
+
+    def test_advisor_entry_blocked_outside_normal_posture(self):
+        now = 5_000_000
+        repo.set_risk_posture(self.conn, "tight", now - 1000)
+        repo.request_entry(self.conn, "ETH", "C", now, "{}")
+        with patch("loop.notify"):
+            jony_loop.process_entry_requests(self.conn,
+                                             repo.get_state(self.conn), now)
+        self.assertEqual(repo.open_positions(self.conn), [])
+        last = dict(self.conn.execute(
+            "SELECT reject_reason FROM signal_audit ORDER BY id DESC LIMIT 1"
+        ).fetchone())
+        self.assertEqual(last["reject_reason"], "advisor_entry_posture")
+
     def test_stale_lockdown_degrades_to_tight_for_entries(self):
         # posture set 10h ago → effective tight → entry NOT blocked by lockdown
         repo.set_risk_posture(self.conn, "lockdown", 0)
