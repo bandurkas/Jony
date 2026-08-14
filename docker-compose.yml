@@ -20,14 +20,14 @@ services:
       - jony_loop
 
   jony_advisor:
+    # no depends_on: advisory-only reader; must never trigger a jony_loop
+    # recreate on its own rebuilds/runs
     build: .
     command: python advisor.py
     env_file: .env
     volumes:
       - jony_data:/app/data
     restart: unless-stopped
-    depends_on:
-      - jony_loop
 
 volumes:
   jony_data:

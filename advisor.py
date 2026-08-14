@@ -44,10 +44,8 @@ SYSTEM = """Ты — риск-советник по проданным (short) �
 позиций. Не жадничать: если позиция набрала заметный профит и рыночный фон
 ухудшается — рекомендуй забирать. Учитывай: короткие путы страдают при
 падении, короткие коллы — при росте; ускорение волатильности вредит обоим.
-Отвечай СТРОГО одним JSON-объектом без markdown:
-{"market_risk":"low|medium|high","market_view":"1-2 предложения по-русски",
-"positions":[{"id":<int>,"action":"HOLD|CLOSE|WATCH","reason":"кратко по-русски"}],
-"summary":"итог одним предложением по-русски"}
+Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
+по-русски; по каждой открытой позиции ровно одна запись в positions.
 CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить через час.
 """
 
@@ -110,21 +108,52 @@ def positions_block(client: BybitClient, now_ms: int) -> list[dict]:
     return out
 
 
+ADVICE_TOOL = {
+    "name": "give_advice",
+    "description": "Вернуть структурированную рекомендацию по открытым позициям.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "market_risk": {"type": "string", "enum": ["low", "medium", "high"]},
+            "market_view": {"type": "string"},
+            "positions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "action": {"type": "string",
+                                   "enum": ["HOLD", "CLOSE", "WATCH"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["id", "action", "reason"],
+                },
+            },
+            "summary": {"type": "string"},
+        },
+        "required": ["market_risk", "market_view", "positions", "summary"],
+    },
+}
+
+
 def call_claude(payload: dict) -> dict:
     key = os.environ["ANTHROPIC_API_KEY"]
     body = {
         "model": MODEL,
-        "max_tokens": 1200,
+        "max_tokens": 1500,
         "system": SYSTEM,
+        "tools": [ADVICE_TOOL],
+        "tool_choice": {"type": "tool", "name": "give_advice"},
         "messages": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
     }
     r = requests.post(API_URL, json=body, timeout=120, headers={
         "x-api-key": key, "anthropic-version": "2023-06-01",
         "content-type": "application/json"})
     r.raise_for_status()
-    text = "".join(b.get("text", "") for b in r.json()["content"])
-    start, end = text.find("{"), text.rfind("}")
-    return json.loads(text[start:end + 1])
+    for block in r.json()["content"]:
+        if block.get("type") == "tool_use" and block.get("name") == "give_advice":
+            return block["input"]
+    raise RuntimeError("no tool_use block in Claude response")
 
 
 def format_tg(advice: dict, n_open: int) -> str:
