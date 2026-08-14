@@ -1,0 +1,70 @@
+[     2s] ETH:P: 2752 signal trades
+[     2s] ETH:P done
+[     3s] ETH:C: 6125 signal trades
+[     4s] ETH:C done
+[     6s] BTC:C: 5933 signal trades
+[     7s] BTC:C done
+[     7s] BTC:P: 3056 signal trades
+[     8s] BTC:P done
+
+=== ETH:P (sorted by TRAIN fixed-lot $) ===
+  trail(arm0.30,gb0.20)    train $ -1926.46 WR 79.2% n=2007  | holdout $  -898.82 WR 71.4% n= 745
+  trail(arm0.40,gb0.20)    train $ -2088.91 WR 76.0% n=2007  | holdout $ -1046.35 WR 62.8% n= 745
+  trail(arm0.20,gb0.20)    train $ -2248.61 WR 77.1% n=2007  | holdout $  -710.14 WR 73.8% n= 745
+  trail(arm0.40,gb0.15)    train $ -2382.74 WR 76.2% n=2007  | holdout $  -996.92 WR 62.8% n= 745
+  trail(arm0.30,gb0.15)    train $ -2417.64 WR 80.0% n=2007  | holdout $  -833.97 WR 71.4% n= 745
+  trail(arm0.30,gb0.10)    train $ -2532.52 WR 80.0% n=2007  | holdout $  -793.98 WR 71.4% n= 745
+  trail(arm0.20,gb0.15)    train $ -2550.69 WR 83.8% n=2007  | holdout $  -612.35 WR 79.2% n= 745
+  trail(arm0.40,gb0.10)    train $ -2582.50 WR 76.2% n=2007  | holdout $  -986.80 WR 62.8% n= 745
+  trail(arm0.20,gb0.10)    train $ -2644.95 WR 84.1% n=2007  | holdout $  -547.51 WR 80.4% n= 745
+  profit@24h               train $ -3017.02 WR 81.9% n=2007  | holdout $  -978.65 WR 78.3% n= 745
+  profit@48h               train $ -3100.51 WR 75.8% n=2007  | holdout $ -1183.99 WR 70.1% n= 745
+  profit@72h               train $ -3567.96 WR 71.9% n=2007  | holdout $  -982.05 WR 67.8% n= 745
+  base(live)               train $ -4026.70 WR 65.4% n=2007  | holdout $ -1002.51 WR 54.5% n= 745 <-- base
+
+=== ETH:C (sorted by TRAIN fixed-lot $) ===
+  trail(arm0.40,gb0.10)    train $  -335.12 WR 65.1% n=4281  | holdout $ +1281.07 WR 75.9% n=1844
+  trail(arm0.40,gb0.15)    train $  -511.76 WR 65.1% n=4281  | holdout $ +1409.30 WR 75.9% n=1844
+  trail(arm0.40,gb0.20)    train $  -571.37 WR 65.1% n=4281  | holdout $ +1388.89 WR 75.4% n=1844
+  trail(arm0.30,gb0.10)    train $  -632.16 WR 69.6% n=4281  | holdout $  +806.89 WR 79.0% n=1844
+  trail(arm0.20,gb0.10)    train $  -782.69 WR 75.7% n=4281  | holdout $  +415.50 WR 82.5% n=1844
+  trail(arm0.30,gb0.15)    train $  -975.37 WR 69.6% n=4281  | holdout $ +1003.16 WR 78.7% n=1844
+  trail(arm0.20,gb0.15)    train $ -1250.51 WR 74.9% n=4281  | holdout $  +619.38 WR 80.4% n=1844
+  trail(arm0.30,gb0.20)    train $ -1289.18 WR 68.6% n=4281  | holdout $ +1076.67 WR 78.3% n=1844
+  trail(arm0.20,gb0.20)    train $ -1686.33 WR 67.1% n=4281  | holdout $  +871.87 WR 75.8% n=1844
+  profit@24h               train $ -2291.57 WR 68.1% n=4281  | holdout $  +870.83 WR 75.2% n=1844
+  profit@48h               train $ -2591.59 WR 61.1% n=4281  | holdout $ +1092.33 WR 69.9% n=1844
+  profit@72h               train $ -2594.98 WR 55.3% n=4281  | holdout $ +1272.68 WR 68.2% n=1844
+  base(live)               train $ -2711.14 WR 51.5% n=4281  | holdout $  +639.11 WR 54.7% n=1844 <-- base
+
+=== BTC:C (sorted by TRAIN fixed-lot $) ===
+  trail(arm0.20,gb0.10)    train $ -3748.81 WR 75.9% n=4039  | holdout $   +76.39 WR 77.1% n=1894
+  trail(arm0.30,gb0.10)    train $ -3906.47 WR 70.3% n=4039  | holdout $ +1143.83 WR 72.7% n=1894
+  trail(arm0.40,gb0.20)    train $ -5015.47 WR 63.1% n=4039  | holdout $ +4121.33 WR 69.6% n=1894
+  trail(arm0.40,gb0.10)    train $ -5069.84 WR 63.3% n=4039  | holdout $ +2791.17 WR 69.7% n=1894
+  trail(arm0.30,gb0.20)    train $ -5098.32 WR 69.8% n=4039  | holdout $ +3737.16 WR 72.5% n=1894
+  trail(arm0.30,gb0.15)    train $ -5480.72 WR 70.2% n=4039  | holdout $ +1835.96 WR 72.7% n=1894
+  trail(arm0.20,gb0.20)    train $ -5494.25 WR 70.4% n=4039  | holdout $ +2109.87 WR 70.8% n=1894
+  trail(arm0.20,gb0.15)    train $ -5590.85 WR 74.7% n=4039  | holdout $  +684.51 WR 76.7% n=1894
+  trail(arm0.40,gb0.15)    train $ -6376.39 WR 63.3% n=4039  | holdout $ +3345.37 WR 69.7% n=1894
+  profit@72h               train $ -6529.03 WR 59.3% n=4039  | holdout $ +2636.86 WR 68.4% n=1894
+  profit@24h               train $ -6896.43 WR 71.6% n=4039  | holdout $  +572.14 WR 73.7% n=1894
+  base(live)               train $ -7149.45 WR 51.3% n=4039  | holdout $   +36.87 WR 49.6% n=1894 <-- base
+  profit@48h               train $ -8409.39 WR 62.4% n=4039  | holdout $ +2110.20 WR 70.3% n=1894
+
+=== BTC:P (sorted by TRAIN fixed-lot $) ===
+  base(live)               train $ +4798.85 WR 73.9% n=2319  | holdout $  +416.85 WR 68.5% n= 737 <-- base
+  trail(arm0.40,gb0.20)    train $ +2328.50 WR 78.8% n=2319  | holdout $  -782.74 WR 72.6% n= 737
+  profit@72h               train $ +2167.97 WR 82.4% n=2319  | holdout $ -1123.60 WR 75.2% n= 737
+  trail(arm0.30,gb0.20)    train $ +1720.27 WR 82.0% n=2319  | holdout $ -1029.75 WR 75.2% n= 737
+  trail(arm0.40,gb0.15)    train $ +1378.88 WR 78.8% n=2319  | holdout $  -754.41 WR 72.6% n= 737
+  profit@48h               train $ +1121.85 WR 85.5% n=2319  | holdout $ -1393.39 WR 76.8% n= 737
+  trail(arm0.30,gb0.15)    train $  +993.71 WR 82.3% n=2319  | holdout $ -1058.35 WR 75.2% n= 737
+  trail(arm0.40,gb0.10)    train $  +890.10 WR 78.8% n=2319  | holdout $  -675.76 WR 72.6% n= 737
+  trail(arm0.30,gb0.10)    train $  +445.59 WR 82.4% n=2319  | holdout $ -1080.14 WR 75.2% n= 737
+  trail(arm0.20,gb0.20)    train $  +214.70 WR 79.5% n=2319  | holdout $  -202.15 WR 75.6% n= 737
+  trail(arm0.20,gb0.15)    train $   -96.84 WR 85.4% n=2319  | holdout $  -203.27 WR 81.4% n= 737
+  trail(arm0.20,gb0.10)    train $  -654.70 WR 86.6% n=2319  | holdout $  -168.56 WR 81.4% n= 737
+  profit@24h               train $ -3063.49 WR 86.9% n=2319  | holdout $ -1004.05 WR 82.6% n= 737
+
+total 8s

@@ -1,0 +1,75 @@
+
+==========================================================================
+### ETH:P — validating top-3 train picks
+==========================================================================
+
+-- tp2=0.4 sl=0.75 hold=120 (train pick: $-1081.66)
+   CALIB       train $ -1081.66 WR 62.8% n=2007  | holdout $  -985.83 WR 48.5% n= 745
+   SIGMA_CLAMP train $  +424.52 WR 67.0% n=2007  | holdout $  -752.27 WR 55.0% n= 745
+   quarters(CALIB): Q1 $ -458.06/776  Q2 $ -523.73/805  Q3 $ -396.13/558  Q4 $ -689.57/613
+   replay_v2 pkc=None train    -52.8% DD  62.6%  | holdout    -46.0% DD  53.8%
+   replay_v2 pkc=1    train    -24.5% DD  29.6%  | holdout     +0.3% DD   9.2%
+
+-- tp2=0.4 sl=0.75 hold=72 (train pick: $-1170.13)
+   CALIB       train $ -1170.13 WR 61.4% n=2007  | holdout $  -989.68 WR 48.6% n= 745
+   SIGMA_CLAMP train $  -655.12 WR 62.0% n=2007  | holdout $  -817.27 WR 51.7% n= 745
+   quarters(CALIB): Q1 $ -597.61/776  Q2 $ -522.16/805  Q3 $ -303.02/558  Q4 $ -737.00/613
+   replay_v2 pkc=None train    -56.9% DD  64.4%  | holdout    -53.5% DD  60.2%
+   replay_v2 pkc=1    train    -27.2% DD  30.6%  | holdout     -3.3% DD  10.0%
+
+-- tp2=0.4 sl=0.5 hold=72 (train pick: $-1465.36)
+   CALIB       train $ -1465.36 WR 50.0% n=2007  | holdout $  -659.71 WR 44.0% n= 745
+   SIGMA_CLAMP train $ -1323.94 WR 52.2% n=2007  | holdout $  -616.92 WR 47.0% n= 745
+   quarters(CALIB): Q1 $ -553.16/776  Q2 $ -608.18/805  Q3 $ -473.65/558  Q4 $ -490.08/613
+   replay_v2 pkc=None train    -50.7% DD  50.7%  | holdout    -29.1% DD  40.9%
+   replay_v2 pkc=1    train    -33.9% DD  33.9%  | holdout     -6.2% DD  10.8%
+
+==========================================================================
+### ETH:C — validating top-3 train picks
+==========================================================================
+
+-- tp2=0.4 sl=1.0 hold=72 (train pick: $-54.25)
+   CALIB       train $   -54.25 WR 71.1% n=4281  | holdout $ +1248.55 WR 76.7% n=1844
+   SIGMA_CLAMP train $ +2014.73 WR 69.9% n=4281  | holdout $ +1996.14 WR 76.7% n=1844
+   quarters(CALIB): Q1 $ -638.89/1444  Q2 $ +141.00/1301  Q3 $ +983.44/1910  Q4 $ +708.75/1470
+   replay_v2 pkc=None train    -63.5% DD  69.6%  | holdout     +9.0% DD  66.3%
+   replay_v2 pkc=1    train    -23.0% DD  28.7%  | holdout     -4.6% DD  20.8%
+
+-- tp2=0.4 sl=1.0 hold=120 (train pick: $-194.32)
+   CALIB       train $  -194.32 WR 71.9% n=4281  | holdout $  +920.79 WR 78.7% n=1844
+   SIGMA_CLAMP train $ +2136.36 WR 73.6% n=4281  | holdout $ +2348.19 WR 81.3% n=1844
+   quarters(CALIB): Q1 $ -654.42/1444  Q2 $ -128.38/1301  Q3 $ +762.25/1910  Q4 $ +747.02/1470
+   replay_v2 pkc=None train    -67.4% DD  72.8%  | holdout    -15.0% DD  66.1%
+   replay_v2 pkc=1    train    -26.6% DD  31.4%  | holdout     -3.8% DD  21.7%
+
+-- tp2=0.5 sl=1.0 hold=72 (train pick: $-237.25)
+   CALIB       train $  -237.25 WR 65.7% n=4281  | holdout $ +1415.54 WR 73.1% n=1844
+   SIGMA_CLAMP train $ +1830.44 WR 65.5% n=4281  | holdout $ +2208.69 WR 73.0% n=1844
+   quarters(CALIB): Q1 $ -707.44/1444  Q2 $  -43.82/1301  Q3 $+1255.28/1910  Q4 $ +674.28/1470
+   replay_v2 pkc=None train    -68.0% DD  69.8%  | holdout     +6.0% DD  64.2%
+   replay_v2 pkc=1    train    -37.1% DD  39.9%  | holdout     -1.2% DD  22.0%
+
+==========================================================================
+### BTC:C — validating top-3 train picks
+==========================================================================
+
+-- tp2=0.7 sl=0.75 hold=120 (train pick: $-1752.16)
+   CALIB       train $ -1752.16 WR 52.7% n=4039  | holdout $ +4777.49 WR 60.7% n=1894
+   SIGMA_CLAMP train $ -2614.88 WR 52.4% n=4039  | holdout $ +6042.35 WR 59.7% n=1894
+   quarters(CALIB): Q1 $-1134.81/1177  Q2 $-1178.12/1240  Q3 $+3316.02/1973  Q4 $+2022.24/1543
+   replay_v2 pkc=None train    -21.5% DD  21.5%  | holdout    -15.6% DD  17.3%
+   replay_v2 pkc=1    train    -13.2% DD  13.2%  | holdout     +4.0% DD   8.3%
+
+-- tp2=0.6 sl=0.75 hold=120 (train pick: $-1890.97)
+   CALIB       train $ -1890.97 WR 55.1% n=4039  | holdout $ +4132.43 WR 63.4% n=1894
+   SIGMA_CLAMP train $ -3888.33 WR 54.2% n=4039  | holdout $ +5486.42 WR 62.4% n=1894
+   quarters(CALIB): Q1 $-1849.61/1177  Q2 $ -231.17/1240  Q3 $+2364.80/1973  Q4 $+1957.44/1543
+   replay_v2 pkc=None train    -21.5% DD  21.5%  | holdout    -19.5% DD  19.5%
+   replay_v2 pkc=1    train    -10.1% DD  10.1%  | holdout     +2.6% DD   9.9%
+
+-- tp2=0.4 sl=0.75 hold=120 (train pick: $-2048.48)
+   CALIB       train $ -2048.48 WR 64.7% n=4039  | holdout $ +1663.78 WR 69.1% n=1894
+   SIGMA_CLAMP train $ -4134.63 WR 64.1% n=4039  | holdout $ +3511.49 WR 69.0% n=1894
+   quarters(CALIB): Q1 $-1414.27/1177  Q2 $ -160.25/1240  Q3 $ +540.63/1973  Q4 $ +649.18/1543
+   replay_v2 pkc=None train    -20.7% DD  21.3%  | holdout    -19.9% DD  19.9%
+   replay_v2 pkc=1    train    -17.7% DD  18.3%  | holdout     +8.7% DD  10.1%

@@ -1,0 +1,41 @@
+[      2s] ETH:P 1/75 tp2=0.4 sl=0.5 hold=24 train$-1592
+[     14s] ETH:P 16/75 tp2=0.5 sl=0.5 hold=24 train$-1946
+[     26s] ETH:P 31/75 tp2=0.6 sl=0.5 hold=24 train$-2104
+[     39s] ETH:P 46/75 tp2=0.7 sl=0.5 hold=24 train$-2000
+[     51s] ETH:P 61/75 tp2=0.85 sl=0.5 hold=24 train$-1910
+[     63s] ETH:C 1/75 tp2=0.4 sl=0.5 hold=24 train$-1042
+[     79s] ETH:C 16/75 tp2=0.5 sl=0.5 hold=24 train$-1036
+[     95s] ETH:C 31/75 tp2=0.6 sl=0.5 hold=24 train$-1463
+[    111s] ETH:C 46/75 tp2=0.7 sl=0.5 hold=24 train$-1792
+[    128s] ETH:C 61/75 tp2=0.85 sl=0.5 hold=24 train$-2095
+[    144s] BTC:C 1/75 tp2=0.4 sl=0.5 hold=24 train$-3235
+[    160s] BTC:C 16/75 tp2=0.5 sl=0.5 hold=24 train$-4395
+[    176s] BTC:C 31/75 tp2=0.6 sl=0.5 hold=24 train$-4624
+[    192s] BTC:C 46/75 tp2=0.7 sl=0.5 hold=24 train$-5442
+[    207s] BTC:C 61/75 tp2=0.85 sl=0.5 hold=24 train$-6783
+
+done in 222s, 225 configs
+
+=== ETH:P: top-5 by TRAIN fixed-lot $ (selection metric) ===
+  tp2=0.40 sl=0.75 hold=120  train $ -1081.66 WR 62.8% n=2007  |  holdout $  -985.83 WR 48.5% n=745
+  tp2=0.40 sl=0.75 hold= 72  train $ -1170.13 WR 61.4% n=2007  |  holdout $  -989.68 WR 48.6% n=745
+  tp2=0.40 sl=0.50 hold= 72  train $ -1465.36 WR 50.0% n=2007  |  holdout $  -659.71 WR 44.0% n=745
+  tp2=0.40 sl=0.50 hold=120  train $ -1489.57 WR 49.8% n=2007  |  holdout $  -637.90 WR 44.0% n=745
+  tp2=0.40 sl=1.00 hold=120  train $ -1509.90 WR 68.2% n=2007  |  holdout $ -1015.03 WR 56.1% n=745
+  [live baseline] tp2=0.70 sl=1.75 hold=120 train $ -3532.75 holdout $  -985.12
+
+=== ETH:C: top-5 by TRAIN fixed-lot $ (selection metric) ===
+  tp2=0.40 sl=1.00 hold= 72  train $   -54.25 WR 71.1% n=4281  |  holdout $ +1248.55 WR 76.7% n=1844
+  tp2=0.40 sl=1.00 hold=120  train $  -194.32 WR 71.9% n=4281  |  holdout $  +920.79 WR 78.7% n=1844
+  tp2=0.50 sl=1.00 hold= 72  train $  -237.25 WR 65.7% n=4281  |  holdout $ +1415.54 WR 73.1% n=1844
+  tp2=0.50 sl=1.00 hold=120  train $  -401.88 WR 66.7% n=4281  |  holdout $ +1047.01 WR 74.1% n=1844
+  tp2=0.40 sl=0.75 hold=120  train $  -405.45 WR 65.9% n=4281  |  holdout $ +1249.87 WR 76.5% n=1844
+  [live baseline] tp2=0.70 sl=0.75 hold=24 train $ -2440.04 holdout $  +621.65
+
+=== BTC:C: top-5 by TRAIN fixed-lot $ (selection metric) ===
+  tp2=0.70 sl=0.75 hold=120  train $ -1752.16 WR 52.7% n=4039  |  holdout $ +4777.49 WR 60.7% n=1894
+  tp2=0.60 sl=0.75 hold=120  train $ -1890.97 WR 55.1% n=4039  |  holdout $ +4132.43 WR 63.4% n=1894
+  tp2=0.40 sl=0.75 hold=120  train $ -2048.48 WR 64.7% n=4039  |  holdout $ +1663.78 WR 69.1% n=1894
+  tp2=0.70 sl=1.00 hold=120  train $ -2494.20 WR 58.5% n=4039  |  holdout $ +5489.33 WR 67.3% n=1894
+  tp2=0.70 sl=1.75 hold=120  train $ -2899.11 WR 64.5% n=4039  |  holdout $ +7134.90 WR 73.3% n=1894
+  [live baseline] tp2=0.70 sl=0.75 hold=24 train $ -6423.87 holdout $  +287.40

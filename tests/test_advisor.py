@@ -31,7 +31,7 @@ class TestDecideExecutions(unittest.TestCase):
         # first-ever CLOSE (no prev) does not execute
         self.assertEqual(advisor.decide_executions(
             _advice({1: "CLOSE"}), POS, None, "profit_only", [], 0), [])
-        # prev said WATCH → still not enough
+        # prev said WATCH (historical rows pre-2026-08-15) → still not enough
         self.assertEqual(advisor.decide_executions(
             _advice({1: "CLOSE"}), POS, _prev({1: "WATCH"}),
             "profit_only", [], 0), [])
@@ -67,9 +67,9 @@ class TestDecideExecutions(unittest.TestCase):
             _advice({1: "CLOSE"}, "lockdown"), POS, None,
             "profit_only", old, now), [1])
 
-    def test_hold_and_watch_never_execute(self):
+    def test_hold_never_executes(self):
         self.assertEqual(advisor.decide_executions(
-            _advice({1: "HOLD", 3: "WATCH"}, "lockdown"), POS, None,
+            _advice({1: "HOLD", 3: "HOLD"}, "lockdown"), POS, None,
             "profit_only", [], 0), [])
 
     def test_unknown_position_skipped(self):
@@ -148,7 +148,7 @@ class TestFormatTg(unittest.TestCase):
                   {"id": 60, "action": "CLOSE", "reason": "long text " * 20,
                    "brief": "touch 92%"},
                   {"id": 50, "action": "CLOSE", "reason": "r", "brief": "ITM, режь"},
-                  {"id": 49, "action": "WATCH", "reason": "r", "brief": "у страйка"},
+                  {"id": 49, "action": "HOLD", "reason": "r", "brief": "у страйка"},
                   {"id": 46, "action": "HOLD", "reason": "r", "brief": "ок"}]}
     POS = {60: {"symbol": "BTC-21AUG26-63000-C-USDT", "unrealized_usd": 0.1},
            50: {"symbol": "ETH-21AUG26-1925-P-USDT", "unrealized_usd": -4.3},
@@ -164,10 +164,10 @@ class TestFormatTg(unittest.TestCase):
         self.assertIn("🔴 Jony · high · tight  (normal→tight)", lines[0])
         self.assertIn("🤖 закрыл BTC C63000 +0.1$ · touch 92%", msg)
         self.assertIn("❗ ETH P1925 -4.3$ · ITM, режь — закрой сам", msg)
-        self.assertIn("👀 ETH P1900 +1.6$", msg)
         self.assertNotIn("long text", msg)           # full reasons never pushed
         self.assertNotIn("P1875", msg)               # HOLD omitted
-        self.assertIn("💰 $866 (+8.3%) · позиций 4 (hold 1)", msg)
+        self.assertNotIn("P1900", msg)               # HOLD omitted
+        self.assertIn("💰 $866 (+8.3%) · позиций 4 (hold 2)", msg)
 
     def test_short_symbol(self):
         self.assertEqual(advisor._short_symbol("ETH-21AUG26-1875-P-USDT"),

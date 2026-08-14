@@ -60,7 +60,7 @@ expected_move_pct, remaining_premium_pct (сколько премии ещё н�
   цена растянута от 7д экстремума, funding перегрет): если они против
   позиции И времени до экспирации много — фиксируй, тета не успеет.
 - z_buffer < 1 (prob_touch > ~30%) — опасная зона: при любом профите
-  фиксируй; убыточную выноси в WATCH/CLOSE-рекомендацию человеку.
+  фиксируй; убыточную помечай CLOSE — уйдёт уведомлением человеку.
 - Отдельно про R/R: если remaining_premium_pct < 30 (премия почти собрана),
   а prob_touch заметный — держать нечего ради, риск многократно превышает
   остаток выигрыша. Это главный сигнал «не жадничать».
@@ -87,7 +87,9 @@ your_previous_advice — твоя рекомендация в прошлый р�
 по-русски; по каждой открытой позиции ровно одна запись в positions.
 tg_summary — одна строка ≤90 символов для мобильного пуша (суть + действие),
 brief — 2-4 слова причины на позицию. Без воды: пуш читают с телефона.
-CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить позже.
+Решение по каждой позиции строго бинарное. CLOSE — забрать профит/резать
+риск сейчас; HOLD — осознанно держать. Категории «понаблюдать» нет:
+сомневаешься — сравни тету с риском разворота и прими решение.
 """
 
 
@@ -244,7 +246,7 @@ ADVICE_TOOL = {
                     "properties": {
                         "id": {"type": "integer"},
                         "action": {"type": "string",
-                                   "enum": ["HOLD", "CLOSE", "WATCH"]},
+                                   "enum": ["HOLD", "CLOSE"]},
                         "reason": {"type": "string"},
                         "brief": {"type": "string",
                                   "description": "2-4 слова: почему (для пуша)"},
@@ -306,7 +308,7 @@ def _normalize_advice(advice: dict) -> dict:
     clean = []
     for rec in advice.get("positions") or []:
         if (isinstance(rec, dict) and isinstance(rec.get("id"), int)
-                and rec.get("action") in ("HOLD", "CLOSE", "WATCH")):
+                and rec.get("action") in ("HOLD", "CLOSE")):
             clean.append({"id": rec["id"], "action": rec["action"],
                           "reason": str(rec.get("reason", "")),
                           "brief": str(rec.get("brief", ""))[:40]})
@@ -490,10 +492,8 @@ def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
         brief = rec.get("brief") or ""
         if pid in executed:
             lines.append(f"🤖 закрыл {sym}{pnl_s} · {brief}")
-        elif rec["action"] == "CLOSE":
-            lines.append(f"❗ {sym}{pnl_s} · {brief} — закрой сам")
         else:
-            lines.append(f"👀 {sym}{pnl_s} · {brief}")
+            lines.append(f"❗ {sym}{pnl_s} · {brief} — закрой сам")
     foot = ""
     if equity is not None:
         foot = f"💰 ${equity:.0f}"
@@ -608,7 +608,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
 
     actionable = (advice.get("market_risk") == "high" or exec_ids or entry
                   or new_posture != cur_posture
-                  or any(r.get("action") in ("CLOSE", "WATCH")
+                  or any(r.get("action") == "CLOSE"
                          for r in advice.get("positions", [])))
     if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable
                                 and (pos or entry)):
