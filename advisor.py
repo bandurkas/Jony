@@ -280,6 +280,11 @@ def _normalize_advice(advice: dict) -> dict:
     advice["positions"] = clean
     if advice.get("risk_posture") not in ("normal", "tight", "lockdown"):
         advice["risk_posture"] = "normal"
+    for k in ("market_view", "summary"):
+        v = advice.get(k)
+        if isinstance(v, str) and "</" in v:
+            # malformed generation leaks XML-ish tool markup into free text
+            advice[k] = v.split("</")[0].strip()
     return advice
 
 
@@ -414,6 +419,14 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         "your_previous_advice": prev,
     }
     advice = call_claude(payload)
+    if pos and not advice.get("positions"):
+        # malformed generation dropped every per-position row (seen live
+        # 2026-08-14: rows serialized as text into summary). One retry —
+        # a fresh sample is usually well-formed; without rows the
+        # 2-consecutive-CLOSE persistence chain silently breaks.
+        print("[advisor] empty positions with open book — retrying once",
+              flush=True)
+        advice = call_claude(payload)
 
     # 1) risk posture -> bot_control (loop reads it every exit/entry tick)
     new_posture = advice.get("risk_posture", "normal")
