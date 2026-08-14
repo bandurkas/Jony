@@ -47,11 +47,21 @@ SYSTEM = """Ты — риск-советник по проданным (short) �
 Подсказки по данным: iv_minus_rv24 > 0 — продажа волы оплачивается (фон для
 удержания лучше); funding_rate экстремумы и резкий рост OI — признак
 перегретого позиционирования; dist_from_7d_high/low — где спот в диапазоне.
-your_previous_advice — твоя рекомендация час назад: сохраняй преемственность
-(не дёргай HOLD↔CLOSE без причины), но признавай смену обстановки.
+your_previous_advice — твоя рекомендация в прошлый раз: сохраняй
+преемственность (не дёргай HOLD↔CLOSE и posture без причины), но признавай
+смену обстановки. wake_reason в запросе означает срочный вызов по рыночному
+триггеру, а не плановый часовой.
+
+Твои решения ИСПОЛНЯЮТСЯ автоматически:
+- risk_posture пишется в бота: tight включает трейлинг-фиксацию профита,
+  lockdown снимает весь профит и блокирует входы. Это твой главный рычаг
+  при ухудшении фона.
+- CLOSE по профитной позиции закрывает её реально (после двух согласных
+  вызовов подряд, либо сразу при lockdown). CLOSE по убыточной — только
+  уведомление человеку.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
-CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить через час.
+CLOSE — забрать профит/резать риск сейчас; WATCH — граница, проверить позже.
 """
 
 
@@ -144,6 +154,14 @@ ADVICE_TOOL = {
         "type": "object",
         "properties": {
             "market_risk": {"type": "string", "enum": ["low", "medium", "high"]},
+            "risk_posture": {
+                "type": "string", "enum": ["normal", "tight", "lockdown"],
+                "description": ("Режим защиты для бота: normal — обычные выходы; "
+                                "tight — включить трейлинг-фиксацию профита "
+                                "(риск повышен); lockdown — немедленно снять "
+                                "весь профит и заблокировать новые входы "
+                                "(острая ситуация). lockdown применяй редко."),
+            },
             "market_view": {"type": "string"},
             "positions": {
                 "type": "array",
@@ -160,7 +178,8 @@ ADVICE_TOOL = {
             },
             "summary": {"type": "string"},
         },
-        "required": ["market_risk", "market_view", "positions", "summary"],
+        "required": ["market_risk", "risk_posture", "market_view", "positions",
+                     "summary"],
     },
 }
 
@@ -185,6 +204,80 @@ def call_claude(payload: dict) -> dict:
     raise RuntimeError("no tool_use block in Claude response")
 
 
+EXECUTE_MODE = os.getenv("ADVISOR_EXECUTE", "profit_only")  # off|profit_only|full
+MAX_EXEC_PER_HOUR = int(os.getenv("ADVISOR_MAX_EXEC_PER_HOUR", "4"))
+WAKE_MIN_GAP_MIN = int(os.getenv("ADVISOR_WAKE_MIN_GAP_MIN", "10"))
+WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
+WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
+
+
+def decide_executions(advice: dict, pos_by_id: dict, prev_advice: dict | None,
+                      mode: str, recent_exec_ts: list[int],
+                      now_ms: int) -> list[int]:
+    """Which CLOSE recommendations actually execute. Guardrails:
+    - mode off => nothing; profit_only => only positions in MTM profit;
+      full => losing positions too.
+    - persistence: a CLOSE fires only if the PREVIOUS advice also said CLOSE
+      for that position — unless posture is lockdown (urgent).
+    - rate limit: at most MAX_EXEC_PER_HOUR auto-closes per rolling hour.
+    Pure function (no I/O) so it is unit-testable."""
+    if mode not in ("profit_only", "full"):
+        return []
+    budget = MAX_EXEC_PER_HOUR - sum(
+        1 for t in recent_exec_ts if now_ms - t < 3_600_000)
+    if budget <= 0:
+        return []
+    prev_actions = {}
+    if prev_advice:
+        prev_actions = {r["id"]: r.get("action")
+                        for r in prev_advice.get("positions", [])}
+    urgent = advice.get("risk_posture") == "lockdown"
+    out = []
+    for rec in advice.get("positions", []):
+        if rec.get("action") != "CLOSE":
+            continue
+        snap = pos_by_id.get(rec.get("id"))
+        if snap is None or snap.get("unrealized_usd") is None:
+            continue
+        if mode == "profit_only" and snap["unrealized_usd"] <= 0:
+            continue
+        if not urgent and prev_actions.get(rec["id"]) != "CLOSE":
+            continue
+        out.append(rec["id"])
+        if len(out) >= budget:
+            break
+    return out
+
+
+def check_wake(client: BybitClient, now_ms: int) -> str | None:
+    """Cheap market triggers that justify calling the model off-schedule.
+    Runs every poll (60s), no LLM cost."""
+    try:
+        conn = repo.connect()
+        try:
+            open_pos = repo.open_positions(conn)
+        finally:
+            conn.close()
+        for coin, sym in (("BTC", "BTCUSDT"), ("ETH", "ETHUSDT")):
+            kl = client.get_klines(sym, "5", 4)  # last 15 min
+            if len(kl) < 4:
+                continue
+            spot = kl[-1]["close"]
+            move = (spot - kl[0]["close"]) / kl[0]["close"] * 100
+            if abs(move) >= WAKE_SPOT_MOVE_PCT:
+                return f"{coin} двинулся {move:+.1f}% за 15 минут"
+            for p in open_pos:
+                if p["coin"] != coin:
+                    continue
+                dist = abs(spot - p["strike"]) / p["strike"] * 100
+                if dist <= WAKE_STRIKE_PROX_PCT:
+                    return (f"{coin} спот {spot:.0f} в {dist:.1f}% от страйка "
+                            f"{p['strike']:.0f} (позиция #{p['id']})")
+    except Exception as e:
+        print(f"[advisor] wake check failed: {e}", flush=True)
+    return None
+
+
 def format_tg(advice: dict, n_open: int) -> str:
     risk = advice.get("market_risk", "?")
     icon = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk, "❔")
@@ -198,27 +291,42 @@ def format_tg(advice: dict, n_open: int) -> str:
     return "\n".join(x for x in lines if x)
 
 
-def tick(client: BybitClient) -> dict | None:
+def _load_history(now_ms: int) -> tuple[dict | None, list[int]]:
+    """(previous advice record, timestamps of auto-closes in the last hour)."""
+    prev = None
+    exec_ts: list[int] = []
+    if not ADVICE_PATH.exists():
+        return prev, exec_ts
+    try:
+        lines = ADVICE_PATH.read_text().strip().splitlines()
+        if lines:
+            prev_rec = json.loads(lines[-1])
+            prev = {"hours_ago": round((now_ms - prev_rec["ts_ms"]) / 3.6e6, 1),
+                    "advice": prev_rec["advice"]}
+        for ln in lines[-30:]:
+            rec = json.loads(ln)
+            if now_ms - rec["ts_ms"] < 3_600_000:
+                exec_ts += [rec["ts_ms"]] * len(rec.get("executed", []))
+    except Exception as e:
+        print(f"[advisor] history read failed: {e}", flush=True)
+    return prev, exec_ts
+
+
+def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
     now_ms = int(time.time() * 1000)
     pos = positions_block(client, now_ms)
     market = market_block(client)
     conn = repo.connect()
     try:
         state = repo.try_get_state(conn) or {}
+        cur_posture, _ = repo.get_risk_posture(conn)
     finally:
         conn.close()
-    prev = None
-    if ADVICE_PATH.exists():
-        try:
-            lines = ADVICE_PATH.read_text().strip().splitlines()
-            if lines:
-                prev_rec = json.loads(lines[-1])
-                prev = {"hours_ago": round((now_ms - prev_rec["ts_ms"]) / 3.6e6, 1),
-                        "advice": prev_rec["advice"]}
-        except Exception:
-            pass
+    prev, recent_exec_ts = _load_history(now_ms)
     payload = {
         "now_utc": time.strftime("%Y-%m-%d %H:%M", time.gmtime()),
+        "wake_reason": wake_reason,
+        "current_risk_posture": cur_posture,
         "account": {"equity_usd": state.get("equity_usd"),
                     "start_equity_usd": state.get("start_equity_usd"),
                     "open_positions": len(pos)},
@@ -227,21 +335,56 @@ def tick(client: BybitClient) -> dict | None:
         "your_previous_advice": prev,
     }
     advice = call_claude(payload)
-    record = {"ts_ms": now_ms, "model": MODEL, "input": payload, "advice": advice}
+
+    # 1) risk posture -> bot_control (loop reads it every exit/entry tick)
+    new_posture = advice.get("risk_posture", "normal")
+    if new_posture != cur_posture:
+        conn = repo.connect()
+        try:
+            repo.set_risk_posture(conn, new_posture, now_ms)
+        finally:
+            conn.close()
+
+    # 2) auto-close via the loop's own close-request queue
+    pos_by_id = {p["id"]: p for p in pos}
+    exec_ids = decide_executions(advice, pos_by_id,
+                                 prev["advice"] if prev else None,
+                                 EXECUTE_MODE, recent_exec_ts, now_ms)
+    if exec_ids:
+        conn = repo.connect()
+        try:
+            for pid in exec_ids:
+                repo.request_close_position(conn, pid, now_ms)
+        finally:
+            conn.close()
+
+    record = {"ts_ms": now_ms, "model": MODEL, "wake_reason": wake_reason,
+              "posture": new_posture, "executed": exec_ids,
+              "input": payload, "advice": advice}
     ADVICE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ADVICE_PATH.open("a") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    actionable = (advice.get("market_risk") == "high"
+
+    actionable = (advice.get("market_risk") == "high" or exec_ids
+                  or new_posture != cur_posture
                   or any(r.get("action") in ("CLOSE", "WATCH")
                          for r in advice.get("positions", [])))
     if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable and pos):
         try:
-            notify(format_tg(advice, len(pos)))
+            msg = format_tg(advice, len(pos))
+            if new_posture != cur_posture:
+                msg = f"⚙️ posture {cur_posture} → {new_posture}\n" + msg
+            if exec_ids:
+                msg += "\n" + "\n".join(
+                    f"🤖 АВТО-ЗАКРЫТИЕ #{pid} (профит "
+                    f"${pos_by_id[pid].get('unrealized_usd', 0):+.2f})"
+                    for pid in exec_ids)
+            notify(msg)
         except Exception as e:
             print(f"[advisor] telegram failed: {e}", flush=True)
     print(f"[advisor] tick ok: risk={advice.get('market_risk')} "
-          f"n_pos={len(pos)} actions="
-          f"{[r.get('action') for r in advice.get('positions', [])]}", flush=True)
+          f"posture={new_posture} executed={exec_ids} n_pos={len(pos)} "
+          f"wake={wake_reason!r}", flush=True)
     return advice
 
 
@@ -251,12 +394,23 @@ def main() -> None:
         advice = tick(client)
         print(json.dumps(advice, ensure_ascii=False, indent=2))
         return
+    last_llm_ms = 0
     while True:
         try:
-            tick(client)
+            now_ms = int(time.time() * 1000)
+            due = now_ms - last_llm_ms >= INTERVAL_S * 1000
+            wake = None
+            if not due and now_ms - last_llm_ms >= WAKE_MIN_GAP_MIN * 60_000:
+                wake = check_wake(client, now_ms)
+            if due or wake:
+                tick(client, wake_reason=wake)
+                last_llm_ms = now_ms
         except Exception as e:
             print(f"[advisor] tick failed: {e}", flush=True)
-        time.sleep(INTERVAL_S)
+            # retry in ~5 min: no hot-loop, but a transient failure must not
+            # push the next scheduled call out by a whole hour
+            last_llm_ms = int(time.time() * 1000) - (INTERVAL_S - 300) * 1000
+        time.sleep(60)
 
 
 if __name__ == "__main__":

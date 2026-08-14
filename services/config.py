@@ -74,3 +74,15 @@ STUCK_SETTLEMENT_ALERT_MIN = 15  # alert once if a position can't settle
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 BOT_TAG = "Jony"
+
+# ── Risk posture / trailing profit-lock (advisor Stage A, 2026-08-14) ──
+# The UNCONDITIONAL trail failed its deploy gate (research/
+# gate_trail_deploy_2026-08-14.py: cuts bleeding in bad regimes but loses to
+# base exits on portfolio holdout return), so the trail arms ONLY in posture
+# 'tight'/'lockdown', which the advisor sets when market risk is elevated —
+# base exits stay untouched in 'normal'. Params = the (0.20, 0.10) point from
+# the Phase-6 grid: earliest arming, fastest lock — the protective corner,
+# appropriate because tight mode IS the elevated-risk state.
+TRAIL_ARM = float(os.getenv("JONY_TRAIL_ARM", "0.20"))         # profit fraction of credit
+TRAIL_GIVEBACK = float(os.getenv("JONY_TRAIL_GIVEBACK", "0.10"))  # retrace from peak
+LOCKDOWN_STALE_H = float(os.getenv("JONY_LOCKDOWN_STALE_H", "4"))  # dead-advisor guard

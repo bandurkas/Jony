@@ -43,6 +43,25 @@ def size_position(equity: float, used_margin: float, recent_pnls: list[float],
     return n_lots * lot, n_lots * m_lot
 
 
+def trail_exit_due(peak_pct: float, pnl_pct: float,
+                   arm: float = config.TRAIL_ARM,
+                   giveback: float = config.TRAIL_GIVEBACK) -> bool:
+    """Trailing profit-lock: once mark-based profit has reached `arm`
+    (fraction of credit), exit when it retraces `giveback` from its peak.
+    Pure function — posture gating happens at the call site."""
+    return peak_pct >= arm and pnl_pct <= peak_pct - giveback
+
+
+def effective_posture(posture: str, updated_ms: int, now_ms: int) -> str:
+    """Degrade a stale lockdown to tight: lockdown blocks entries, so a dead
+    advisor must not freeze the bot forever. Tight only tightens exits —
+    fail-safe direction — so it may persist stale."""
+    if posture == "lockdown" and \
+            now_ms - updated_ms > config.LOCKDOWN_STALE_H * 3_600_000:
+        return "tight"
+    return posture if posture in ("normal", "tight", "lockdown") else "normal"
+
+
 def can_open(open_pos: list[dict], coin: str, side: str) -> str | None:
     """None = allowed; otherwise the block reason."""
     if len(open_pos) >= config.MAX_OPEN_POSITIONS:

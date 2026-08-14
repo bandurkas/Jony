@@ -45,6 +45,29 @@ class TestSizing(unittest.TestCase):
         self.assertIsNone(portfolio.can_open(pos, "ETH", "C"))
         self.assertIsNone(portfolio.can_open(pos, "BTC", "P"))
 
+    def test_trail_exit_due(self):
+        # defaults: arm 0.20, giveback 0.10
+        self.assertFalse(portfolio.trail_exit_due(0.15, 0.05))   # never armed
+        self.assertFalse(portfolio.trail_exit_due(0.25, 0.18))   # retrace 0.07
+        self.assertTrue(portfolio.trail_exit_due(0.25, 0.15))    # retrace 0.10
+        self.assertTrue(portfolio.trail_exit_due(0.40, 0.05))
+        # boundary: peak exactly at arm
+        self.assertTrue(portfolio.trail_exit_due(0.20, 0.10))
+
+    def test_effective_posture(self):
+        h = 3_600_000
+        now = 100 * h
+        self.assertEqual(portfolio.effective_posture("normal", 0, now), "normal")
+        # tight is fail-safe and never degrades on staleness
+        self.assertEqual(portfolio.effective_posture("tight", 0, now), "tight")
+        # fresh lockdown holds; stale (> LOCKDOWN_STALE_H=4h) degrades to tight
+        self.assertEqual(portfolio.effective_posture("lockdown", now - h, now),
+                         "lockdown")
+        self.assertEqual(portfolio.effective_posture("lockdown", now - 10 * h, now),
+                         "tight")
+        # unknown value never reaches the loop as-is
+        self.assertEqual(portfolio.effective_posture("garbage", now, now), "normal")
+
     def test_dyn_size(self):
         self.assertEqual(portfolio.dyn_size_factor([0.1] * 10), 1.0)
         self.assertEqual(portfolio.dyn_size_factor([-0.1] * 10), 0.5)

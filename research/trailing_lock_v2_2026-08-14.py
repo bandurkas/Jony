@@ -43,9 +43,10 @@ BARS = MAX_HOLD_H * 12
 LIVE_EXIT = {"P": jc.PUT_EXIT, "C": jc.CALL_EXIT}
 
 
-def build_paths(coin: str, side: str):
+def build_paths(coin: str, side: str, sigma_calib: dict | None = CALIB):
     """Signal entries for (coin,side) + per-trade MTM profit-fraction paths
-    p[t] = (credit - buyback(t)) / credit at 5m close marks, t over 120h."""
+    p[t] = (credit - buyback(t)) / credit at 5m close marks, t over 120h.
+    sigma_calib None => raw SIGMA_CLAMP pricing (live model)."""
     base = je.build_coin_base(coin)
     sig = je.evaluate_gates(base)
     d5 = je.load_klines(coin, "5m")
@@ -53,7 +54,11 @@ def build_paths(coin: str, side: str):
     start_ms_arr = d5["start_ms"].values
     d1h = je.load_klines(coin, "1h")
     rv1h_raw = je.rolling_realized_vol(d1h["close"], lookback=24)
-    sigma_series = (CALIB["b0"] + CALIB["b1"] * rv1h_raw).clip(CALIB["floor"], CALIB["ceiling"])
+    if sigma_calib is None:
+        sigma_series = rv1h_raw.clip(*je.SIGMA_CLAMP)
+    else:
+        sigma_series = (sigma_calib["b0"] + sigma_calib["b1"] * rv1h_raw).clip(
+            sigma_calib["floor"], sigma_calib["ceiling"])
     sig = pd.merge_asof(sig, d1h[["start_ms"]].assign(sigma=sigma_series.values),
                         on="start_ms", direction="backward")
     ready = sig["ready_P"].values if side == "P" else sig["ready_C"].values

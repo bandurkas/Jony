@@ -29,6 +29,9 @@ def apply_schema(conn: sqlite3.Connection) -> None:
     migrations = [
         "ALTER TABLE bot_control ADD COLUMN close_all_requested INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE bot_state ADD COLUMN cb_until_json TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE bot_control ADD COLUMN risk_posture TEXT NOT NULL DEFAULT 'normal'",
+        "ALTER TABLE bot_control ADD COLUMN posture_updated_ms INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE positions ADD COLUMN peak_profit_pct REAL NOT NULL DEFAULT 0",
     ]
     for m in migrations:
         try:
@@ -135,6 +138,30 @@ def get_open_position(conn: sqlite3.Connection, pos_id: int) -> dict | None:
     row = conn.execute(
         "SELECT * FROM positions WHERE id=? AND status='open'", (pos_id,)).fetchone()
     return dict(row) if row else None
+
+
+def get_risk_posture(conn: sqlite3.Connection) -> tuple[str, int]:
+    row = conn.execute(
+        "SELECT risk_posture, posture_updated_ms FROM bot_control WHERE id=1"
+    ).fetchone()
+    if row is None:
+        return "normal", 0
+    return row["risk_posture"], row["posture_updated_ms"]
+
+
+def set_risk_posture(conn: sqlite3.Connection, posture: str, now_ms: int) -> None:
+    conn.execute("INSERT OR IGNORE INTO bot_control (id) VALUES (1)")
+    conn.execute(
+        "UPDATE bot_control SET risk_posture=?, posture_updated_ms=? WHERE id=1",
+        (posture, now_ms))
+    conn.commit()
+
+
+def update_peak_profit(conn: sqlite3.Connection, pos_id: int,
+                       peak_pct: float) -> None:
+    conn.execute("UPDATE positions SET peak_profit_pct=? WHERE id=?",
+                 (peak_pct, pos_id))
+    conn.commit()
 
 
 def request_close_position(conn: sqlite3.Connection, pos_id: int, now_ms: int) -> None:

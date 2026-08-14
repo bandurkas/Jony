@@ -12,9 +12,9 @@ from db import repo  # noqa: E402
 
 
 def _mk_pos(conn, side="C", entry=30.0, qty=0.4, opened_at=0, hold_h=24,
-            tp2=0.80, sl=0.75):
+            tp2=0.80, sl=0.75, symbol="ETH-TEST"):
     pid = repo.insert_position(conn, {
-        "coin": "ETH", "side": side, "option_symbol": "ETH-TEST",
+        "coin": "ETH", "side": side, "option_symbol": symbol,
         "strike": 2500, "expiry_ms": 168 * 3_600_000, "qty": qty,
         "opened_at_ms": opened_at, "underlying_at_open": 2500,
         "entry_credit": entry, "entry_source": "bid",
@@ -313,6 +313,97 @@ class TestStuckSettlement(unittest.TestCase):
             "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
         self.assertEqual(row["status"], "closed_time")
         self.assertEqual(stuck_alerted, set())  # cleared once it actually settled
+
+
+class TestPostureExits(unittest.TestCase):
+    """Risk-posture layer: peak tracking, tight-mode trailing lock, lockdown."""
+
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        self.conn.execute("DELETE FROM positions")
+        self.conn.execute("DELETE FROM bot_state")
+        self.conn.execute("DELETE FROM signal_audit")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+        repo.set_risk_posture(self.conn, "normal", 0)
+
+    def _tick(self, marks, now_ms):
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value=marks), patch("loop.notify"):
+            return jony_loop.manage_exits(self.conn,
+                                          repo.get_state(self.conn), now_ms)
+
+    def test_peak_tracked_but_no_trail_in_normal(self):
+        pid = _mk_pos(self.conn)  # entry 30
+        # mark 21 → profit 30% of credit → peak persists
+        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, 1000)
+        row = dict(self.conn.execute(
+            "SELECT status, peak_profit_pct FROM positions WHERE id=?",
+            (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+        self.assertAlmostEqual(row["peak_profit_pct"], 0.30, places=6)
+        # retrace to profit 15% (giveback 15pp > 10pp) — normal posture: stays
+        self._tick({"ETH-TEST": {"mark": 25.5, "ask": 25.5, "bid": 25.0}}, 2000)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+
+    def test_tight_trail_locks_profit_without_cb(self):
+        pid = _mk_pos(self.conn)
+        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, 1000)
+        repo.set_risk_posture(self.conn, "tight", 1500)
+        self._tick({"ETH-TEST": {"mark": 25.5, "ask": 25.5, "bid": 25.0}}, 2000)
+        row = dict(self.conn.execute(
+            "SELECT status, exit_reason, pnl_usd FROM positions WHERE id=?",
+            (pid,)).fetchone())
+        self.assertEqual(row["status"], "closed_trail")
+        self.assertEqual(row["exit_reason"], "trail_lock")
+        self.assertGreater(row["pnl_usd"], 0)  # locked in profit
+        st = repo.get_state(self.conn)
+        self.assertEqual(json.loads(st["cb_until_json"]), {})  # no CB arm
+
+    def test_lockdown_harvests_only_profitable(self):
+        pid_win = _mk_pos(self.conn, symbol="ETH-WIN")
+        pid_loss = _mk_pos(self.conn, symbol="ETH-LOSS")
+        repo.set_risk_posture(self.conn, "lockdown", 500)
+        # WIN at profit 10% (below trail arm — lockdown must still harvest);
+        # LOSS at −10% (must stay open, loss-cutting is not automated)
+        self._tick({"ETH-WIN": {"mark": 27.0, "ask": 27.0, "bid": 26.0},
+                    "ETH-LOSS": {"mark": 33.0, "ask": 33.0, "bid": 32.0}}, 1000)
+        rows = {r["option_symbol"]: dict(r) for r in self.conn.execute(
+            "SELECT option_symbol, status, exit_reason FROM positions")}
+        self.assertEqual(rows["ETH-WIN"]["status"], "closed_trail")
+        self.assertEqual(rows["ETH-WIN"]["exit_reason"], "lockdown_profit_lock")
+        self.assertEqual(rows["ETH-LOSS"]["status"], "open")
+
+    def test_lockdown_blocks_new_entries(self):
+        # now_ms must clear the 30-min cooldown vs last_fired=0 default
+        now = 5_000_000
+        repo.set_risk_posture(self.conn, "lockdown", now - 1000)
+        ev = {"active_side": "C", "spot": 2500.0, "ready": True}
+        with patch("loop.notify"):
+            jony_loop.try_fire(self.conn, repo.get_state(self.conn), "ETH",
+                               ev, now_ms=now)
+        last = dict(self.conn.execute(
+            "SELECT reject_reason FROM signal_audit ORDER BY id DESC LIMIT 1"
+        ).fetchone())
+        self.assertEqual(last["reject_reason"], "lockdown")
+
+    def test_stale_lockdown_degrades_to_tight_for_entries(self):
+        # posture set 10h ago → effective tight → entry NOT blocked by lockdown
+        repo.set_risk_posture(self.conn, "lockdown", 0)
+        ev = {"active_side": "C", "spot": 2500.0, "ready": True}
+        now = 10 * 3_600_000
+        with patch("loop.notify"), \
+             patch.object(jony_loop.bybit_client, "get_options_tickers",
+                          return_value=[]):
+            jony_loop.try_fire(self.conn, repo.get_state(self.conn), "ETH",
+                               ev, now_ms=now)
+        last = dict(self.conn.execute(
+            "SELECT reject_reason FROM signal_audit ORDER BY id DESC LIMIT 1"
+        ).fetchone())
+        self.assertNotEqual(last["reject_reason"], "lockdown")
 
 
 if __name__ == "__main__":

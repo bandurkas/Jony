@@ -56,6 +56,7 @@ def manage_exits(conn, state: dict, now_ms: int,
         if stuck_alerted:
             stuck_alerted.clear()
         return state
+    posture = portfolio.effective_posture(*repo.get_risk_posture(conn), now_ms)
     marks_by_coin: dict[str, dict] = {}
     for coin in {p["coin"] for p in open_pos}:
         marks_by_coin[coin] = bybit_client.get_option_marks(coin)
@@ -91,6 +92,13 @@ def manage_exits(conn, state: dict, now_ms: int,
         pnl_pct_mark = (entry - mark) / entry if entry > 0 else 0.0
         held_h = (now_ms - p["opened_at_ms"]) / 3_600_000
 
+        # Peak tracking runs in EVERY posture (history must already exist the
+        # moment the advisor flips to tight); persisted so a loop restart
+        # can't forget a peak. The 0.005 epsilon avoids a DB write per tick.
+        peak = max(p["peak_profit_pct"] or 0.0, pnl_pct_mark)
+        if peak > (p["peak_profit_pct"] or 0.0) + 0.005:
+            repo.update_peak_profit(conn, p["id"], peak)
+
         reason = None
         status = None
         if pnl_pct_mark >= p["tp2_pct"]:
@@ -99,8 +107,18 @@ def manage_exits(conn, state: dict, now_ms: int,
             reason, status = "sl", "closed_sl"
         elif held_h >= p["hold_h"]:
             reason, status = "time_stop", "closed_time"
+        elif posture == "lockdown" and pnl_pct_mark > 0:
+            # lockdown: harvest every profitable position immediately
+            reason, status = "lockdown_profit_lock", "closed_trail"
+        elif posture in ("tight", "lockdown") and \
+                portfolio.trail_exit_due(peak, pnl_pct_mark):
+            reason, status = "trail_lock", "closed_trail"
         if reason:
-            _close(conn, state, p, now_ms, close_fill_price(m), reason, status)
+            # posture exits lock in profit — they are protective harvests,
+            # not strategy losses, so they never arm the circuit breaker
+            arm = status != "closed_trail"
+            _close(conn, state, p, now_ms, close_fill_price(m), reason, status,
+                   arm_cb=arm)
             state = repo.get_state(conn)
 
     # Prune any id that resolved via a path other than expiry-settle (normal
@@ -248,6 +266,12 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
     # blocked signal must not let the next window re-fire 5 minutes later.
     last_fired[key] = now_ms
     repo.update_state(conn, last_fired_json=json.dumps(last_fired))
+
+    if portfolio.effective_posture(*repo.get_risk_posture(conn),
+                                   now_ms) == "lockdown":
+        repo.insert_signal_audit(conn, now_ms, coin, side, False, "lockdown",
+                                 spot, ev)
+        return
 
     open_pos = repo.open_positions(conn)
     block = portfolio.can_open(open_pos, coin, side)

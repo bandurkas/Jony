@@ -23,7 +23,18 @@ CREATE TABLE IF NOT EXISTS bot_state (
 CREATE TABLE IF NOT EXISTS bot_control (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     paused INTEGER NOT NULL DEFAULT 0,
-    close_all_requested INTEGER NOT NULL DEFAULT 0  -- API sets, loop executes+resets
+    close_all_requested INTEGER NOT NULL DEFAULT 0,  -- API sets, loop executes+resets
+    risk_posture TEXT NOT NULL DEFAULT 'normal',     -- normal | tight | lockdown;
+                                                     -- advisor/API write, loop reads.
+                                                     -- tight arms the trailing
+                                                     -- profit-lock, lockdown also
+                                                     -- closes profitable positions
+                                                     -- and blocks new entries
+    posture_updated_ms INTEGER NOT NULL DEFAULT 0    -- staleness guard: a lockdown
+                                                     -- older than LOCKDOWN_STALE_H
+                                                     -- degrades to tight so a dead
+                                                     -- advisor can't freeze entries
+                                                     -- forever
 );
 
 -- Partial (single-position) close requests: API inserts a row, loop deletes
@@ -54,7 +65,13 @@ CREATE TABLE IF NOT EXISTS positions (
     tp2_pct REAL NOT NULL,
     sl_pct REAL NOT NULL,
     hold_h INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open',         -- open / closed_tp2 / closed_sl / closed_time / closed_manual
+    status TEXT NOT NULL DEFAULT 'open',         -- open / closed_tp2 / closed_sl /
+                                                 -- closed_time / closed_manual /
+                                                 -- closed_trail (posture-driven
+                                                 -- profit-lock exit)
+    peak_profit_pct REAL NOT NULL DEFAULT 0,     -- running max of mark-based
+                                                 -- pnl fraction while open;
+                                                 -- feeds the trailing lock
     closed_at_ms INTEGER,
     exit_debit REAL,                             -- per contract, USD
     exit_reason TEXT,

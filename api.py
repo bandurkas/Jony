@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core import strategy
 from core.proximity import entry_proximity
 from db import repo
-from services import config
+from services import config, portfolio
 
 app = FastAPI(title="Jony", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -43,6 +43,11 @@ def state():
         st["recent_pnls_json"] = json.loads(st["recent_pnls_json"])
         st["last_fired_json"] = json.loads(st["last_fired_json"])
         st["paused"] = repo.is_paused(conn)
+        posture, posture_ms = repo.get_risk_posture(conn)
+        st["risk_posture"] = posture
+        st["risk_posture_effective"] = portfolio.effective_posture(
+            posture, posture_ms, int(time.time() * 1000))
+        st["posture_updated_ms"] = posture_ms
 
         closed = [dict(r) for r in conn.execute(
             "SELECT pnl_usd FROM positions WHERE status != 'open'"
@@ -116,6 +121,19 @@ def resume():
     try:
         repo.set_paused(conn, False)
         return {"ok": True, "paused": False}
+    finally:
+        conn.close()
+
+
+@app.post("/posture/{value}")
+def set_posture(value: str):
+    """Manual operator override of the advisor-managed risk posture."""
+    if value not in ("normal", "tight", "lockdown"):
+        raise HTTPException(400, "posture must be normal|tight|lockdown")
+    conn = repo.connect()
+    try:
+        repo.set_risk_posture(conn, value, int(time.time() * 1000))
+        return {"ok": True, "risk_posture": value}
     finally:
         conn.close()
 
