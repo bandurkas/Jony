@@ -43,10 +43,13 @@ def size_position(equity: float, used_margin: float, recent_pnls: list[float],
     return n_lots * lot, n_lots * m_lot
 
 
-def can_open(open_pos: list[dict], coin: str) -> str | None:
+def can_open(open_pos: list[dict], coin: str, side: str) -> str | None:
     """None = allowed; otherwise the block reason."""
     if len(open_pos) >= config.MAX_OPEN_POSITIONS:
         return "max_open_positions"
     if sum(1 for p in open_pos if p["coin"] == coin) >= config.PER_COIN_CAP:
         return "per_coin_cap"
+    if sum(1 for p in open_pos
+           if p["coin"] == coin and p["side"] == side) >= config.PER_KEY_CAP:
+        return "per_key_cap"
     return None

@@ -250,7 +250,7 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
     repo.update_state(conn, last_fired_json=json.dumps(last_fired))
 
     open_pos = repo.open_positions(conn)
-    block = portfolio.can_open(open_pos, coin)
+    block = portfolio.can_open(open_pos, coin, side)
     if block:
         repo.insert_signal_audit(conn, now_ms, coin, side, False, block, spot, ev)
         return

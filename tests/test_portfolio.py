@@ -30,11 +30,20 @@ class TestSizing(unittest.TestCase):
         self.assertEqual(qty, 0.0)         # free 10 < 28 → blocked
 
     def test_caps(self):
-        pos = [{"coin": "ETH"}] * 6
-        self.assertEqual(portfolio.can_open(pos, "ETH"), "per_coin_cap")
-        self.assertIsNone(portfolio.can_open(pos, "BTC"))
-        pos10 = [{"coin": "ETH"}] * 5 + [{"coin": "BTC"}] * 5
-        self.assertEqual(portfolio.can_open(pos10, "BTC"), "max_open_positions")
+        pos = [{"coin": "ETH", "side": "P"}] * 3 + [{"coin": "ETH", "side": "C"}] * 3
+        self.assertEqual(portfolio.can_open(pos, "ETH", "P"), "per_coin_cap")
+        self.assertIsNone(portfolio.can_open(pos, "BTC", "C"))
+        pos10 = ([{"coin": "ETH", "side": "P"}] * 5
+                 + [{"coin": "BTC", "side": "C"}] * 5)
+        self.assertEqual(portfolio.can_open(pos10, "BTC", "C"),
+                         "max_open_positions")
+
+    def test_per_key_cap(self):
+        # one open ETH:P blocks a second ETH:P but not ETH:C or BTC:P
+        pos = [{"coin": "ETH", "side": "P"}]
+        self.assertEqual(portfolio.can_open(pos, "ETH", "P"), "per_key_cap")
+        self.assertIsNone(portfolio.can_open(pos, "ETH", "C"))
+        self.assertIsNone(portfolio.can_open(pos, "BTC", "P"))
 
     def test_dyn_size(self):
         self.assertEqual(portfolio.dyn_size_factor([0.1] * 10), 1.0)

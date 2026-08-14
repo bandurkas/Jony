@@ -20,6 +20,12 @@ MARGIN_PCT_PER_TRADE = float(os.getenv("JONY_MARGIN_PCT", "0.15"))
 # 4.1%->3.5%. See ~/Desktop/Jony/SESSION_HANDOFF_2026-08-02.md §10-11.
 MAX_OPEN_POSITIONS = int(os.getenv("JONY_MAX_OPEN", "10"))
 PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "6"))
+# Max concurrent positions per (coin,side) key. The honest v2 engine showed
+# same-key stacking is the account's dominant drawdown mechanism (65%->24%
+# train / 42%->11% holdout DD at cap=1 — research/sweep_per_key_cap_v2.py);
+# the live book independently reproduced the failure mode (6 identical ETH
+# puts, then 76% of equity in one expiry). Default 1 since 2026-08-14.
+PER_KEY_CAP = int(os.getenv("JONY_PER_KEY_CAP", "1"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
 IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this

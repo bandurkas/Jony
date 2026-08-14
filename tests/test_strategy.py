@@ -23,17 +23,30 @@ class TestBacktestLockedParams(unittest.TestCase):
         self.assertEqual(CALL_GEN["mtf_anchor_tf"], "1h")
         self.assertEqual(CALL_GEN["bull_market_ratio_max"], 1.05)
 
-    def test_btc_put_forbidden(self):
-        self.assertEqual(COIN_SIDES["BTC"], ("C",))
-        # uptrend on BTC → Put zone → NOTHING allowed
-        self.assertEqual(allowed_sides("BTC", ret_7d=2.0), [])
+    def test_btc_put_enabled(self):
+        # BTC:P re-enabled 2026-08-14 (honest v2 verdict reversed the old
+        # clairvoyant-harness rejection — RESEARCH_LOG_2026-08-14.md Phase 6)
+        self.assertEqual(COIN_SIDES["BTC"], ("C", "P"))
+        self.assertEqual(allowed_sides("BTC", ret_7d=2.0), ["P"])
         self.assertEqual(allowed_sides("BTC", ret_7d=-2.0), ["C"])
-        self.assertEqual(allowed_sides("BTC", ret_7d=0.0), ["C"])
+        self.assertEqual(allowed_sides("BTC", ret_7d=0.0), ["P", "C"])
 
     def test_eth_v2_zones(self):
         self.assertEqual(allowed_sides("ETH", 2.0), ["P"])
         self.assertEqual(allowed_sides("ETH", -2.0), ["C"])
         self.assertEqual(allowed_sides("ETH", 0.0), ["P", "C"])
+
+    def test_disabled_keys_filter(self):
+        import core.strategy as st
+        old = st.DISABLED_KEYS
+        try:
+            st.DISABLED_KEYS = frozenset({"ETH:C", "BTC:P"})
+            self.assertEqual(st.allowed_sides("ETH", 0.0), ["P"])
+            self.assertEqual(st.allowed_sides("ETH", -2.0), [])
+            self.assertEqual(st.allowed_sides("BTC", 2.0), [])
+            self.assertEqual(st.allowed_sides("BTC", 0.0), ["C"])
+        finally:
+            st.DISABLED_KEYS = old
 
 
 class TestWindowDebounce(unittest.TestCase):

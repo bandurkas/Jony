@@ -37,6 +37,8 @@ ad hoc numbers.
 """
 from __future__ import annotations
 
+import os
+
 from .indicators import ema, realized_vol
 from .momentum_mtf import analyze_tf, consensus, direction_filter_ok
 from .regime import detect_regime
@@ -64,9 +66,19 @@ CALL_GEN = {
 PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 1.75, "hold_h": 120}  # sl 2.00->1.75, hold 96->120 2026-08-01
 CALL_EXIT = {"tp2_pct": 0.70, "sl_pct": 0.75, "hold_h": 24}  # tp2 0.80->0.70 2026-08-01
 
-# Basket composition (the backtest's winner): BTC Put is FORBIDDEN
-# (-7.5%/trade, no VRP edge — BTC falls less in panic vol).
-COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C",)}
+# Basket composition. BTC Put was forbidden by the pre-2026-08-08 harness
+# verdict ("-7.5%/trade") — that harness was later shown clairvoyant
+# (RESEARCH_FINDINGS_2026-08-08.md); the honest v2 engine reversed the
+# verdict: BTC:P is the only key positive on train AND holdout under both
+# sigma models (RESEARCH_LOG_2026-08-14.md, Phase 6). Enabled 2026-08-14.
+COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C", "P")}
+
+# Per-key kill switch, env-driven so keys can be turned off without a code
+# change: JONY_DISABLED_KEYS="ETH:C,ETH:P". Lives here (not services/config)
+# because core/ must stay importable without the services package.
+DISABLED_KEYS = frozenset(
+    k.strip().upper() for k in os.getenv("JONY_DISABLED_KEYS", "").split(",")
+    if k.strip())
 
 
 def gen_kwargs(side: str) -> dict:
@@ -89,14 +101,15 @@ def compute_ret_7d(k5: list, idx: int) -> float:
 
 def allowed_sides(coin: str, ret_7d: float) -> list[str]:
     """V2 trend-following side selection, intersected with the coin's
-    permitted sides (BTC never sells Puts)."""
+    permitted sides minus env-disabled keys."""
     if ret_7d > RET_7D_THRESHOLD:
         sides = ["P"]
     elif ret_7d < -RET_7D_THRESHOLD:
         sides = ["C"]
     else:
         sides = ["P", "C"]
-    return [s for s in sides if s in COIN_SIDES[coin]]
+    return [s for s in sides if s in COIN_SIDES[coin]
+            and f"{coin}:{s}" not in DISABLED_KEYS]
 
 
 def _evaluate_side(side: str, mtf: dict, regime: str,
