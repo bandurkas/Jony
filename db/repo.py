@@ -239,6 +239,18 @@ def insert_signal_audit(conn: sqlite3.Connection, ts_ms: int, coin: str | None,
     conn.commit()
 
 
+def closed_pnls(conn: sqlite3.Connection, since_ms: int) -> list[tuple[int, float]]:
+    """STRATEGY outcomes only — closed_trail/closed_manual are protective
+    harvests / operator decisions and must not feed the account breaker or
+    the revenge window (same convention as per-key CB arming in _close)."""
+    rows = conn.execute(
+        "SELECT closed_at_ms, pnl_usd FROM positions "
+        "WHERE status IN ('closed_tp2', 'closed_sl', 'closed_time')"
+        " AND closed_at_ms >= ?", (since_ms,)).fetchall()
+    return sorted((r[0], r[1]) for r in rows
+                  if r[0] is not None and r[1] is not None)
+
+
 def recent_positions(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT * FROM positions ORDER BY opened_at_ms DESC LIMIT ?", (limit,))]

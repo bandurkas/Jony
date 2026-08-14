@@ -48,6 +48,10 @@ def state():
         st["risk_posture_effective"] = portfolio.effective_posture(
             posture, posture_ms, int(time.time() * 1000))
         st["posture_updated_ms"] = posture_ms
+        now = int(time.time() * 1000)
+        st["acct_breaker"] = portfolio.account_breaker(
+            repo.closed_pnls(conn, now - 30 * 24 * 3_600_000),
+            st.get("equity_usd") or 0.0, now)
 
         closed = [dict(r) for r in conn.execute(
             "SELECT pnl_usd FROM positions WHERE status != 'open'"

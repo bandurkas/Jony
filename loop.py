@@ -41,6 +41,14 @@ def close_fill_price(m: dict) -> float:
     return (m.get("mark") or 0.0) * 1.01
 
 
+def acct_breaker(conn, state: dict, now_ms: int) -> str | None:
+    # 30d fetch >> 7d sum window so the streak rule still sees the last N
+    # trades across long trading gaps (pause / CB stretches)
+    return portfolio.account_breaker(
+        repo.closed_pnls(conn, now_ms - 30 * 24 * 3_600_000),
+        state.get("equity_usd") or 0.0, now_ms)
+
+
 def manage_exits(conn, state: dict, now_ms: int,
                  stuck_alerted: set[int] | None = None) -> dict:
     """TP2 / SL / time-stop / expiry settlement for every open position.
@@ -57,6 +65,8 @@ def manage_exits(conn, state: dict, now_ms: int,
             stuck_alerted.clear()
         return state
     posture = portfolio.effective_posture(*repo.get_risk_posture(conn), now_ms)
+    if posture == "normal" and acct_breaker(conn, state, now_ms):
+        posture = "tight"                       # breaker floors exits, no force-close
     marks_by_coin: dict[str, dict] = {}
     for coin in {p["coin"] for p in open_pos}:
         marks_by_coin[coin] = bybit_client.get_option_marks(coin)
@@ -270,6 +280,12 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
     if portfolio.effective_posture(*repo.get_risk_posture(conn),
                                    now_ms) == "lockdown":
         repo.insert_signal_audit(conn, now_ms, coin, side, False, "lockdown",
+                                 spot, ev)
+        return
+
+    acct_cb = acct_breaker(conn, state, now_ms)
+    if acct_cb:
+        repo.insert_signal_audit(conn, now_ms, coin, side, False, acct_cb,
                                  spot, ev)
         return
 

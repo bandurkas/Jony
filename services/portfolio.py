@@ -62,6 +62,26 @@ def effective_posture(posture: str, updated_ms: int, now_ms: int) -> str:
     return posture if posture in ("normal", "tight", "lockdown") else "normal"
 
 
+def account_breaker(closed: list[tuple[int, float]], equity: float,
+                    now_ms: int) -> str | None:
+    """Account-level mechanical brake on realized PnL: block reason or None.
+    closed = [(closed_at_ms, pnl_usd), ...]. Fail-closed on unusable equity."""
+    if not equity or equity <= 0:
+        return "acct_cb_bad_equity"
+    day = sum(p for ts, p in closed if now_ms - ts <= 24 * 3_600_000)
+    week = sum(p for ts, p in closed if now_ms - ts <= 7 * 24 * 3_600_000)
+    if day <= -config.ACCT_CB_DAILY_PCT * equity:
+        return "acct_cb_daily"
+    if week <= -config.ACCT_CB_WEEKLY_PCT * equity:
+        return "acct_cb_weekly"
+    tail = sorted(closed)[-config.ACCT_CB_STREAK_N:]
+    if (len(tail) == config.ACCT_CB_STREAK_N
+            and all(p < 0 for _, p in tail)
+            and now_ms - tail[-1][0] <= config.ACCT_CB_STREAK_BLOCK_H * 3_600_000):
+        return "acct_cb_streak"
+    return None
+
+
 def can_open(open_pos: list[dict], coin: str, side: str) -> str | None:
     """None = allowed; otherwise the block reason."""
     if len(open_pos) >= config.MAX_OPEN_POSITIONS:

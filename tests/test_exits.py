@@ -377,6 +377,68 @@ class TestPostureExits(unittest.TestCase):
         self.assertEqual(rows["ETH-WIN"]["exit_reason"], "lockdown_profit_lock")
         self.assertEqual(rows["ETH-LOSS"]["status"], "open")
 
+    def _insert_closed(self, closed_at_ms, pnl_usd, status="closed_sl"):
+        pid = repo.insert_position(self.conn, {
+            "coin": "ETH", "side": "C", "option_symbol": "ETH-T-OPT",
+            "strike": 2500, "expiry_ms": 1, "qty": 0.1, "opened_at_ms": 0,
+            "underlying_at_open": 2500, "entry_credit": 30,
+            "entry_source": "bid", "margin_usd": 28, "fee_open_usd": 0.1,
+            "tp2_pct": 0.5, "sl_pct": 2.0, "hold_h": 48})
+        repo.close_position(self.conn, pid, status=status,
+                            closed_at_ms=closed_at_ms, exit_debit=40,
+                            exit_reason="x", pnl_pct=-0.3, pnl_usd=pnl_usd)
+
+    def test_protective_closes_do_not_feed_breaker(self):
+        # closed_trail / closed_manual are harvests & operator decisions —
+        # the account breaker must not read them as strategy losses
+        now = 5_000_000_000
+        for i, status in ((1, "closed_trail"), (2, "closed_manual"),
+                          (3, "closed_trail")):
+            self._insert_closed(now - i * 3_600_000, -7.0, status)
+        ev = {"active_side": "C", "spot": 2500.0, "ready": True}
+        with patch.object(jony_loop.bybit_client, "get_options_tickers",
+                          return_value=[]), patch("loop.notify"):
+            jony_loop.try_fire(self.conn, repo.get_state(self.conn), "ETH",
+                               ev, now_ms=now)
+        last = dict(self.conn.execute(
+            "SELECT reject_reason FROM signal_audit ORDER BY id DESC LIMIT 1"
+        ).fetchone())
+        self.assertEqual(last["reject_reason"], "no_option_contract")
+
+    def test_acct_breaker_blocks_new_entries(self):
+        now = 5_000_000_000
+        for i in (1, 2, 3):  # -21$ realized in 24h > 2.5% of 800
+            self._insert_closed(now - i * 3_600_000, -7.0)
+        ev = {"active_side": "C", "spot": 2500.0, "ready": True}
+        with patch("loop.notify"):
+            jony_loop.try_fire(self.conn, repo.get_state(self.conn), "ETH",
+                               ev, now_ms=now)
+        last = dict(self.conn.execute(
+            "SELECT reject_reason FROM signal_audit ORDER BY id DESC LIMIT 1"
+        ).fetchone())
+        self.assertEqual(last["reject_reason"], "acct_cb_daily")
+
+    def test_acct_breaker_floors_exit_posture_to_tight(self):
+        # daily breach + posture normal → trail must arm (tight behavior)
+        now = 5_000_000_000
+        for i in (1, 2, 3):
+            self._insert_closed(now - i * 3_600_000, -7.0)
+        pid = repo.insert_position(self.conn, {
+            "coin": "ETH", "side": "C", "option_symbol": "ETH-OPEN-OPT",
+            "strike": 2500, "expiry_ms": now + 48 * 3_600_000, "qty": 0.1,
+            "opened_at_ms": now - 3_600_000, "underlying_at_open": 2500,
+            "entry_credit": 30, "entry_source": "bid", "margin_usd": 28,
+            "fee_open_usd": 0.1, "tp2_pct": 0.5, "sl_pct": 2.0, "hold_h": 48})
+        self.conn.execute("UPDATE positions SET peak_profit_pct=0.30 WHERE id=?",
+                          (pid,))
+        self.conn.commit()
+        # peak 0.30 armed; mark 25.5 → pnl 0.15 <= peak-giveback → trail fires
+        marks = {"ETH-OPEN-OPT": {"mark": 25.5, "ask": 25.5}}
+        self._tick(marks, now)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "closed_trail")
+
     def test_lockdown_blocks_new_entries(self):
         # now_ms must clear the 30-min cooldown vs last_fired=0 default
         now = 5_000_000

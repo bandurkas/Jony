@@ -86,3 +86,12 @@ BOT_TAG = "Jony"
 TRAIL_ARM = float(os.getenv("JONY_TRAIL_ARM", "0.20"))         # profit fraction of credit
 TRAIL_GIVEBACK = float(os.getenv("JONY_TRAIL_GIVEBACK", "0.10"))  # retrace from peak
 LOCKDOWN_STALE_H = float(os.getenv("JONY_LOCKDOWN_STALE_H", "4"))  # dead-advisor guard
+
+# ── Account-level circuit breaker (2026-08-15) ──
+# Mechanical brake on REALIZED PnL, computed in code above the LLM advisor:
+# blocks new entries (bot + advisor via the shared try_fire path) and floors
+# posture to 'tight'. Never force-closes. Rolling windows, stateless.
+ACCT_CB_DAILY_PCT = float(os.getenv("JONY_ACCT_CB_DAILY_PCT", "0.025"))   # of equity / 24h
+ACCT_CB_WEEKLY_PCT = float(os.getenv("JONY_ACCT_CB_WEEKLY_PCT", "0.05"))  # of equity / 7d
+ACCT_CB_STREAK_N = int(os.getenv("JONY_ACCT_CB_STREAK_N", "3"))           # consecutive losses
+ACCT_CB_STREAK_BLOCK_H = float(os.getenv("JONY_ACCT_CB_STREAK_BLOCK_H", "24"))

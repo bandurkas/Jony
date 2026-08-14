@@ -79,6 +79,48 @@ class TestSizing(unittest.TestCase):
         self.assertAlmostEqual(portfolio.fee_usd(1_000_000, 10), 1.25)
 
 
+class TestAccountBreaker(unittest.TestCase):
+    H = 3_600_000
+    NOW = 1000 * 3_600_000
+    EQ = 800.0  # daily limit 2.5% = $20, weekly 5% = $40
+
+    def test_quiet_history_allows(self):
+        closed = [(self.NOW - 2 * self.H, +3.0), (self.NOW - 5 * self.H, -2.0)]
+        self.assertIsNone(portfolio.account_breaker(closed, self.EQ, self.NOW))
+
+    def test_daily_loss_trips(self):
+        closed = [(self.NOW - i * self.H, -7.0) for i in (1, 2, 3)]  # -21 < -20
+        self.assertEqual(portfolio.account_breaker(closed, self.EQ, self.NOW),
+                         "acct_cb_daily")
+        # same losses spread beyond 24h → daily ok (streak also expired)
+        spread = [(self.NOW - i * self.H, -7.0) for i in (30, 60, 90)]
+        self.assertIsNone(portfolio.account_breaker(spread, self.EQ, self.NOW))
+
+    def test_weekly_loss_trips(self):
+        closed = [(self.NOW - i * 24 * self.H, -15.0) for i in (2, 4, 6)]  # -45 < -40
+        self.assertEqual(portfolio.account_breaker(closed, self.EQ, self.NOW),
+                         "acct_cb_weekly")
+
+    def test_losing_streak_trips_then_expires(self):
+        streak = [(self.NOW - 3 * self.H, -1.0), (self.NOW - 2 * self.H, -1.0),
+                  (self.NOW - 1 * self.H, -1.0)]
+        self.assertEqual(portfolio.account_breaker(streak, self.EQ, self.NOW),
+                         "acct_cb_streak")
+        # a win inside the last N breaks the streak
+        mixed = streak[:-1] + [(self.NOW - self.H, +1.0)]
+        self.assertIsNone(portfolio.account_breaker(mixed, self.EQ, self.NOW))
+        # last loss older than the block window → released
+        old = [(self.NOW - (25 + i) * self.H, -1.0) for i in (0, 1, 2)]
+        self.assertIsNone(portfolio.account_breaker(old, self.EQ, self.NOW))
+
+    def test_bad_equity_fails_closed(self):
+        self.assertEqual(portfolio.account_breaker([], 0.0, self.NOW),
+                         "acct_cb_bad_equity")
+
+    def test_empty_history_allows(self):
+        self.assertIsNone(portfolio.account_breaker([], self.EQ, self.NOW))
+
+
 class TestPickAtm(unittest.TestCase):
     CHAIN = [
         {"symbol": "E-1", "side": "C", "strike": 2500, "expiry_ms": 170 * 3_600_000},

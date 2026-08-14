@@ -276,7 +276,7 @@ ADVICE_TOOL = {
 }
 
 
-def call_claude(payload: dict) -> dict:
+def call_claude(payload: dict, cur_posture: str = "normal") -> dict:
     key = os.environ["ANTHROPIC_API_KEY"]
     body = {
         "model": MODEL,
@@ -292,18 +292,22 @@ def call_claude(payload: dict) -> dict:
     r.raise_for_status()
     for block in r.json()["content"]:
         if block.get("type") == "tool_use" and block.get("name") == "give_advice":
-            return _normalize_advice(block["input"])
+            return _normalize_advice(block["input"], cur_posture)
     raise RuntimeError("no tool_use block in Claude response")
 
 
-def _normalize_advice(advice: dict) -> dict:
+def _normalize_advice(advice: dict, cur_posture: str = "normal") -> dict:
     """Defensive shape repair: the tool schema asks for position OBJECTS, but
     a malformed generation can still slip strings/garbage into the array —
     seen live 2026-08-14. Keep only well-formed {id:int, action:enum} rows so
     every downstream consumer (executions, telegram, scoring) can trust the
     shape; drop the rest rather than crash the tick."""
+    # Fail closed: a malformed generation must KEEP the current posture, not
+    # relax to 'normal' (which would drop tight/lockdown and re-open entries).
+    fallback = cur_posture if cur_posture in ("normal", "tight", "lockdown") \
+        else "normal"
     if not isinstance(advice, dict):
-        return {"market_risk": "medium", "risk_posture": "normal",
+        return {"market_risk": "medium", "risk_posture": fallback,
                 "market_view": "", "positions": [], "summary": ""}
     clean = []
     for rec in advice.get("positions") or []:
@@ -314,7 +318,7 @@ def _normalize_advice(advice: dict) -> dict:
                           "brief": str(rec.get("brief", ""))[:40]})
     advice["positions"] = clean
     if advice.get("risk_posture") not in ("normal", "tight", "lockdown"):
-        advice["risk_posture"] = "normal"
+        advice["risk_posture"] = fallback
     ep = advice.get("entry_proposal")
     if not (isinstance(ep, dict) and ep.get("coin") in ("ETH", "BTC")
             and ep.get("side") in ("P", "C")
@@ -334,6 +338,7 @@ ENTRIES_MODE = os.getenv("ADVISOR_ENTRIES", "on")           # on|off
 ENTRY_MIN_CONFIDENCE = float(os.getenv("ADVISOR_ENTRY_MIN_CONF", "0.6"))
 MAX_ENTRIES_PER_DAY = int(os.getenv("ADVISOR_MAX_ENTRIES_PER_DAY", "2"))
 ENTRY_MIN_GAP_H = float(os.getenv("ADVISOR_ENTRY_MIN_GAP_H", "4"))
+REVENGE_WINDOW_H = float(os.getenv("ADVISOR_REVENGE_WINDOW_H", "4"))
 WAKE_MIN_GAP_MIN = int(os.getenv("ADVISOR_WAKE_MIN_GAP_MIN", "10"))
 WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
 WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
@@ -392,14 +397,16 @@ def enabled_free_keys(open_positions: list[dict]) -> list[str]:
 
 def decide_entry(advice: dict, market: dict, positions: list[dict],
                  posture: str, recent_entry_ts: list[int],
-                 now_ms: int) -> dict | None:
+                 now_ms: int, last_loss_ms: int | None = None) -> dict | None:
     """Hard deterministic guardrails for an advisor entry proposal. Returns
     the proposal dict if it may execute, else None. Pure function.
     - ENTRIES_MODE on, confidence floor, valid enabled key
     - posture must be 'normal' (never add exposure in an elevated regime)
     - key free under per_key_cap (loop re-checks anyway)
     - VRP must be paid (iv_minus_rv24 > 0) and vol must not be accelerating
-    - rate: <= MAX_ENTRIES_PER_DAY / rolling 24h, >= ENTRY_MIN_GAP_H apart"""
+    - rate: <= MAX_ENTRIES_PER_DAY / rolling 24h, >= ENTRY_MIN_GAP_H apart
+    - revenge window: no advisor entries REVENGE_WINDOW_H after a losing
+      close (advisor entries only — mechanical entries stay as validated)"""
     prop = advice.get("entry_proposal")
     if ENTRIES_MODE != "on" or not isinstance(prop, dict):
         return None
@@ -412,6 +419,8 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     if (prop.get("confidence") or 0) < ENTRY_MIN_CONFIDENCE:
         return None
     if posture != "normal":
+        return None
+    if last_loss_ms and now_ms - last_loss_ms < REVENGE_WINDOW_H * 3_600_000:
         return None
     if key in {f"{p.get('coin')}:{p.get('side')}" for p in positions}:
         return None
@@ -538,8 +547,11 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
     try:
         state = repo.try_get_state(conn) or {}
         cur_posture, _ = repo.get_risk_posture(conn)
+        lookback_h = max(24.0, REVENGE_WINDOW_H)
+        closed = repo.closed_pnls(conn, now_ms - int(lookback_h * 3_600_000))
     finally:
         conn.close()
+    last_loss_ms = max((ts for ts, p in closed if p < 0), default=None)
     prev, recent_exec_ts, recent_entry_ts = _load_history(now_ms)
     payload = {
         "now_utc": time.strftime("%Y-%m-%d %H:%M", time.gmtime()),
@@ -554,7 +566,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         "open_positions": pos,
         "your_previous_advice": prev,
     }
-    advice = call_claude(payload)
+    advice = call_claude(payload, cur_posture)
     if pos and not advice.get("positions"):
         # malformed generation dropped every per-position row (seen live
         # 2026-08-14: rows serialized as text into summary). One retry —
@@ -562,16 +574,19 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         # 2-consecutive-CLOSE persistence chain silently breaks.
         print("[advisor] empty positions with open book — retrying once",
               flush=True)
-        advice = call_claude(payload)
+        advice = call_claude(payload, cur_posture)
 
-    # 1) risk posture -> bot_control (loop reads it every exit/entry tick)
+    # 1) risk posture -> bot_control (loop reads it every exit/entry tick).
+    # Written EVERY tick, even unchanged: a live advisor confirming lockdown
+    # must refresh posture_updated_ms, or the dead-advisor staleness guard
+    # (effective_posture, LOCKDOWN_STALE_H) would decay it to tight — that
+    # guard is for a silent advisor, not a malformed-but-alive one.
     new_posture = advice.get("risk_posture", "normal")
-    if new_posture != cur_posture:
-        conn = repo.connect()
-        try:
-            repo.set_risk_posture(conn, new_posture, now_ms)
-        finally:
-            conn.close()
+    conn = repo.connect()
+    try:
+        repo.set_risk_posture(conn, new_posture, now_ms)
+    finally:
+        conn.close()
 
     # 2) auto-close via the loop's own close-request queue
     pos_by_id = {p["id"]: p for p in pos}
@@ -588,7 +603,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
 
     # 3) entry proposal -> loop's entry queue (guardrails in decide_entry)
     entry = decide_entry(advice, market, pos, new_posture,
-                         recent_entry_ts, now_ms)
+                         recent_entry_ts, now_ms, last_loss_ms)
     if entry:
         conn = repo.connect()
         try:

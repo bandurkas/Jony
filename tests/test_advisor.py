@@ -140,6 +140,17 @@ class TestNormalizeAdvice(unittest.TestCase):
         self.assertEqual(a["positions"], [])
         self.assertEqual(a["risk_posture"], "normal")
 
+    def test_fail_closed_keeps_current_posture(self):
+        # malformed advice must NOT relax tight/lockdown back to normal
+        a = advisor._normalize_advice("garbage", cur_posture="tight")
+        self.assertEqual(a["risk_posture"], "tight")
+        a = advisor._normalize_advice({"risk_posture": "panic", "positions": []},
+                                      cur_posture="lockdown")
+        self.assertEqual(a["risk_posture"], "lockdown")
+        # invalid cur_posture itself falls back to normal
+        a = advisor._normalize_advice("garbage", cur_posture="???")
+        self.assertEqual(a["risk_posture"], "normal")
+
 
 class TestFormatTg(unittest.TestCase):
     ADVICE = {"market_risk": "high", "risk_posture": "tight",
@@ -216,6 +227,17 @@ class TestDecideEntry(unittest.TestCase):
         accel = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": True}}
         self.assertIsNone(advisor.decide_entry(
             _entry_advice(), accel, [], "normal", [], 0))
+
+    def test_revenge_window(self):
+        now = 100 * 3_600_000
+        loss_2h_ago = now - 2 * 3_600_000       # inside 4h window → blocked
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", [], now, loss_2h_ago))
+        loss_6h_ago = now - 6 * 3_600_000       # window passed → allowed
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", [], now, loss_6h_ago))
+        self.assertIsNotNone(advisor.decide_entry(   # no losses at all
+            _entry_advice(), GOOD_MKT, [], "normal", [], now, None))
 
     def test_daily_rate_and_gap(self):
         now = 100 * 3_600_000
