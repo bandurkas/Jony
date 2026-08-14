@@ -246,7 +246,7 @@ def call_claude(payload: dict) -> dict:
     key = os.environ["ANTHROPIC_API_KEY"]
     body = {
         "model": MODEL,
-        "max_tokens": 1500,
+        "max_tokens": 2000,
         "system": SYSTEM,
         "tools": [ADVICE_TOOL],
         "tool_choice": {"type": "tool", "name": "give_advice"},
@@ -258,8 +258,29 @@ def call_claude(payload: dict) -> dict:
     r.raise_for_status()
     for block in r.json()["content"]:
         if block.get("type") == "tool_use" and block.get("name") == "give_advice":
-            return block["input"]
+            return _normalize_advice(block["input"])
     raise RuntimeError("no tool_use block in Claude response")
+
+
+def _normalize_advice(advice: dict) -> dict:
+    """Defensive shape repair: the tool schema asks for position OBJECTS, but
+    a malformed generation can still slip strings/garbage into the array —
+    seen live 2026-08-14. Keep only well-formed {id:int, action:enum} rows so
+    every downstream consumer (executions, telegram, scoring) can trust the
+    shape; drop the rest rather than crash the tick."""
+    if not isinstance(advice, dict):
+        return {"market_risk": "medium", "risk_posture": "normal",
+                "market_view": "", "positions": [], "summary": ""}
+    clean = []
+    for rec in advice.get("positions") or []:
+        if (isinstance(rec, dict) and isinstance(rec.get("id"), int)
+                and rec.get("action") in ("HOLD", "CLOSE", "WATCH")):
+            clean.append({"id": rec["id"], "action": rec["action"],
+                          "reason": str(rec.get("reason", ""))})
+    advice["positions"] = clean
+    if advice.get("risk_posture") not in ("normal", "tight", "lockdown"):
+        advice["risk_posture"] = "normal"
+    return advice
 
 
 EXECUTE_MODE = os.getenv("ADVISOR_EXECUTE", "profit_only")  # off|profit_only|full

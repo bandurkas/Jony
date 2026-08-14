@@ -118,5 +118,27 @@ class TestStrikeRisk(unittest.TestCase):
         self.assertEqual(advisor.strike_risk("P", 100.0, 100.0, 0.5, 0.0), {})
 
 
+class TestNormalizeAdvice(unittest.TestCase):
+    def test_string_rows_dropped(self):
+        # exact live failure 2026-08-14: strings inside positions array
+        a = advisor._normalize_advice({
+            "market_risk": "high", "risk_posture": "tight",
+            "positions": ["HOLD", {"id": 1, "action": "CLOSE", "reason": "x"},
+                          {"id": "2", "action": "CLOSE"},
+                          {"id": 3, "action": "SELL"}],
+            "summary": "s"})
+        self.assertEqual(a["positions"],
+                         [{"id": 1, "action": "CLOSE", "reason": "x"}])
+
+    def test_bad_posture_defaults_normal(self):
+        a = advisor._normalize_advice({"risk_posture": "panic", "positions": []})
+        self.assertEqual(a["risk_posture"], "normal")
+
+    def test_non_dict_advice(self):
+        a = advisor._normalize_advice("garbage")
+        self.assertEqual(a["positions"], [])
+        self.assertEqual(a["risk_posture"], "normal")
+
+
 if __name__ == "__main__":
     unittest.main()
