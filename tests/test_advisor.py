@@ -79,5 +79,44 @@ class TestDecideExecutions(unittest.TestCase):
             "profit_only", [], 0), [])
 
 
+class TestStrikeRisk(unittest.TestCase):
+    """Reversal-vs-expiry math: buffer measured in remaining expected move."""
+
+    def test_atm_is_maximal_risk(self):
+        r = advisor.strike_risk("P", 100.0, 100.0, 0.5, 7 / 365)
+        self.assertEqual(r["prob_touch_pct"], 100.0)
+        self.assertEqual(r["prob_itm_pct"], 50.0)
+        self.assertEqual(r["z_buffer"], 0.0)
+
+    def test_itm_short_put_reports_touch_certain(self):
+        r = advisor.strike_risk("P", 95.0, 100.0, 0.5, 7 / 365)
+        self.assertLess(r["strike_buffer_pct"], 0)
+        self.assertEqual(r["prob_touch_pct"], 100.0)
+        self.assertGreater(r["prob_itm_pct"], 50.0)
+
+    def test_far_otm_near_expiry_is_safe(self):
+        # 10% buffer, 50% IV, 6 hours left: sigma_t ~ 0.5*sqrt(6/8760) ~ 1.3%
+        r = advisor.strike_risk("P", 100.0, 90.0, 0.5, 6 / 8760)
+        self.assertGreater(r["z_buffer"], 2)
+        self.assertLess(r["prob_touch_pct"], 5)
+
+    def test_same_buffer_more_time_is_riskier(self):
+        near = advisor.strike_risk("P", 100.0, 95.0, 0.5, 1 / 365)
+        far = advisor.strike_risk("P", 100.0, 95.0, 0.5, 30 / 365)
+        self.assertGreater(far["prob_touch_pct"], near["prob_touch_pct"])
+        self.assertLess(far["z_buffer"], near["z_buffer"])
+
+    def test_call_side_buffer_direction(self):
+        # short call: danger is ABOVE — spot below strike = positive buffer
+        r = advisor.strike_risk("C", 100.0, 110.0, 0.5, 7 / 365)
+        self.assertGreater(r["strike_buffer_pct"], 0)
+        r_itm = advisor.strike_risk("C", 115.0, 110.0, 0.5, 7 / 365)
+        self.assertEqual(r_itm["prob_touch_pct"], 100.0)
+
+    def test_degenerate_inputs_empty(self):
+        self.assertEqual(advisor.strike_risk("P", 100.0, 100.0, 0.0, 0.1), {})
+        self.assertEqual(advisor.strike_risk("P", 100.0, 100.0, 0.5, 0.0), {})
+
+
 if __name__ == "__main__":
     unittest.main()

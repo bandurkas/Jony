@@ -47,6 +47,22 @@ SYSTEM = """Ты — риск-советник по проданным (short) �
 Подсказки по данным: iv_minus_rv24 > 0 — продажа волы оплачивается (фон для
 удержания лучше); funding_rate экстремумы и резкий рост OI — признак
 перегретого позиционирования; dist_from_7d_high/low — где спот в диапазоне.
+
+Разворот против времени до экспирации — у каждой позиции посчитано:
+z_buffer (запас до страйка в единицах ожидаемого хода за ОСТАВШЕЕСЯ время),
+prob_touch_pct (вероятность касания страйка до экспирации), prob_itm_pct,
+expected_move_pct, remaining_premium_pct (сколько премии ещё не собрано).
+Логика гонки теты и разворота:
+- z_buffer >= 2 (prob_touch < ~5%) — тета почти наверняка добегает: держи,
+  даже если есть признаки разворота.
+- z_buffer 1..2 — смотри на разворотные признаки (моментум затухает,
+  цена растянута от 7д экстремума, funding перегрет): если они против
+  позиции И времени до экспирации много — фиксируй, тета не успеет.
+- z_buffer < 1 (prob_touch > ~30%) — опасная зона: при любом профите
+  фиксируй; убыточную выноси в WATCH/CLOSE-рекомендацию человеку.
+- Отдельно про R/R: если remaining_premium_pct < 30 (премия почти собрана),
+  а prob_touch заметный — держать нечего ради, риск многократно превышает
+  остаток выигрыша. Это главный сигнал «не жадничать».
 your_previous_advice — твоя рекомендация в прошлый раз: сохраняй
 преемственность (не дёргай HOLD↔CLOSE и posture без причины), но признавай
 смену обстановки. wake_reason в запросе означает срочный вызов по рыночному
@@ -67,6 +83,38 @@ CLOSE — забрать профит/резать риск сейчас; WATCH 
 
 def pct(a: float, b: float) -> float | None:
     return round((a - b) / b * 100, 2) if (a and b) else None
+
+
+def _norm_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def strike_risk(side: str, spot: float, strike: float, iv: float,
+                t_years: float) -> dict:
+    """Deterministic reversal-vs-expiry math the model must not eyeball:
+    - strike_buffer_pct: distance to the strike on the DANGEROUS side
+      (short put hurts below, short call above); negative = already ITM
+    - expected_move_pct: 1-sigma underlying move over the REMAINING life
+      (iv * sqrt(T)) — the yardstick the buffer is measured against
+    - z_buffer: buffer in units of that remaining expected move
+    - prob_touch_pct: ~P(spot touches strike before expiry) ≈ 2*N(-z)
+    - prob_itm_pct: ~P(ITM at expiry) ≈ N(-z) (driftless approximation)
+    A reversal signal only matters if there is enough remaining time for it
+    to reach the strike — that is exactly what z_buffer/prob_touch encode."""
+    if spot <= 0 or strike <= 0 or iv <= 0 or t_years <= 0:
+        return {}
+    buffer_frac = (spot - strike) / spot if side == "P" else (strike - spot) / spot
+    sigma_t = iv * math.sqrt(t_years)
+    z = buffer_frac / sigma_t
+    prob_touch = 1.0 if z <= 0 else min(1.0, 2.0 * _norm_cdf(-z))
+    prob_itm = _norm_cdf(-z)
+    return {
+        "strike_buffer_pct": round(buffer_frac * 100, 2),
+        "expected_move_pct": round(sigma_t * 100, 2),
+        "z_buffer": round(z, 2),
+        "prob_touch_pct": round(prob_touch * 100, 1),
+        "prob_itm_pct": round(prob_itm * 100, 1),
+    }
 
 
 def market_block(client: BybitClient) -> dict:
@@ -122,28 +170,38 @@ def positions_block(client: BybitClient, now_ms: int) -> list[dict]:
         open_pos = repo.open_positions(conn)
     finally:
         conn.close()
-    marks_by_coin = {}
+    chain_by_coin: dict[str, dict] = {}
     for coin in {p["coin"] for p in open_pos}:
         try:
-            marks_by_coin[coin] = client.get_option_marks(coin)
+            chain_by_coin[coin] = {
+                o["symbol"]: {"mark": o["mark_price"], "iv": o["mark_iv"],
+                              "spot": o["underlying_price"]}
+                for o in client.get_options_tickers(coin)}
         except Exception:
-            marks_by_coin[coin] = {}
+            chain_by_coin[coin] = {}
     out = []
     for p in open_pos:
-        m = marks_by_coin.get(p["coin"], {}).get(p["option_symbol"]) or {}
+        m = chain_by_coin.get(p["coin"], {}).get(p["option_symbol"]) or {}
         mark = m.get("mark")
         unreal = round((p["entry_credit"] - mark) * p["qty"], 2) if mark else None
         credit_total = p["entry_credit"] * p["qty"]
-        out.append({
+        t_years = max(0.0, (p["expiry_ms"] - now_ms) / (8760 * 3.6e6))
+        row = {
             "id": p["id"], "symbol": p["option_symbol"], "side": p["side"],
             "qty": p["qty"], "entry_credit": p["entry_credit"],
             "current_mark": mark, "unrealized_usd": unreal,
             "profit_pct_of_credit": round(unreal / credit_total * 100, 1)
             if (unreal is not None and credit_total) else None,
+            "remaining_premium_pct": round(mark / p["entry_credit"] * 100, 1)
+            if (mark and p["entry_credit"]) else None,
             "age_h": round((now_ms - p["opened_at_ms"]) / 3.6e6, 1),
             "expires_in_h": round((p["expiry_ms"] - now_ms) / 3.6e6, 1),
             "tp2_pct": p["tp2_pct"], "sl_pct": p["sl_pct"], "hold_h": p["hold_h"],
-        })
+        }
+        if m.get("spot") and m.get("iv"):
+            row.update(strike_risk(p["side"], m["spot"], p["strike"],
+                                   m["iv"], t_years))
+        out.append(row)
     return out
 
 
