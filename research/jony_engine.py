@@ -255,7 +255,9 @@ def evaluate_gates(base: dict, put_gen: dict | None = None, call_gen: dict | Non
     from vol_threshold (which requires vol to be elevated vs its OWN trailing
     percentile, rewarding entry mid-spike). Missing lookback history (warmup)
     defaults to allowed, same convention as bull_filter_ok."""
-    put_gen = jc.PUT_GEN if put_gen is None else put_gen
+    # live-паритет (config C, 2026-08-17): PUT-гейты per-coin по умолчанию
+    put_gen = (jc.PUT_GEN_BY_COIN.get(base["coin"], jc.PUT_GEN)
+               if put_gen is None else put_gen)
     call_gen = jc.CALL_GEN if call_gen is None else call_gen
     n = len(base["start_ms"])
     rv1h_native = pd.Series(base["rv1h_native"])

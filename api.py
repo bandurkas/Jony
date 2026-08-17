@@ -78,19 +78,22 @@ def state():
         conn.close()
 
 
+def _ser_gen(g: dict) -> dict:
+    return {**g, "regime_filter": list(g["regime_filter"])}
+
+
 @app.get("/params")
 def params():
     """Strategy/account parameters — the dashboard renders these instead of
     hardcoding a copy that would drift from the bot."""
     return {
         "coins": {c: list(s) for c, s in strategy.COIN_SIDES.items()},
-        "put_gen": {**strategy.PUT_GEN,
-                    "regime_filter": list(strategy.PUT_GEN["regime_filter"])},
-        "put_gen_by_coin": {c: {**g, "regime_filter": list(g["regime_filter"])}
+        # put_gen — легаси-ключ (ETH), фронт мигрирует на put_gen_by_coin
+        "put_gen": _ser_gen(strategy.PUT_GEN),
+        "put_gen_by_coin": {c: _ser_gen(g)
                             for c, g in strategy.PUT_GEN_BY_COIN.items()},
         "ret_7d_threshold": strategy.RET_7D_THRESHOLD,
-        "call_gen": {**strategy.CALL_GEN,
-                     "regime_filter": list(strategy.CALL_GEN["regime_filter"])},
+        "call_gen": _ser_gen(strategy.CALL_GEN),
         "put_exit": strategy.PUT_EXIT,
         "call_exit": strategy.CALL_EXIT,
         "account": {
@@ -104,10 +107,11 @@ def params():
             "target_expiry_h": config.TARGET_EXPIRY_H,
         },
         "backtest": {
-            "finding": "config E + exit retune + per-key CB + MAX_OPEN=10/CAP=6 (2026-08-02)",
-            "train_return_pct": 449695.4, "train_max_dd_pct": 13.0,
-            "holdout_return_pct": 6091.9, "holdout_max_dd_pct": 8.3,
-            "trades_per_day": 2.18,
+            "finding": "config C: puts-only, per-coin gates, ret7d 1.0, pkc=1 "
+                       "(2026-08-17, честный v2, обе сигмы — RESEARCH_LOG Phase 7)",
+            "train_return_pct": 22.8, "train_max_dd_pct": 21.9,
+            "holdout_return_pct": 28.8, "holdout_max_dd_pct": 13.2,
+            "trades_per_day": 0.25,   # CALIB (консервативная сигма); CLAMP: +62.2/+37.9
         },
     }
 

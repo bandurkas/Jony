@@ -11,13 +11,17 @@ Paper-бот мульти-активной VRP-корзины: **ETH (Put+Call) 
 
 Per-coin генератор = живой Sniper1 V2-hybrid + V3 (без изменений параметров):
 
-- `ret_7d > +0.5%` → только Put; `< -0.5%` → только Call; иначе обе стороны,
-  выбирает MTF.
-- **ETH Put**: vol_pctile ≥ 0.50, regime ∈ {range}, MTF 2/3 consensus = up,
-  cooldown 6 баров (30м).
-- **ETH Call / BTC Call**: vol_pctile ≥ 0.60, regime ∈ {range, transition},
-  MTF 1h-anchor = down, bull-фильтр EMA50/200 ≤ 1.05, cooldown 6 баров.
-- **BTC Put — ЗАПРЕЩЁН** (бэктест: −7.5%/сделку, нет VRP-эджа).
+- `ret_7d > +1.0%` → только Put; `< -1.0%` → только Call; иначе обе стороны,
+  выбирает MTF. (0.5→1.0 2026-08-17, config C; порог валидирован для P,
+  для C — нет: см. комментарий у RET_7D_THRESHOLD.)
+- **PUT-гейты per-coin (config C, 2026-08-17, RESEARCH_LOG Phase 7)**:
+  ETH Put vol_pctile ≥ 0.60, regime ∈ {range}; BTC Put vol_pctile ≥ 0.40,
+  regime ∈ {range, transition}; оба MTF 2/3 consensus = up, cooldown 6 баров.
+- **ETH Call / BTC Call**: vol_pctile ≥ 0.45, regime ∈ {range, transition,
+  trend}, MTF 1h-anchor = down, bull-фильтр EMA50/200 ≤ 1.05 — «config E»,
+  сейчас ВЫКЛЮЧЕНЫ (env JONY_DISABLED_KEYS=ETH:C,BTC:C, аудит 2026-08-14).
+- **BTC Put — ВКЛЮЧЁН 2026-08-14** (честный v2 отменил вердикт кривого
+  харнеса; единственный ключ с плюсом train+holdout на обеих сигмах).
 - Вход: 5-минутное окно, 5 поминутных проверок, tol1-дебаунс (допустим 1 сбой
   из 5), файр в конце окна. Кулдаун ts-based, независимый по (coin, side).
 - Выходы (бэктестовый сет, БЕЗ доллар-SL Sniper1 — он в корзине не тестирован,

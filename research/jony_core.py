@@ -168,21 +168,42 @@ def detect_regime(candles_1h: list[dict]) -> dict:
 # ───────────────────────── core/strategy.py ─────────────────────────
 
 BARS_7D = 2016
-RET_7D_THRESHOLD = 0.5
+RET_7D_THRESHOLD = 1.0  # synced to live 2026-08-17 (config C; было 0.5)
 HIST = 240
 
-# config "E" — deployed 2026-08-01 (was vol_threshold=0.50/("range",) for PUT
-# and vol_threshold=0.60/("range","transition") for CALL; see core/strategy.py
-# docstring + sweep_thresholds.py/quarter_robustness.py for the backtest).
-PUT_GEN = {"vol_threshold": 0.50, "regime_filter": ("range", "transition"),
-          "mtf_direction_filter": "up", "mtf_anchor_tf": None, "bull_market_ratio_max": None}
+# config C — deployed 2026-08-17 (per-coin PUT gates, RESEARCH_LOG Phase 7).
+# PUT_GEN оставлен как legacy-«общий» дефолт для старых скриптов и равен
+# ETH-конфигу; скрипты, которым нужен live-паритет по монетам, должны брать
+# PUT_GEN_BY_COIN[coin] (как это делает live core/strategy.py).
+PUT_GEN_BY_COIN = {
+    "ETH": {"vol_threshold": 0.60, "regime_filter": ("range",),
+            "mtf_direction_filter": "up", "mtf_anchor_tf": None, "bull_market_ratio_max": None},
+    "BTC": {"vol_threshold": 0.40, "regime_filter": ("range", "transition"),
+            "mtf_direction_filter": "up", "mtf_anchor_tf": None, "bull_market_ratio_max": None},
+}
+PUT_GEN = PUT_GEN_BY_COIN["ETH"]
 CALL_GEN = {"vol_threshold": 0.45, "regime_filter": ("range", "transition", "trend"),
            "mtf_direction_filter": "down", "mtf_anchor_tf": "1h", "bull_market_ratio_max": 1.05}
 # exit tune deployed 2026-08-01 (was PUT sl_pct=2.00/hold_h=96, CALL
 # tp2_pct=0.80; see sweep_exits.py/validate_combined.py for the backtest).
 PUT_EXIT = {"tp2_pct": 0.70, "sl_pct": 1.75, "hold_h": 120}
 CALL_EXIT = {"tp2_pct": 0.70, "sl_pct": 0.75, "hold_h": 24}
-COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C",)}
+COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C", "P")}  # BTC:P включён 2026-08-14
+
+# CALIB markIv-сигма (fit 2026-08-02, sweep_sigma_calibration.py) — единая
+# копия для всех research-скриптов вместо 8 разбросанных дублей (ревью 2026-08-17)
+CALIB = {"b0": 0.3487, "b1": 0.2646, "floor": 0.25, "ceiling": 1.05}
+
+
+def fixed_lot_pnl(t: dict) -> float:
+    """Каноническая копия (была продублирована в 8 скриптах — ревью 2026-08-17)."""
+    qty = t["lot"]
+    notional = t["strike"] * qty
+    premium_total = t["entry_credit"] * qty
+    fee_open = fee_usd(notional, premium_total)
+    exit_credit = t["entry_credit"] * (1 - t["pnl_pct"])
+    fee_close = fee_usd(notional, exit_credit * qty)
+    return (t["entry_credit"] - exit_credit) * qty - fee_open - fee_close
 
 
 def gen_kwargs(side: str) -> dict:

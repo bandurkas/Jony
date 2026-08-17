@@ -29,12 +29,14 @@ def run_riskoff(trades, K):
     on, stitched, toggles = True, [], 0
     weeks_on = weeks_off = 0
     while t < t1:
-        p4, _ = idx.pnl_window(t - 28 * DAY, t)
-        p2, _ = idx.pnl_window(t - 14 * DAY, t)
-        if on and p4 < -K:
+        p4, n4 = idx.pnl_window(t - 28 * DAY, t)
+        p2, n2 = idx.pnl_window(t - 14 * DAY, t)
+        # ревью 2026-08-17: пустое окно — не сигнал; выключение требует
+        # реальных убытков (n4>0), включение — реальных доказательств (n2>0)
+        if on and n4 > 0 and p4 < -K:
             on = False
             toggles += 1
-        elif not on and p2 >= 0:
+        elif not on and n2 > 0 and p2 >= 0:
             on = True
             toggles += 1
         if on:

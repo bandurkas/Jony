@@ -157,6 +157,17 @@ class TestSideOffZone(unittest.TestCase):
                             None, 1_000_000)
         self.assertEqual(p["zone"], "side-off")
         self.assertEqual(p["proximity_pct"], 0.0)
+        # debounce-семантика НЕ подменяется side-off веткой (ревью 2026-08-17):
+        # window_status=None -> staleness честно неизвестна
+        self.assertTrue(p["debounce_unknown"])
+
+    def test_side_off_keeps_staleness_signal(self):
+        from core.proximity import entry_proximity
+        ws = {"wid": 3333, "min_in_window": 2, "disqualified": 0,
+              "checked_at_ms": 999_990_000}
+        now = 999_990_000 + 5_000  # свежий и тот же wid (1666.65 -> 3333)
+        p = entry_proximity({"no_side_allowed": True}, ws, now)
+        self.assertEqual(p["zone"], "side-off")
         self.assertFalse(p["debounce_unknown"])
 
     def test_normal_eval_unaffected(self):

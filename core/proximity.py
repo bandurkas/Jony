@@ -61,18 +61,11 @@ def entry_proximity(ev: dict, window_status: dict | None = None,
     `window_status` is that coin's persisted per-minute check state (see
     db.repo.upsert_window_status / loop.py): {wid, min_in_window,
     disqualified, checked_at_ms}."""
-    if ev.get("no_side_allowed"):
-        # селектор сторон не оставил ни одной (напр. даунтренд при puts-only):
-        # гейты не считались, композит из нулей+bull-заглушки (вечные 20%)
-        # вводил в заблуждение — честная зона "side-off" с 0% (2026-08-17)
-        return {
-            "proximity_pct": 0.0,
-            "zone": "side-off",
-            "factors": {"vol": 0.0, "regime": 0.0, "mtf": 0.0, "bull": 0.0},
-            "weights": WEIGHTS,
-            "debounce_unknown": False,
-            "window_disqualified": False,
-        }
+    # side-off: селектор сторон не оставил ни одной (напр. даунтренд при
+    # puts-only) — гейты не считались, честный 0% вместо композита из
+    # нулей+bull-заглушки (вечных 20%). Debounce-поля ниже считаются как
+    # обычно: их staleness-семантика — отдельный сигнал «жив ли loop».
+    side_off = bool(ev.get("no_side_allowed"))
     f_vol = _f(ev.get("vol_pctile"))
     f_regime = 1.0 if ev.get("regime_ok") else 0.0
     f_mtf = _f((ev.get("tfs_aligned") or 0) / 3.0)
@@ -96,7 +89,10 @@ def entry_proximity(ev: dict, window_status: dict | None = None,
              and not window_disqualified and at_close_tick)
     pct = 100.0 if ready else min(99.0, composite)
     pct = round(pct, 1)
-    if pct >= 100.0:
+    if side_off:
+        pct = 0.0
+        zone = "side-off"
+    elif pct >= 100.0:
         zone = "entry"        # all gates pass AND debounce window confirmed — bot will fire
     elif pct >= 80.0:
         zone = "ready"        # one factor short of entry

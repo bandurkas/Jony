@@ -45,14 +45,18 @@ from .regime import detect_regime
 
 BARS_7D = 2016            # 7 days of 5m bars
 RET_7D_THRESHOLD = 1.0    # V2 hybrid boundary, %; 0.5->1.0 2026-08-17 (config C, Phase 7)
+                           # ВАЖНО: 1.0 валидирован ТОЛЬКО для PUT-стороны; CALL-зона
+                           # расширена этим же порогом без бэктеста (сейчас безвредно —
+                           # C-ключи выключены env). Перед включением коллов — либо
+                           # ревалидация на 1.0, либо per-side порог.
 HIST = 240                # bars fed to MTF/regime/vol, matches opt-app
 
 # Config C (2026-08-17, RESEARCH_LOG Phase 7): puts-only book, per-coin PUT
 # gates. ETH:P robust only with regime=range-only (all 12/72 survivors had R);
 # BTC:P tolerates looser vol at range+transition. Validated on the honest v2
-# engine, both sigmas, replay pkc=1: train +62%/+23%, holdout +38%/+29%,
-# dd 9-13%, quarters 3/4 — vs the previous shared config which was
-# train-negative on both sigmas.
+# engine, both sigmas, replay pkc=1: train +62%/+23% (dd 20.8/21.9%),
+# holdout +38%/+29% (dd 8.9/13.2%), quarters 3/4 — vs the previous shared
+# config which was train-negative on both sigmas.
 PUT_GEN_BY_COIN = {
     "ETH": {
         "vol_threshold": 0.60,
@@ -97,8 +101,10 @@ DISABLED_KEYS = frozenset(
     if k.strip())
 
 
-def gen_kwargs(side: str, coin: str = "ETH") -> dict:
-    return PUT_GEN_BY_COIN.get(coin, PUT_GEN) if side == "P" else CALL_GEN
+def gen_kwargs(side: str, coin: str) -> dict:
+    # KeyError для неизвестной монеты — fail loud: молчаливый фолбэк на чужие
+    # гейты опаснее падения (ревью 2026-08-17)
+    return PUT_GEN_BY_COIN[coin] if side == "P" else CALL_GEN
 
 
 def exit_params(side: str) -> dict:
@@ -130,7 +136,7 @@ def allowed_sides(coin: str, ret_7d: float) -> list[str]:
 
 def _evaluate_side(side: str, mtf: dict, regime: str,
                    rolling_vols: list[float], closes_1h: list[float],
-                   coin: str = "ETH") -> dict:
+                   coin: str) -> dict:
     """Vol/regime/MTF/bull checks for one side — mirrors opt-app exactly."""
     kw = gen_kwargs(side, coin)
     out = {

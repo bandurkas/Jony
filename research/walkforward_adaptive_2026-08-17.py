@@ -84,18 +84,26 @@ def run_adaptive(combos: dict, F: float, nmin: int, H: float):
     while t < t_end:
         scores_raw = {}
         for k in keys:
-            p2, _ = idx[k].pnl_window(t - 14 * DAY, t)
+            p2, n2 = idx[k].pnl_window(t - 14 * DAY, t)
             p4, n4 = idx[k].pnl_window(t - 28 * DAY, t)
             p13, _ = idx[k].pnl_window(t - 91 * DAY, t)
             p26, _ = idx[k].pnl_window(t - 182 * DAY, t)
             if p13 > -F and p26 > -F and n4 >= nmin:
-                scores_raw[k] = (p2, p4, p13)
+                scores_raw[k] = (p2, n2, p4, p13)
         if scores_raw:
             ks = list(scores_raw)
-            r2 = rankpct([scores_raw[k][0] for k in ks])
-            r4 = rankpct([scores_raw[k][1] for k in ks])
-            r13 = rankpct([scores_raw[k][2] for k in ks])
-            score = {k: 0.5 * r2[i] + 0.3 * r4[i] + 0.2 * r13[i]
+            # ревью 2026-08-17: пустое 2w-окно (n2=0) — «нет данных», не «0»;
+            # такие комбо получают НЕЙТРАЛЬНЫЙ ранг 0.5 по 2w вместо места
+            # выше всех убыточных (иначе в плохие полосы селектор системно
+            # уходил в наименее активные комбо)
+            with_data = [k for k in ks if scores_raw[k][1] > 0]
+            r2_map = {}
+            if with_data:
+                r2_vals = rankpct([scores_raw[k][0] for k in with_data])
+                r2_map = dict(zip(with_data, r2_vals))
+            r4 = rankpct([scores_raw[k][2] for k in ks])
+            r13 = rankpct([scores_raw[k][3] for k in ks])
+            score = {k: 0.5 * r2_map.get(k, 0.5) + 0.3 * r4[i] + 0.2 * r13[i]
                      for i, k in enumerate(ks)}
             best = max(score, key=score.get)
             if active not in score or score[best] - score[active] >= H:
