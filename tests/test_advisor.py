@@ -15,9 +15,17 @@ def _prev(actions: dict[int, str]) -> dict:
                           for i, a in actions.items()]}
 
 
-POS = {1: {"id": 1, "unrealized_usd": 5.0},
-       2: {"id": 2, "unrealized_usd": -3.0},
-       3: {"id": 3, "unrealized_usd": 0.8}}
+# Снапшоты проходят калиброванную политику закрытий (2026-08-17): 1 и 3 —
+# эндшпиль (профит >= 25% кредита, возраст >= 70% hold_h), 2 — аварийный
+# ITM-убыток. Существующие тесты проверяют ДРУГИЕ гейты (mode/persistence/
+# rate-limit) поверх позиций, которым политика закрываться разрешает;
+# сама политика тестируется в TestClosePolicy.
+POS = {1: {"id": 1, "unrealized_usd": 5.0, "profit_pct_of_credit": 40.0,
+           "age_h": 100.0, "hold_h": 120, "strike_buffer_pct": 3.0},
+       2: {"id": 2, "unrealized_usd": -3.0, "profit_pct_of_credit": -60.0,
+           "age_h": 30.0, "hold_h": 120, "strike_buffer_pct": -1.5},
+       3: {"id": 3, "unrealized_usd": 0.8, "profit_pct_of_credit": 26.0,
+           "age_h": 20.0, "hold_h": 24, "strike_buffer_pct": 2.0}}
 
 
 class TestDecideExecutions(unittest.TestCase):
@@ -77,6 +85,84 @@ class TestDecideExecutions(unittest.TestCase):
         self.assertEqual(advisor.decide_executions(
             _advice({99: "CLOSE"}, "lockdown"), POS, None,
             "profit_only", [], 0), [])
+
+
+def _snap(**kw) -> dict:
+    base = {"id": 7, "unrealized_usd": 1.0, "profit_pct_of_credit": 10.0,
+            "age_h": 10.0, "hold_h": 120, "strike_buffer_pct": 2.0}
+    base.update(kw)
+    return base
+
+
+class TestClosePolicy(unittest.TestCase):
+    """Калиброванная политика закрытий (Phase 9): профиту дают дозреть.
+    Разрешено ровно два случая — эндшпиль и аварийный ITM-убыток."""
+
+    def test_endgame_allowed(self):
+        self.assertTrue(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=30.0, age_h=90.0, hold_h=120)))
+
+    def test_young_winner_vetoed(self):
+        # кейс id56-59 истории: BTC-коллы +33-36% в возрасте 8-10ч из 24ч —
+        # раньше советник их резал; 8h < 70% * 24h => вето
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=35.0, age_h=8.0, hold_h=24)))
+
+    def test_mature_but_small_profit_vetoed(self):
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=10.0, age_h=110.0, hold_h=120)))
+
+    def test_atm_fear_vetoed(self):
+        # кейс id60/61: свежая ATM-позиция у страйка — норма, не риск
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=0.5, age_h=2.0, hold_h=24,
+                  strike_buffer_pct=0.2)))
+
+    def test_breathing_drawdown_vetoed(self):
+        # кейс id1-6: просадка -25..-50% ITM регулярно возвращается в плюс
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=-30.0, age_h=20.0, hold_h=96,
+                  strike_buffer_pct=-1.0)))
+
+    def test_emergency_deep_itm_loss_allowed(self):
+        self.assertTrue(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=-70.0, strike_buffer_pct=-2.0)))
+
+    def test_deep_loss_but_otm_vetoed(self):
+        # глубокий минус БЕЗ ITM (вола раздула премию) — не аварийный кейс
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=-70.0, strike_buffer_pct=1.0)))
+
+    def test_zero_hold_fail_closed(self):
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=40.0, age_h=10.0, hold_h=0)))
+
+    def test_missing_data_fail_closed(self):
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=None)))
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(age_h=None)))
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(hold_h=None)))
+        self.assertFalse(advisor.close_policy_allows(
+            _snap(profit_pct_of_credit=-70.0, strike_buffer_pct=None)))
+        self.assertFalse(advisor.close_policy_allows({}))
+
+    def test_lockdown_does_not_bypass_policy(self):
+        # даже lockdown (urgent, без persistence) не может резать молодой
+        # профит — паническая фиксация и была измеренным источником убытка
+        young = {5: _snap(id=5, unrealized_usd=2.0,
+                          profit_pct_of_credit=35.0, age_h=8.0, hold_h=24)}
+        self.assertEqual(advisor.decide_executions(
+            _advice({5: "CLOSE"}, "lockdown"), young, None,
+            "profit_only", [], 0), [])
+
+    def test_endgame_executes_through_decide_executions(self):
+        ripe = {6: _snap(id=6, unrealized_usd=2.0,
+                         profit_pct_of_credit=30.0, age_h=100.0, hold_h=120)}
+        self.assertEqual(advisor.decide_executions(
+            _advice({6: "CLOSE"}), ripe, _prev({6: "CLOSE"}),
+            "profit_only", [], 0), [6])
 
 
 class TestStrikeRisk(unittest.TestCase):
@@ -185,6 +271,18 @@ class TestFormatTg(unittest.TestCase):
                          "ETH P1875")
         self.assertEqual(advisor._short_symbol("weird"), "weird")
 
+    def test_vetoed_close_is_not_an_imperative(self):
+        # CLOSE, отклонённый политикой закрытий, — «держим», а не «закрой
+        # сам»: иначе ветированный ранний харвест исполнялся бы руками
+        # человека (ревью 2026-08-17)
+        msg = advisor.format_tg(self.ADVICE, self.POS, [], None,
+                                866.07, 800.0, vetoed={60})
+        self.assertIn("🔒 BTC C63000 +0.1$ · touch 92% — держим (политика)",
+                      msg)
+        self.assertNotIn("BTC C63000 +0.1$ · touch 92% — закрой сам", msg)
+        # неветированный CLOSE (аварийный кейс) сохраняет императив человеку
+        self.assertIn("❗ ETH P1925 -4.3$ · ITM, режь — закрой сам", msg)
+
 
 def _entry_advice(coin="BTC", side="P", conf=0.8):
     return {"entry_proposal": {"coin": coin, "side": side, "confidence": conf,
@@ -260,10 +358,6 @@ class TestDecideEntry(unittest.TestCase):
         old_one = [now - 6 * 3_600_000]
         self.assertIsNotNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", old_one, now))
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestP2InputBlocks(unittest.TestCase):
@@ -395,3 +489,7 @@ class TestCliBackend(unittest.TestCase):
                           "dist_from_7d_low_pct": 2.5}}
         self.assertIsNotNone(advisor.decide_entry(
             _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=down))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -16,6 +16,7 @@ import json
 import time
 import traceback
 
+from core import close_policy
 from core.strategy import (
     COIN_SIDES, evaluate_conditions, exit_params, window_fail_step,
 )
@@ -131,8 +132,13 @@ def manage_exits(conn, state: dict, now_ms: int,
             reason, status = "sl", "closed_sl"
         elif held_h >= p["hold_h"]:
             reason, status = "time_stop", "closed_time"
-        elif posture == "lockdown" and pnl_pct_mark > 0:
-            # lockdown: harvest every profitable position immediately
+        elif posture == "lockdown" and \
+                close_policy.endgame_ok(pnl_pct_mark, held_h, p["hold_h"]):
+            # lockdown снимает только ЗРЕЛЫЙ профит (политика закрытий,
+            # core/close_policy.py — ревью 2026-08-17: иначе советник,
+            # которому вето не даёт CLOSE, харвестил бы молодые позиции
+            # через lockdown). Молодой профит под lockdown защищает
+            # трейлинг-ветка ниже; полная эвакуация — Close All у человека.
             reason, status = "lockdown_profit_lock", "closed_trail"
         elif posture in ("tight", "lockdown") and \
                 portfolio.trail_exit_due(peak, pnl_pct_mark):

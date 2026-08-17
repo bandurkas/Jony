@@ -27,6 +27,7 @@ from pathlib import Path
 
 import requests
 
+from core import close_policy
 from core.strategy import COIN_SIDES, DISABLED_KEYS, RET_7D_THRESHOLD
 from db import repo
 from services.bybit_client import BybitClient, pick_atm_option
@@ -44,29 +45,46 @@ GATES_STALE_MS = 10 * 60_000  # старше -> gate-снапшот считае
 SYSTEM = """Ты — риск-советник по проданным (short) крипто-опционам на Bybit.
 Счёт продаёт недельные ATM опционы (short put / short call) и зарабатывает
 тету; главный риск — резкое движение базового актива, сжигающее накопленную
-прибыль. Задача: защитить УЖЕ НАКОПЛЕННУЮ марк-ту-маркет прибыль открытых
-позиций. Не жадничать: если позиция набрала заметный профит и рыночный фон
-ухудшается — рекомендуй забирать. Учитывай: короткие путы страдают при
-падении, короткие коллы — при росте; ускорение волатильности вредит обоим.
+прибыль. Учитывай: короткие путы страдают при падении, короткие коллы — при
+росте; ускорение волатильности вредит обоим.
 Подсказки по данным: iv_minus_rv24 > 0 — продажа волы оплачивается (фон для
 удержания лучше); funding_rate экстремумы и резкий рост OI — признак
 перегретого позиционирования; dist_from_7d_high/low — где спот в диапазоне.
 
-Разворот против времени до экспирации — у каждой позиции посчитано:
-z_buffer (запас до страйка в единицах ожидаемого хода за ОСТАВШЕЕСЯ время),
-prob_touch_pct (вероятность касания страйка до экспирации), prob_itm_pct,
-expected_move_pct, remaining_premium_pct (сколько премии ещё не собрано).
-Логика гонки теты и разворота:
-- z_buffer >= 2 (prob_touch < ~5%) — тета почти наверняка добегает: держи,
-  даже если есть признаки разворота.
-- z_buffer 1..2 — смотри на разворотные признаки (моментум затухает,
-  цена растянута от 7д экстремума, funding перегрет): если они против
-  позиции И времени до экспирации много — фиксируй, тета не успеет.
-- z_buffer < 1 (prob_touch > ~30%) — опасная зона: при любом профите
-  фиксируй; убыточную помечай CLOSE — уйдёт уведомлением человеку.
-- Отдельно про R/R: если remaining_premium_pct < 30 (премия почти собрана),
-  а prob_touch заметный — держать нечего ради, риск многократно превышает
-  остаток выигрыша. Это главный сигнал «не жадничать».
+ГЛАВНОЕ ПРАВИЛО по открытым позициям: ДАЙ ПРОФИТУ ДОЗРЕТЬ. Экспектанса
+стратегии живёт в поздней тете; ранний харвест и страх у страйка — твой
+главный измеренный источник убытка. Калибровка на всей истории бота
+(61 сделка, 07.07-14.08): твоё прежнее поведение (фиксация при 30-35%,
+закрытие при споте у страйка) дало бы итог −$38…−79 против +$65 у механики
+без тебя; резка просадок −15…−35% дала бы −$34…−101. Политика ниже —
+единственная из проверенных, дающая плюс: +$33…52 СВЕРХУ механики.
+
+CLOSE разрешён РОВНО в двух случаях:
+1) Эндшпиль: age_h >= 75% hold_h И профит >= 30% кредита — снять ЗРЕЛЫЙ
+   профит, пока поздний откат его не забрал (весь измеренный плюс политики
+   из этого правила).
+2) Аварийный стоп: позиция ITM (strike_buffer_pct < 0) И убыток <= −60%
+   кредита — механический SL стоит дальше и в гэпе проскальзывает. (CLOSE
+   по убыточной не авто-исполняется — уйдёт срочным уведомлением человеку.)
+Всё остальное — HOLD. Особо запрещено:
+- закрывать позицию моложе 75% hold_h из-за спота у страйка, низкого
+  z_buffer, prob_touch/prob_itm или «экстремального темпа профита»: вход
+  ВСЕГДА ATM, молодая позиция у страйка — норма, а не риск. Эти метрики
+  имеют вес только в эндшпиле и в аварийном случае.
+- резать «дышащую» просадку (−20…−50% кредита): короткая опционная позиция
+  регулярно возвращается из неё в плюс, у механики есть свой SL.
+- фиксировать профит потому что «премия почти собрана» или «темп
+  экстремальный» — низкий remaining_premium_pct сам по себе НЕ причина.
+Защита РАСТУЩЕГО профита при ухудшении фона — это posture=tight (включает
+механический трейлинг-лок от пика), а не CLOSE. lockdown — только
+аккаунт-уровневая авария против всей книги, не инструмент фиксации.
+Код дублирует политику вето (эндшпиль от 70%/25%, аварийный от −55% ITM):
+CLOSE вне этих рамок физически не исполнится — не трать на него решения.
+
+Справочно: z_buffer (запас до страйка в единицах ожидаемого хода за
+оставшееся время), prob_touch_pct, prob_itm_pct, expected_move_pct,
+remaining_premium_pct — используй их в эндшпиле (решить, снимать ли при
+пограничном профите) и для аварийной оценки убыточной позиции.
 your_previous_advice — твоя рекомендация в прошлый раз: сохраняй
 преемственность (не дёргай HOLD↔CLOSE и posture без причины), но признавай
 смену обстановки. wake_reason в запросе означает срочный вызов по рыночному
@@ -74,11 +92,13 @@ your_previous_advice — твоя рекомендация в прошлый р�
 
 Твои решения ИСПОЛНЯЮТСЯ автоматически:
 - risk_posture пишется в бота: tight включает трейлинг-фиксацию профита,
-  lockdown снимает весь профит и блокирует входы. Это твой главный рычаг
-  при ухудшении фона.
+  lockdown блокирует входы, снимает ЗРЕЛЫЙ профит (по политике закрытий)
+  и держит трейлинг-лок на остальных. Это твой главный рычаг при
+  ухудшении фона; обойти политику закрытий через lockdown нельзя.
 - CLOSE по профитной позиции закрывает её реально (после двух согласных
-  вызовов подряд, либо сразу при lockdown). CLOSE по убыточной — только
-  уведомление человеку.
+  вызовов подряд, либо сразу при lockdown) — но только в рамках политики
+  закрытий выше (кодовое вето). CLOSE по убыточной — только уведомление
+  человеку.
 - entry_proposal открывает РЕАЛЬНУЮ позицию (бот перепроверит лимиты).
   Базовые условия: ключ в keys_available; iv_minus_rv24 > 0 (продажу волы
   платят); волатильность НЕ ускоряется; funding умеренный; спот не у 7д
@@ -102,11 +122,9 @@ brief — 2-4 слова причины на позицию. Без воды: п
 сомневаешься — сравни тету с риском разворота и прими решение.
 your_track_record — твой собственный измеренный скоринг (сколько $ реально
 сохранили/стоили твои прошлые советы против «просто держать»). Калибруйся
-по нему: если CLOSE в минусе (total_saved_usd < 0) — ты систематически
-режешь победителей рано; поднимай планку для CLOSE профитной позиции —
-требуй КОНКРЕТНЫЙ разворотный триггер (z_buffer < 1, вола ускоряется,
-спот у страйка), а не только «премия почти собрана». Если HOLD в плюсе —
-доверяй тете больше.
+по нему: если CLOSE в минусе (total_saved_usd < 0) — ты всё ещё режешь
+позиции раньше политики закрытий; сверяйся с её двумя разрешёнными
+случаями. Если HOLD в плюсе — тета работает, продолжай не мешать.
 """
 
 
@@ -426,12 +444,29 @@ WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
 WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
 
 
+def close_policy_allows(snap: dict) -> bool:
+    """Разрешён ли CLOSE калиброванной политикой закрытий (пороги и
+    обоснование — core/close_policy.py, единые с lockdown-жаткой loop.py).
+    Fail-closed: нет данных — вето. snap — строка positions_block
+    (profit_pct_of_credit в % кредита, strike_buffer_pct < 0 означает ITM)."""
+    profit = snap.get("profit_pct_of_credit")
+    pnl_frac = profit / 100.0 if profit is not None else None
+    if close_policy.endgame_ok(pnl_frac, snap.get("age_h"), snap.get("hold_h")):
+        return True
+    buf = snap.get("strike_buffer_pct")
+    itm = (buf < 0) if buf is not None else None
+    return close_policy.emergency_ok(pnl_frac, itm)
+
+
 def decide_executions(advice: dict, pos_by_id: dict, prev_advice: dict | None,
                       mode: str, recent_exec_ts: list[int],
                       now_ms: int) -> list[int]:
     """Which CLOSE recommendations actually execute. Guardrails:
     - mode off => nothing; profit_only => only positions in MTM profit;
       full => losing positions too.
+    - close_policy_allows: калиброванное вето (эндшпиль или аварийный ITM);
+      применяется ВСЕГДА, включая lockdown — паническая фиксация молодого
+      профита и была измеренным источником убытка.
     - persistence: a CLOSE fires only if the PREVIOUS advice also said CLOSE
       for that position — unless posture is lockdown (urgent).
     - rate limit: at most MAX_EXEC_PER_HOUR auto-closes per rolling hour.
@@ -455,6 +490,8 @@ def decide_executions(advice: dict, pos_by_id: dict, prev_advice: dict | None,
         if snap is None or snap.get("unrealized_usd") is None:
             continue
         if mode == "profit_only" and snap["unrealized_usd"] <= 0:
+            continue
+        if not close_policy_allows(snap):
             continue
         if not urgent and prev_actions.get(rec["id"]) != "CLOSE":
             continue
@@ -573,11 +610,16 @@ def _short_symbol(symbol: str) -> str:
 
 def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
               posture_change: tuple[str, str] | None,
-              equity: float | None, start_equity: float | None) -> str:
+              equity: float | None, start_equity: float | None,
+              vetoed: set[int] | None = None) -> str:
     """Mobile-first push, target ≤6 short lines:
        header (risk+posture) / one-line model summary /
        one line per non-HOLD position / account footer.
-       Full reasons stay in advice.jsonl and /advice/recent — not the push."""
+       Full reasons stay in advice.jsonl and /advice/recent — not the push.
+       vetoed — CLOSE-советы, отклонённые политикой закрытий: рендерятся
+       информационно («держим»), НЕ как команда человеку «закрой сам» —
+       иначе ветированный ранний харвест исполнялся бы чужими руками
+       (ревью 2026-08-17)."""
     risk = advice.get("market_risk", "?")
     icon = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk, "❔")
     head = f"{icon} Jony · {risk} · {advice.get('risk_posture', '?')}"
@@ -600,6 +642,8 @@ def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
         brief = rec.get("brief") or ""
         if pid in executed:
             lines.append(f"🤖 закрыл {sym}{pnl_s} · {brief}")
+        elif vetoed and pid in vetoed:
+            lines.append(f"🔒 {sym}{pnl_s} · {brief} — держим (политика)")
         else:
             lines.append(f"❗ {sym}{pnl_s} · {brief} — закрой сам")
     foot = ""
@@ -750,8 +794,16 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         finally:
             conn.close()
 
+    # CLOSE-советы, отклонённые политикой закрытий: в пуше — «держим», не
+    # «закрой сам», и сами по себе не делают тик actionable (иначе модель,
+    # упорно советующая ветированный CLOSE, спамила бы пушами каждый час)
+    vetoed = {r.get("id") for r in advice.get("positions", [])
+              if r.get("action") == "CLOSE" and r.get("id") in pos_by_id
+              and not close_policy_allows(pos_by_id[r.get("id")])}
+
     record = {"ts_ms": now_ms, "model": MODEL, "wake_reason": wake_reason,
               "posture": new_posture, "executed": exec_ids,
+              "policy_vetoed": sorted(vetoed),
               "entry_requested": entry, "input": payload, "advice": advice}
     ADVICE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ADVICE_PATH.open("a") as f:
@@ -759,7 +811,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
 
     actionable = (advice.get("market_risk") == "high" or exec_ids or entry
                   or new_posture != cur_posture
-                  or any(r.get("action") == "CLOSE"
+                  or any(r.get("action") == "CLOSE" and r["id"] not in vetoed
                          for r in advice.get("positions", [])))
     if NOTIFY_MODE == "all" or (NOTIFY_MODE == "actionable" and actionable
                                 and (pos or entry)):
@@ -767,7 +819,8 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
             msg = format_tg(
                 advice, pos_by_id, exec_ids,
                 (cur_posture, new_posture) if new_posture != cur_posture else None,
-                state.get("equity_usd"), state.get("start_equity_usd"))
+                state.get("equity_usd"), state.get("start_equity_usd"),
+                vetoed=vetoed)
             if entry:
                 msg += (f"\n🚀 вход {entry['coin']} {entry['side']}"
                         f" · {entry.get('brief', '')}")

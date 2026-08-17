@@ -363,19 +363,42 @@ class TestPostureExits(unittest.TestCase):
         st = repo.get_state(self.conn)
         self.assertEqual(json.loads(st["cb_until_json"]), {})  # no CB arm
 
-    def test_lockdown_harvests_only_profitable(self):
-        pid_win = _mk_pos(self.conn, symbol="ETH-WIN")
-        pid_loss = _mk_pos(self.conn, symbol="ETH-LOSS")
-        repo.set_risk_posture(self.conn, "lockdown", 500)
-        # WIN at profit 10% (below trail arm — lockdown must still harvest);
-        # LOSS at −10% (must stay open, loss-cutting is not automated)
-        self._tick({"ETH-WIN": {"mark": 27.0, "ask": 27.0, "bid": 26.0},
-                    "ETH-LOSS": {"mark": 33.0, "ask": 33.0, "bid": 32.0}}, 1000)
+    def test_lockdown_harvests_only_mature_profit(self):
+        # Политика закрытий (core/close_policy, 2026-08-17): lockdown снимает
+        # только ЗРЕЛЫЙ профит (возраст >= 70% hold_h И профит >= 25% кредита).
+        # Молодой винер остаётся под трейлинг-защитой (паническая жатва молодых
+        # позиций измеренно убыточна — кейс id56-59), убыточная — открыта
+        # (резка убытка не автоматизирована).
+        now = 20 * 3_600_000  # 20ч
+        _mk_pos(self.conn, symbol="ETH-RIPE")                 # возраст 20/24ч
+        _mk_pos(self.conn, symbol="ETH-YOUNG",
+                opened_at=now - 3_600_000)                    # возраст 1/24ч
+        _mk_pos(self.conn, symbol="ETH-LOSS")
+        repo.set_risk_posture(self.conn, "lockdown", now - 1000)
+        # RIPE/YOUNG at profit 30% of credit; LOSS at −10%
+        self._tick({"ETH-RIPE": {"mark": 21.0, "ask": 21.0, "bid": 20.0},
+                    "ETH-YOUNG": {"mark": 21.0, "ask": 21.0, "bid": 20.0},
+                    "ETH-LOSS": {"mark": 33.0, "ask": 33.0, "bid": 32.0}}, now)
         rows = {r["option_symbol"]: dict(r) for r in self.conn.execute(
             "SELECT option_symbol, status, exit_reason FROM positions")}
-        self.assertEqual(rows["ETH-WIN"]["status"], "closed_trail")
-        self.assertEqual(rows["ETH-WIN"]["exit_reason"], "lockdown_profit_lock")
+        self.assertEqual(rows["ETH-RIPE"]["status"], "closed_trail")
+        self.assertEqual(rows["ETH-RIPE"]["exit_reason"], "lockdown_profit_lock")
+        self.assertEqual(rows["ETH-YOUNG"]["status"], "open")
         self.assertEqual(rows["ETH-LOSS"]["status"], "open")
+
+    def test_lockdown_young_winner_still_trail_protected(self):
+        # молодой винер под lockdown не жнётся политикой, но трейлинг-лок
+        # (общий для tight/lockdown) продолжает защищать его от отката с пика
+        _mk_pos(self.conn, symbol="ETH-YOUNG")
+        self._tick({"ETH-YOUNG": {"mark": 21.0, "ask": 21.0, "bid": 20.0}},
+                   1000)  # peak 30%
+        repo.set_risk_posture(self.conn, "lockdown", 1500)
+        self._tick({"ETH-YOUNG": {"mark": 25.5, "ask": 25.5, "bid": 25.0}},
+                   2000)  # retrace 30%→15% (>10pp giveback) при возрасте ~0ч
+        row = dict(self.conn.execute(
+            "SELECT status, exit_reason FROM positions").fetchone())
+        self.assertEqual(row["status"], "closed_trail")
+        self.assertEqual(row["exit_reason"], "trail_lock")
 
     def _insert_closed(self, closed_at_ms, pnl_usd, status="closed_sl"):
         pid = repo.insert_position(self.conn, {
