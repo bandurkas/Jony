@@ -265,7 +265,7 @@ def insert_position_mark(conn: sqlite3.Connection, ts_ms: int, pos_id: int,
                          option_symbol: str, m: dict,
                          pnl_pct_mark: float) -> None:
     conn.execute(
-        "INSERT INTO position_marks (ts_ms, pos_id, option_symbol, mark, bid,"
+        "INSERT OR IGNORE INTO position_marks (ts_ms, pos_id, option_symbol, mark, bid,"
         " ask, mark_iv, underlying, delta, pnl_pct_mark)"
         " VALUES (?,?,?,?,?,?,?,?,?,?)",
         (ts_ms, pos_id, option_symbol, m.get("mark"), m.get("bid"),

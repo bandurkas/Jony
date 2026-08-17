@@ -304,7 +304,10 @@ def advice_score():
     path = pathlib.Path("data/advice.jsonl")
     if not path.exists():
         return {"n_advices": 0, "details": []}
-    records = [json.loads(ln) for ln in path.read_text().strip().splitlines()]
+    # хвост файла: advice.jsonl только растёт (полный payload в каждой записи),
+    # безлимитный парс со временем превысил бы таймауты потребителей (ревью 2026-08-17)
+    records = [json.loads(ln)
+               for ln in path.read_text().strip().splitlines()[-4000:]]
     conn = repo.connect()
     try:
         final = {r["id"]: dict(r) for r in conn.execute(

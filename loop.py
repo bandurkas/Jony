@@ -109,9 +109,12 @@ def manage_exits(conn, state: dict, now_ms: int,
         # сырьё для честной калибровки сигмы и ре-тюна выходов
         minute = now_ms // 60_000
         if _mark_logged_min.get(p["id"]) != minute:
-            _mark_logged_min[p["id"]] = minute
+            # INSERT OR IGNORE + UNIQUE(pos_id, minute) в БД — рестарты loop
+            # не дублируют строки калибровочной выборки (ревью 2026-08-17);
+            # флаг ставится ПОСЛЕ записи, чтобы сбой вставки не терял минуту
             repo.insert_position_mark(conn, now_ms, p["id"],
                                       p["option_symbol"], m, pnl_pct_mark)
+            _mark_logged_min[p["id"]] = minute
 
         # Peak tracking runs in EVERY posture (history must already exist the
         # moment the advisor flips to tight); persisted so a loop restart
@@ -149,6 +152,10 @@ def manage_exits(conn, state: dict, now_ms: int,
     # branch, so no resolution path can leave a stale id alerted forever.
     if stuck_alerted:
         stuck_alerted &= {p["id"] for p in repo.open_positions(conn)}
+    still_open = {p["id"] for p in open_pos}
+    for pid in list(_mark_logged_min):
+        if pid not in still_open:
+            _mark_logged_min.pop(pid, None)
     return state
 
 
@@ -361,6 +368,14 @@ def process_entry_requests(conn, state: dict, now_ms: int) -> dict:
     for req in repo.pop_entry_requests(conn):
         coin, side = req["coin"], req["side"]
         if coin not in config.COIN_SPEC or side not in COIN_SIDES.get(coin, ()):
+            continue
+        # TTL (ревью 2026-08-17): заявка без срока могла бы исполниться после
+        # рестарта loop на рынке, которого больше нет
+        if now_ms - req["requested_at_ms"] > 15 * 60_000:
+            repo.insert_signal_audit(conn, now_ms, coin, side, False,
+                                     "advisor_entry_expired", None,
+                                     {"source": "advisor",
+                                      "age_min": round((now_ms - req["requested_at_ms"]) / 60_000)})
             continue
         if portfolio.effective_posture(*repo.get_risk_posture(conn),
                                        now_ms) != "normal":

@@ -195,60 +195,70 @@ GOOD_MKT = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": False},
             "ETH": {"iv_minus_rv24": 0.05, "vol_accelerating": False}}
 
 
+def _de_test(*args, **kw):
+    kw.setdefault("mech_gates", FRESH_GATES)
+    return advisor.decide_entry(*args, **kw)
+
+advisor._de_test = _de_test
+
+FRESH_GATES = {"ETH": {"no_side_allowed": False, "ret_7d": 0.2, "stale": False},
+               "BTC": {"no_side_allowed": False, "ret_7d": 0.2, "stale": False}}
+
+
 class TestDecideEntry(unittest.TestCase):
     def test_good_proposal_passes(self):
-        p = advisor.decide_entry(_entry_advice(), GOOD_MKT, [], "normal", [], 0)
+        p = advisor._de_test(_entry_advice(), GOOD_MKT, [], "normal", [], 0)
         self.assertIsNotNone(p)
         self.assertEqual((p["coin"], p["side"]), ("BTC", "P"))
 
     def test_null_and_low_confidence_rejected(self):
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             {"entry_proposal": None}, GOOD_MKT, [], "normal", [], 0))
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(conf=0.4), GOOD_MKT, [], "normal", [], 0))
 
     def test_posture_must_be_normal(self):
         for posture in ("tight", "lockdown"):
-            self.assertIsNone(advisor.decide_entry(
+            self.assertIsNone(advisor._de_test(
                 _entry_advice(), GOOD_MKT, [], posture, [], 0))
 
     def test_key_already_taken_rejected(self):
         pos = [{"coin": "BTC", "side": "P"}]
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, pos, "normal", [], 0))
         # other key still fine
-        self.assertIsNotNone(advisor.decide_entry(
+        self.assertIsNotNone(advisor._de_test(
             _entry_advice("ETH", "P"), GOOD_MKT, pos, "normal", [], 0))
 
     def test_vrp_and_vol_guard(self):
         bad_vrp = {"BTC": {"iv_minus_rv24": -0.02, "vol_accelerating": False}}
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), bad_vrp, [], "normal", [], 0))
         accel = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": True}}
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), accel, [], "normal", [], 0))
 
     def test_revenge_window(self):
         now = 100 * 3_600_000
         loss_2h_ago = now - 2 * 3_600_000       # inside 4h window → blocked
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", [], now, loss_2h_ago))
         loss_6h_ago = now - 6 * 3_600_000       # window passed → allowed
-        self.assertIsNotNone(advisor.decide_entry(
+        self.assertIsNotNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", [], now, loss_6h_ago))
-        self.assertIsNotNone(advisor.decide_entry(   # no losses at all
+        self.assertIsNotNone(advisor._de_test(   # no losses at all
             _entry_advice(), GOOD_MKT, [], "normal", [], now, None))
 
     def test_daily_rate_and_gap(self):
         now = 100 * 3_600_000
         two_today = [now - 5 * 3_600_000, now - 10 * 3_600_000]
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", two_today, now))
         recent_one = [now - 3_600_000]  # 1h ago < 4h gap
-        self.assertIsNone(advisor.decide_entry(
+        self.assertIsNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", recent_one, now))
         old_one = [now - 6 * 3_600_000]
-        self.assertIsNotNone(advisor.decide_entry(
+        self.assertIsNotNone(advisor._de_test(
             _entry_advice(), GOOD_MKT, [], "normal", old_one, now))
 
 
@@ -315,9 +325,16 @@ class TestCliBackend(unittest.TestCase):
         from unittest.mock import patch as _patch
         good = ('{"market_risk":"low","risk_posture":"normal","market_view":"x",'
                 '"tg_summary":"t","positions":[],"summary":"s"}')
-        with _patch("subprocess.run", return_value=self._cli_result(good)):
+        with _patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), \
+             _patch("subprocess.run", return_value=self._cli_result(good)) as mrun:
             out = advisor.call_claude_cli({"a": 1})
         self.assertEqual(out["risk_posture"], "normal")
+        # харденинг: чистое окружение без ANTHROPIC_API_KEY/биржевых секретов
+        env = mrun.call_args.kwargs["env"]
+        self.assertNotIn("ANTHROPIC_API_KEY", env)
+        self.assertNotIn("BYBIT_API_KEY", env)
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok")
+        self.assertIn("--disallowedTools", mrun.call_args.args[0])
 
     def test_strips_code_fences_and_retries_once(self):
         import advisor
@@ -326,7 +343,8 @@ class TestCliBackend(unittest.TestCase):
                   '"market_view":"","tg_summary":"","positions":[],"summary":""}\n```')
         bad = self._cli_result("не json")
         ok = self._cli_result(fenced)
-        with _patch("subprocess.run", side_effect=[bad, ok]) as mrun:
+        with _patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), \
+             _patch("subprocess.run", side_effect=[bad, ok]) as mrun:
             out = advisor.call_claude_cli({}, cur_posture="tight")
         self.assertEqual(mrun.call_count, 2)
         self.assertEqual(out["risk_posture"], "tight")
@@ -335,6 +353,45 @@ class TestCliBackend(unittest.TestCase):
         import advisor
         from unittest.mock import patch as _patch
         bad = self._cli_result("мусор")
-        with _patch("subprocess.run", side_effect=[bad, bad]):
+        with _patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), \
+             _patch("subprocess.run", side_effect=[bad, bad]):
             with self.assertRaises(RuntimeError):
                 advisor.call_claude_cli({})
+
+    def test_rc_error_raises_immediately_no_retry(self):
+        import advisor
+        from unittest.mock import patch as _patch, MagicMock
+        m = MagicMock(); m.returncode = 1; m.stdout = ""; m.stderr = "auth"
+        with _patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), \
+             _patch("subprocess.run", return_value=m) as mrun:
+            with self.assertRaises(RuntimeError):
+                advisor.call_claude_cli({})
+        self.assertEqual(mrun.call_count, 1)
+
+    def test_missing_token_fails_loud(self):
+        import advisor, os as _os
+        from unittest.mock import patch as _patch
+        env = {k: v for k, v in _os.environ.items() if k != "CLAUDE_CODE_OAUTH_TOKEN"}
+        with _patch.dict("os.environ", env, clear=True):
+            with self.assertRaises(RuntimeError):
+                advisor.call_claude_cli({})
+
+    def test_stale_gates_reject_entry(self):
+        import advisor
+        stale = {"BTC": {"no_side_allowed": True, "ret_7d": -3.0, "stale": True},
+                 "ETH": {"no_side_allowed": False, "ret_7d": 0.0, "stale": True}}
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), GOOD_MKT, [], "normal", [], 0, mech_gates=stale))
+
+    def test_countertrend_put_needs_stabilization(self):
+        import advisor
+        down = {"BTC": {"no_side_allowed": True, "ret_7d": -3.0, "stale": False},
+                "ETH": {"no_side_allowed": False, "ret_7d": 0.0, "stale": False}}
+        mkt_bad = {"BTC": {**GOOD_MKT["BTC"], "chg_24h_pct": -2.0,
+                           "dist_from_7d_low_pct": 0.3}}
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), mkt_bad, [], "normal", [], 0, mech_gates=down))
+        mkt_ok = {"BTC": {**GOOD_MKT["BTC"], "chg_24h_pct": 0.1,
+                          "dist_from_7d_low_pct": 2.5}}
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=down))

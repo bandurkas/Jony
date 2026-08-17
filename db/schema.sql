@@ -144,3 +144,7 @@ CREATE TABLE IF NOT EXISTS position_marks (
     pnl_pct_mark REAL
 );
 CREATE INDEX IF NOT EXISTS position_marks_pos ON position_marks(pos_id, ts_ms);
+-- дедуп по минуте на уровне БД: рестарты loop не задваивают выборку
+-- (INSERT OR IGNORE в repo.insert_position_mark; ревью 2026-08-17)
+CREATE UNIQUE INDEX IF NOT EXISTS position_marks_pos_minute
+    ON position_marks(pos_id, (ts_ms / 60000));

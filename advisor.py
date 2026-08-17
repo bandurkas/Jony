@@ -27,7 +27,7 @@ from pathlib import Path
 
 import requests
 
-from core.strategy import COIN_SIDES, DISABLED_KEYS
+from core.strategy import COIN_SIDES, DISABLED_KEYS, RET_7D_THRESHOLD
 from db import repo
 from services.bybit_client import BybitClient, pick_atm_option
 from services.telegram_notify import notify
@@ -37,6 +37,9 @@ MODEL = os.getenv("ADVISOR_MODEL", "claude-sonnet-5")
 INTERVAL_S = int(os.getenv("ADVISOR_INTERVAL_MIN", "60")) * 60
 NOTIFY_MODE = os.getenv("ADVISOR_NOTIFY_MODE", "actionable")
 ADVICE_PATH = Path(os.getenv("ADVICE_PATH", "data/advice.jsonl"))
+BACKEND = os.getenv("ADVISOR_BACKEND", "api")  # api | cli (MAX-подписка)
+API_BASE = os.getenv("JONY_API_BASE", "http://jony_api:8200")
+GATES_STALE_MS = 10 * 60_000  # старше -> gate-снапшот считается протухшим
 
 SYSTEM = """Ты — риск-советник по проданным (short) крипто-опционам на Bybit.
 Счёт продаёт недельные ATM опционы (short put / short call) и зарабатывает
@@ -290,9 +293,6 @@ ADVICE_TOOL = {
 }
 
 
-BACKEND = os.getenv("ADVISOR_BACKEND", "api")  # api | cli (MAX-подписка)
-
-
 def call_claude(payload: dict, cur_posture: str = "normal") -> dict:
     if BACKEND == "cli":
         return call_claude_cli(payload, cur_posture)
@@ -307,32 +307,53 @@ def _strip_fences(text: str) -> str:
     return t.strip()
 
 
+CLI_DISALLOWED_TOOLS = ("Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,"
+                        "Task,TodoWrite,NotebookEdit")
+
+
 def call_claude_cli(payload: dict, cur_posture: str = "normal") -> dict:
     """Подписочный бэкенд (2026-08-17): headless Claude Code CLI вместо прямого
     API — работает от MAX-подписки (CLAUDE_CODE_OAUTH_TOKEN), не от кредитов.
-    Tool-choice в CLI нет — контракт JSON-only в промпте + строгий парс с
-    одним ретраем; _normalize_advice дальше чинит форму как обычно."""
+    Ревью-харденинг: чистое env (иначе CLI молча биллит ANTHROPIC_API_KEY и
+    видит биржевые секреты), пустой cwd (никакого контекста репо/CLAUDE.md),
+    тулы запрещены, rc!=0 не ретраится (детерминирован), таймаут ловится."""
     import subprocess
+    import tempfile
     schema = json.dumps(ADVICE_TOOL["input_schema"], ensure_ascii=False)
     prompt = (SYSTEM
-              + "\n\nОТВЕТ: верни ТОЛЬКО валидный JSON-объект по этой схеме "
-                "(без code fence, без пояснений, без текста до/после):\n"
+              + "\n\n(Здесь нет tool give_advice — вместо вызова инструмента "
+                "верни ТОЛЬКО валидный JSON-объект по этой схеме, без code "
+                "fence, без пояснений, без текста до/после):\n"
               + schema + "\n\nВходные данные:\n"
               + json.dumps(payload, ensure_ascii=False))
+    tok = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
+    if not tok:
+        raise RuntimeError("ADVISOR_BACKEND=cli без CLAUDE_CODE_OAUTH_TOKEN в env")
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+           "HOME": os.environ.get("HOME", "/root"),
+           "TERM": "dumb", "CLAUDE_CODE_OAUTH_TOKEN": tok}
+    workdir = tempfile.mkdtemp(prefix="advisor_cli_")
     last_err = None
-    for attempt in range(2):
-        r = subprocess.run(
-            ["claude", "-p", "--model", MODEL, "--output-format", "json",
-             "--max-turns", "1"],
-            input=prompt, capture_output=True, text=True, timeout=240)
-        if r.returncode != 0:
-            last_err = RuntimeError(f"claude cli rc={r.returncode}: {r.stderr[:300]}")
-            continue
+    for _ in range(2):
         try:
-            result_text = json.loads(r.stdout).get("result", "")
-            advice = json.loads(_strip_fences(result_text))
+            r = subprocess.run(
+                ["claude", "-p", "--model", MODEL, "--output-format", "json",
+                 "--max-turns", "2", "--disallowedTools", CLI_DISALLOWED_TOOLS],
+                input=prompt, capture_output=True, text=True, timeout=180,
+                env=env, cwd=workdir)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("claude cli timeout (180s)")
+        if r.returncode != 0:
+            raise RuntimeError(f"claude cli rc={r.returncode}: {r.stderr[:300]}")
+        try:
+            envelope = json.loads(r.stdout)
+            if not isinstance(envelope, dict):
+                raise ValueError(f"unexpected envelope type {type(envelope)}")
+            if envelope.get("is_error"):
+                raise RuntimeError(f"cli is_error: {str(envelope.get('result'))[:300]}")
+            advice = json.loads(_strip_fences(envelope.get("result") or ""))
             return _normalize_advice(advice, cur_posture)
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError, TypeError) as e:
             last_err = RuntimeError(f"cli JSON parse failed: {e}")
     raise last_err
 
@@ -458,7 +479,8 @@ def enabled_free_keys(open_positions: list[dict]) -> list[str]:
 
 def decide_entry(advice: dict, market: dict, positions: list[dict],
                  posture: str, recent_entry_ts: list[int],
-                 now_ms: int, last_loss_ms: int | None = None) -> dict | None:
+                 now_ms: int, last_loss_ms: int | None = None,
+                 mech_gates: dict | None = None) -> dict | None:
     """Hard deterministic guardrails for an advisor entry proposal. Returns
     the proposal dict if it may execute, else None. Pure function.
     - ENTRIES_MODE on, confidence floor, valid enabled key
@@ -488,6 +510,22 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     mkt = market.get(coin) or {}
     if (mkt.get("iv_minus_rv24") or 0) <= 0 or mkt.get("vol_accelerating"):
         return None
+    # Контр-трендовые входы (ревью 2026-08-17): промпт-условия «слив выдохся»
+    # продублированы КОДОМ — одна генерация LLM не может быть единственным
+    # предохранителем. Fail closed: протухший gate-снапшот = отказ.
+    g = (mech_gates or {}).get(coin) or {}
+    if g.get("stale", True):
+        return None
+    r7 = g.get("ret_7d")
+    if r7 is not None:
+        if side == "P" and r7 < -RET_7D_THRESHOLD:
+            if ((mkt.get("chg_24h_pct") or -99) < -0.5
+                    or (mkt.get("dist_from_7d_low_pct") or 0) < 1.5):
+                return None
+        if side == "C" and r7 > RET_7D_THRESHOLD:
+            if ((mkt.get("chg_24h_pct") or 99) > 0.5
+                    or abs(mkt.get("dist_from_7d_high_pct") or 0) < 1.5):
+                return None
     day = [t for t in recent_entry_ts if now_ms - t < 24 * 3_600_000]
     if len(day) >= MAX_ENTRIES_PER_DAY:
         return None
@@ -579,13 +617,20 @@ def mechanical_gates_block(conn) -> dict:
     """Состояние механических гейтов per coin (P2 2026-08-17): советник должен
     видеть, что в side-off механика не войдёт вообще — его entry_proposal
     в этом состоянии единственный источник входа."""
+    now_ms = int(time.time() * 1000)
     out = {}
     for coin in COIN_SIDES:
         ws = repo.get_window_status(conn, coin)
         ev = (ws or {}).get("ev") or {}
+        checked = (ws or {}).get("checked_at_ms")
+        # staleness по образцу core/proximity (ревью 2026-08-17): протухший
+        # снапшот (loop мёртв/завис) нельзя выдавать за живое состояние
+        stale = checked is None or now_ms - int(checked) > GATES_STALE_MS
         out[coin] = {"no_side_allowed": bool(ev.get("no_side_allowed")),
-                     "ret_7d": ev.get("ret_7d")}
+                     "ret_7d": ev.get("ret_7d"), "stale": stale,
+                     "age_s": round((now_ms - int(checked)) / 1000) if checked else None}
     return out
+
 
 
 def track_record_block() -> dict | None:
@@ -595,11 +640,10 @@ def track_record_block() -> dict | None:
         r = requests.get(f"{API_BASE}/advice/score", timeout=5)
         agg = r.json().get("aggregate")
         return agg or None
-    except Exception:
+    except Exception as e:
+        print(f"[advisor] track_record unavailable: {e}", flush=True)
         return None
 
-
-API_BASE = os.getenv("JONY_API_BASE", "http://jony_api:8200")
 
 
 def _load_history(now_ms: int) -> tuple[dict | None, list[int], list[int]]:
@@ -694,7 +738,8 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
 
     # 3) entry proposal -> loop's entry queue (guardrails in decide_entry)
     entry = decide_entry(advice, market, pos, new_posture,
-                         recent_entry_ts, now_ms, last_loss_ms)
+                         recent_entry_ts, now_ms, last_loss_ms,
+                         mech_gates=mech_gates)
     if entry:
         conn = repo.connect()
         try:
@@ -755,6 +800,12 @@ def main() -> None:
                 last_llm_ms = now_ms
         except Exception as e:
             print(f"[advisor] tick failed: {e}", flush=True)
+            # ревью 2026-08-17: молчаливо умирающий советник = замороженная
+            # posture + отсутствие exit-надзора; человек должен узнать сразу
+            try:
+                notify(f"ADVISOR TICK FAILED: {str(e)[:200]}")
+            except Exception:
+                pass
             # retry in ~5 min: no hot-loop, but a transient failure must not
             # push the next scheduled call out by a whole hour
             last_llm_ms = int(time.time() * 1000) - (INTERVAL_S - 300) * 1000
