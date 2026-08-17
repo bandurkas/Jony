@@ -77,12 +77,19 @@ your_previous_advice — твоя рекомендация в прошлый р�
   вызовов подряд, либо сразу при lockdown). CLOSE по убыточной — только
   уведомление человеку.
 - entry_proposal открывает РЕАЛЬНУЮ позицию (бот перепроверит лимиты).
-  Предлагай вход только при СОВПАДЕНИИ условий: ключ в keys_available;
-  iv_minus_rv24 > 0 (продажу волы платят); волатильность НЕ ускоряется;
-  funding умеренный; спот не у 7д экстремума; моментум за сторону (7д рост
-  → продажа PUT, 7д падение → продажа CALL). Особо следи за окном для
-  BTC P — исторически лучший ключ. Качество важнее частоты: обычно
-  entry_proposal = null, максимум 1-2 предложения в сутки.
+  Базовые условия: ключ в keys_available; iv_minus_rv24 > 0 (продажу волы
+  платят); волатильность НЕ ускоряется; funding умеренный; спот не у 7д
+  экстремума. Особо следи за окном для BTC P — исторически лучший ключ.
+  mechanical_gates показывает состояние механики: если по монете
+  no_side_allowed=true (side-off: |ret_7d| за трендовой границей при
+  puts-only книге) — механический бот НЕ войдёт вообще, твоё предложение —
+  ЕДИНСТВЕННЫЙ источник входа. Это твоя главная зона пользы: механика
+  режет все даунтренды скопом, а ты видишь контекст. Пут в умеренном
+  даунтренде допустим, когда слив явно выдохся: 1ч/24ч изменение около
+  нуля или плюс, дистанция от 7д-лоу заметная (>1.5%), вола не ускоряется,
+  IV−RV жирный. Продолжающийся слив (24ч минус, у 7д-лоу) — не предлагать.
+  Качество важнее частоты: обычно entry_proposal = null, максимум 1-2
+  предложения в сутки.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
 tg_summary — одна строка ≤90 символов для мобильного пуша (суть + действие),
@@ -90,6 +97,13 @@ brief — 2-4 слова причины на позицию. Без воды: п
 Решение по каждой позиции строго бинарное. CLOSE — забрать профит/резать
 риск сейчас; HOLD — осознанно держать. Категории «понаблюдать» нет:
 сомневаешься — сравни тету с риском разворота и прими решение.
+your_track_record — твой собственный измеренный скоринг (сколько $ реально
+сохранили/стоили твои прошлые советы против «просто держать»). Калибруйся
+по нему: если CLOSE в минусе (total_saved_usd < 0) — ты систематически
+режешь победителей рано; поднимай планку для CLOSE профитной позиции —
+требуй КОНКРЕТНЫЙ разворотный триггер (z_buffer < 1, вола ускоряется,
+спот у страйка), а не только «премия почти собрана». Если HOLD в плюсе —
+доверяй тете больше.
 """
 
 
@@ -514,6 +528,33 @@ def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
     return "\n".join(x for x in lines if x)
 
 
+def mechanical_gates_block(conn) -> dict:
+    """Состояние механических гейтов per coin (P2 2026-08-17): советник должен
+    видеть, что в side-off механика не войдёт вообще — его entry_proposal
+    в этом состоянии единственный источник входа."""
+    out = {}
+    for coin in COIN_SIDES:
+        ws = repo.get_window_status(conn, coin)
+        ev = (ws or {}).get("ev") or {}
+        out[coin] = {"no_side_allowed": bool(ev.get("no_side_allowed")),
+                     "ret_7d": ev.get("ret_7d")}
+    return out
+
+
+def track_record_block() -> dict | None:
+    """Собственный скоринг советника из /advice/score (P2 2026-08-17):
+    подаётся ему же на вход для самокоррекции. None при недоступности API."""
+    try:
+        r = requests.get(f"{API_BASE}/advice/score", timeout=5)
+        agg = r.json().get("aggregate")
+        return agg or None
+    except Exception:
+        return None
+
+
+API_BASE = os.getenv("JONY_API_BASE", "http://jony_api:8200")
+
+
 def _load_history(now_ms: int) -> tuple[dict | None, list[int], list[int]]:
     """(previous advice record, auto-close timestamps <1h,
     advisor-entry timestamps <24h)."""
@@ -549,6 +590,7 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         cur_posture, _ = repo.get_risk_posture(conn)
         lookback_h = max(24.0, REVENGE_WINDOW_H)
         closed = repo.closed_pnls(conn, now_ms - int(lookback_h * 3_600_000))
+        mech_gates = mechanical_gates_block(conn)
     finally:
         conn.close()
     last_loss_ms = max((ts for ts, p in closed if p < 0), default=None)
@@ -565,6 +607,8 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
         "market": market,
         "open_positions": pos,
         "your_previous_advice": prev,
+        "mechanical_gates": mech_gates,
+        "your_track_record": track_record_block(),
     }
     advice = call_claude(payload, cur_posture)
     if pos and not advice.get("positions"):

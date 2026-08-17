@@ -254,3 +254,45 @@ class TestDecideEntry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestP2InputBlocks(unittest.TestCase):
+    """P2 2026-08-17: mechanical_gates + track_record во входе советника."""
+
+    def test_mechanical_gates_block_reads_window_status(self):
+        import advisor
+        from db import repo as _repo
+        conn = _repo.connect()
+        _repo.apply_schema(conn)
+        _repo.upsert_window_status(conn, "ETH", wid=1, min_in_window=0,
+                                   disqualified=0,
+                                   ev={"no_side_allowed": True, "ret_7d": -2.4},
+                                   checked_at_ms=1)
+        _repo.upsert_window_status(conn, "BTC", wid=1, min_in_window=0,
+                                   disqualified=0,
+                                   ev={"no_side_allowed": False, "ret_7d": 1.2},
+                                   checked_at_ms=1)
+        out = advisor.mechanical_gates_block(conn)
+        conn.close()
+        self.assertTrue(out["ETH"]["no_side_allowed"])
+        self.assertEqual(out["ETH"]["ret_7d"], -2.4)
+        self.assertFalse(out["BTC"]["no_side_allowed"])
+
+    def test_mechanical_gates_block_empty_db(self):
+        import advisor
+        from db import repo as _repo
+        conn = _repo.connect()
+        _repo.apply_schema(conn)
+        conn.execute("DELETE FROM window_status")
+        conn.commit()
+        out = advisor.mechanical_gates_block(conn)
+        conn.close()
+        self.assertFalse(out["ETH"]["no_side_allowed"])
+        self.assertIsNone(out["ETH"]["ret_7d"])
+
+    def test_track_record_none_on_api_error(self):
+        import advisor
+        from unittest.mock import patch as _patch
+        with _patch.object(advisor.requests, "get",
+                           side_effect=OSError("down")):
+            self.assertIsNone(advisor.track_record_block())
