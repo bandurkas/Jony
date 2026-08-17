@@ -22,7 +22,9 @@ services:
   jony_advisor:
     # no depends_on: advisory-only reader; must never trigger a jony_loop
     # recreate on its own rebuilds/runs
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.advisor
     command: python advisor.py
     env_file: .env
     volumes:

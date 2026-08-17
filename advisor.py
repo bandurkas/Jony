@@ -290,7 +290,54 @@ ADVICE_TOOL = {
 }
 
 
+BACKEND = os.getenv("ADVISOR_BACKEND", "api")  # api | cli (MAX-подписка)
+
+
 def call_claude(payload: dict, cur_posture: str = "normal") -> dict:
+    if BACKEND == "cli":
+        return call_claude_cli(payload, cur_posture)
+    return call_claude_api(payload, cur_posture)
+
+
+def _strip_fences(text: str) -> str:
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[1] if "\n" in t else t
+        t = t.rsplit("```", 1)[0]
+    return t.strip()
+
+
+def call_claude_cli(payload: dict, cur_posture: str = "normal") -> dict:
+    """Подписочный бэкенд (2026-08-17): headless Claude Code CLI вместо прямого
+    API — работает от MAX-подписки (CLAUDE_CODE_OAUTH_TOKEN), не от кредитов.
+    Tool-choice в CLI нет — контракт JSON-only в промпте + строгий парс с
+    одним ретраем; _normalize_advice дальше чинит форму как обычно."""
+    import subprocess
+    schema = json.dumps(ADVICE_TOOL["input_schema"], ensure_ascii=False)
+    prompt = (SYSTEM
+              + "\n\nОТВЕТ: верни ТОЛЬКО валидный JSON-объект по этой схеме "
+                "(без code fence, без пояснений, без текста до/после):\n"
+              + schema + "\n\nВходные данные:\n"
+              + json.dumps(payload, ensure_ascii=False))
+    last_err = None
+    for attempt in range(2):
+        r = subprocess.run(
+            ["claude", "-p", "--model", MODEL, "--output-format", "json",
+             "--max-turns", "1"],
+            input=prompt, capture_output=True, text=True, timeout=240)
+        if r.returncode != 0:
+            last_err = RuntimeError(f"claude cli rc={r.returncode}: {r.stderr[:300]}")
+            continue
+        try:
+            result_text = json.loads(r.stdout).get("result", "")
+            advice = json.loads(_strip_fences(result_text))
+            return _normalize_advice(advice, cur_posture)
+        except (ValueError, KeyError) as e:
+            last_err = RuntimeError(f"cli JSON parse failed: {e}")
+    raise last_err
+
+
+def call_claude_api(payload: dict, cur_posture: str = "normal") -> dict:
     key = os.environ["ANTHROPIC_API_KEY"]
     body = {
         "model": MODEL,

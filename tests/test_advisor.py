@@ -296,3 +296,45 @@ class TestP2InputBlocks(unittest.TestCase):
         with _patch.object(advisor.requests, "get",
                            side_effect=OSError("down")):
             self.assertIsNone(advisor.track_record_block())
+
+
+class TestCliBackend(unittest.TestCase):
+    """Подписочный CLI-бэкенд (2026-08-17)."""
+
+    def _cli_result(self, result_text, rc=0):
+        import json as _json
+        from unittest.mock import MagicMock
+        m = MagicMock()
+        m.returncode = rc
+        m.stdout = _json.dumps({"result": result_text})
+        m.stderr = ""
+        return m
+
+    def test_parses_clean_json(self):
+        import advisor
+        from unittest.mock import patch as _patch
+        good = ('{"market_risk":"low","risk_posture":"normal","market_view":"x",'
+                '"tg_summary":"t","positions":[],"summary":"s"}')
+        with _patch("subprocess.run", return_value=self._cli_result(good)):
+            out = advisor.call_claude_cli({"a": 1})
+        self.assertEqual(out["risk_posture"], "normal")
+
+    def test_strips_code_fences_and_retries_once(self):
+        import advisor
+        from unittest.mock import patch as _patch
+        fenced = ('```json\n{"market_risk":"low","risk_posture":"tight",'
+                  '"market_view":"","tg_summary":"","positions":[],"summary":""}\n```')
+        bad = self._cli_result("не json")
+        ok = self._cli_result(fenced)
+        with _patch("subprocess.run", side_effect=[bad, ok]) as mrun:
+            out = advisor.call_claude_cli({}, cur_posture="tight")
+        self.assertEqual(mrun.call_count, 2)
+        self.assertEqual(out["risk_posture"], "tight")
+
+    def test_raises_after_two_failures(self):
+        import advisor
+        from unittest.mock import patch as _patch
+        bad = self._cli_result("мусор")
+        with _patch("subprocess.run", side_effect=[bad, bad]):
+            with self.assertRaises(RuntimeError):
+                advisor.call_claude_cli({})
