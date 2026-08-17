@@ -259,3 +259,16 @@ def recent_positions(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
 def equity_series(conn: sqlite3.Connection, limit: int = 2000) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT * FROM equity_snapshots ORDER BY ts_ms DESC LIMIT ?", (limit,))][::-1]
+
+
+def insert_position_mark(conn: sqlite3.Connection, ts_ms: int, pos_id: int,
+                         option_symbol: str, m: dict,
+                         pnl_pct_mark: float) -> None:
+    conn.execute(
+        "INSERT INTO position_marks (ts_ms, pos_id, option_symbol, mark, bid,"
+        " ask, mark_iv, underlying, delta, pnl_pct_mark)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (ts_ms, pos_id, option_symbol, m.get("mark"), m.get("bid"),
+         m.get("ask"), m.get("mark_iv"), m.get("underlying"), m.get("delta"),
+         pnl_pct_mark))
+    conn.commit()

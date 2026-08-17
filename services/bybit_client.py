@@ -113,8 +113,11 @@ class BybitClient:
         return out
 
     def get_option_marks(self, base_coin: str) -> dict[str, dict]:
-        """symbol → {mark, bid, ask} for open-position management."""
-        return {o["symbol"]: {"mark": o["mark_price"], "bid": o["bid"], "ask": o["ask"]}
+        """symbol → mark/bid/ask + mark_iv/underlying/delta (тот же API-вызов;
+        доп. поля пишутся в position_marks — P1 2026-08-17)."""
+        return {o["symbol"]: {"mark": o["mark_price"], "bid": o["bid"], "ask": o["ask"],
+                              "mark_iv": o["mark_iv"], "underlying": o["underlying_price"],
+                              "delta": o["delta"]}
                 for o in self.get_options_tickers(base_coin)}
 
 

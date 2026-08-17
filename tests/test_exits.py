@@ -506,3 +506,48 @@ class TestPostureExits(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPositionMarkLogging(unittest.TestCase):
+    """P1 2026-08-17: manage_exits пишет реальную марку 1 раз/мин/позицию."""
+
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        for t in ("positions", "bot_state", "position_marks"):
+            self.conn.execute(f"DELETE FROM {t}")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+        jony_loop._mark_logged_min.clear()
+
+    def _marks(self, mark=25.0):
+        return {"ETH-TEST": {"mark": mark, "bid": mark - 0.5, "ask": mark + 0.5,
+                             "mark_iv": 0.42, "underlying": 2400.0, "delta": -0.2}}
+
+    def test_logs_once_per_minute_with_full_fields(self):
+        _mk_pos(self.conn, entry=30.0, hold_h=999, tp2=9.9, sl=9.9)
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value=self._marks()):
+            jony_loop.manage_exits(self.conn, state, now_ms=60_000)
+            jony_loop.manage_exits(self.conn, state, now_ms=65_000)   # та же минута
+            jony_loop.manage_exits(self.conn, state, now_ms=125_000)  # новая минута
+        rows = self.conn.execute(
+            "SELECT ts_ms, mark, mark_iv, underlying, delta, pnl_pct_mark"
+            " FROM position_marks ORDER BY ts_ms").fetchall()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0][0], 60_000)
+        self.assertEqual(rows[1][0], 125_000)
+        self.assertEqual(rows[0][1], 25.0)
+        self.assertEqual(rows[0][2], 0.42)
+        self.assertEqual(rows[0][3], 2400.0)
+        self.assertEqual(rows[0][4], -0.2)
+        self.assertAlmostEqual(rows[0][5], (30.0 - 25.0) / 30.0)
+
+    def test_no_rows_without_open_positions(self):
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value={}):
+            jony_loop.manage_exits(self.conn, state, now_ms=60_000)
+        n = self.conn.execute("SELECT COUNT(*) FROM position_marks").fetchone()[0]
+        self.assertEqual(n, 0)

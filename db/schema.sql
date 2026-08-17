@@ -126,3 +126,21 @@ CREATE TABLE IF NOT EXISTS signal_audit (
     payload TEXT                                 -- JSON full gate eval
 );
 CREATE INDEX IF NOT EXISTS signal_audit_recent ON signal_audit(ts_ms DESC);
+
+-- P1 2026-08-17: реальная история марок открытых позиций (1 строка/мин/позицию
+-- из manage_exits). Цель: честная калибровка сигмы и ре-тюн TP2/SL на
+-- реальных премиях (модельная сигма структурно горячее markIv — RESEARCH_LOG).
+CREATE TABLE IF NOT EXISTS position_marks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_ms INTEGER NOT NULL,
+    pos_id INTEGER NOT NULL,
+    option_symbol TEXT NOT NULL,
+    mark REAL,
+    bid REAL,
+    ask REAL,
+    mark_iv REAL,
+    underlying REAL,
+    delta REAL,
+    pnl_pct_mark REAL
+);
+CREATE INDEX IF NOT EXISTS position_marks_pos ON position_marks(pos_id, ts_ms);

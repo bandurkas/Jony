@@ -49,6 +49,9 @@ def acct_breaker(conn, state: dict, now_ms: int) -> str | None:
         state.get("equity_usd") or 0.0, now_ms)
 
 
+_mark_logged_min: dict[int, int] = {}  # pos_id -> последняя минута записи марки (P1)
+
+
 def manage_exits(conn, state: dict, now_ms: int,
                  stuck_alerted: set[int] | None = None) -> dict:
     """TP2 / SL / time-stop / expiry settlement for every open position.
@@ -101,6 +104,14 @@ def manage_exits(conn, state: dict, now_ms: int,
         mark = m["mark"]
         pnl_pct_mark = (entry - mark) / entry if entry > 0 else 0.0
         held_h = (now_ms - p["opened_at_ms"]) / 3_600_000
+
+        # P1 2026-08-17: реальная история марок, 1 строка/мин/позицию —
+        # сырьё для честной калибровки сигмы и ре-тюна выходов
+        minute = now_ms // 60_000
+        if _mark_logged_min.get(p["id"]) != minute:
+            _mark_logged_min[p["id"]] = minute
+            repo.insert_position_mark(conn, now_ms, p["id"],
+                                      p["option_symbol"], m, pnl_pct_mark)
 
         # Peak tracking runs in EVERY posture (history must already exist the
         # moment the advisor flips to tight); persisted so a loop restart
