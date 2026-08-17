@@ -44,16 +44,32 @@ from .momentum_mtf import analyze_tf, consensus, direction_filter_ok
 from .regime import detect_regime
 
 BARS_7D = 2016            # 7 days of 5m bars
-RET_7D_THRESHOLD = 0.5    # V2 hybrid boundary, %
+RET_7D_THRESHOLD = 1.0    # V2 hybrid boundary, %; 0.5->1.0 2026-08-17 (config C, Phase 7)
 HIST = 240                # bars fed to MTF/regime/vol, matches opt-app
 
-PUT_GEN = {
-    "vol_threshold": 0.50,
-    "regime_filter": ("range", "transition"),  # +transition added 2026-08-01 (config E)
-    "mtf_direction_filter": "up",
-    "mtf_anchor_tf": None,                # 3-way >=2/3 consensus
-    "bull_market_ratio_max": None,
+# Config C (2026-08-17, RESEARCH_LOG Phase 7): puts-only book, per-coin PUT
+# gates. ETH:P robust only with regime=range-only (all 12/72 survivors had R);
+# BTC:P tolerates looser vol at range+transition. Validated on the honest v2
+# engine, both sigmas, replay pkc=1: train +62%/+23%, holdout +38%/+29%,
+# dd 9-13%, quarters 3/4 — vs the previous shared config which was
+# train-negative on both sigmas.
+PUT_GEN_BY_COIN = {
+    "ETH": {
+        "vol_threshold": 0.60,
+        "regime_filter": ("range",),
+        "mtf_direction_filter": "up",
+        "mtf_anchor_tf": None,            # 3-way >=2/3 consensus
+        "bull_market_ratio_max": None,
+    },
+    "BTC": {
+        "vol_threshold": 0.40,
+        "regime_filter": ("range", "transition"),
+        "mtf_direction_filter": "up",
+        "mtf_anchor_tf": None,
+        "bull_market_ratio_max": None,
+    },
 }
+PUT_GEN = PUT_GEN_BY_COIN["ETH"]  # legacy alias (api /params, старые тесты)
 
 CALL_GEN = {
     "vol_threshold": 0.45,                # 0.60->0.45 2026-08-01 (config E)
@@ -81,8 +97,8 @@ DISABLED_KEYS = frozenset(
     if k.strip())
 
 
-def gen_kwargs(side: str) -> dict:
-    return PUT_GEN if side == "P" else CALL_GEN
+def gen_kwargs(side: str, coin: str = "ETH") -> dict:
+    return PUT_GEN_BY_COIN.get(coin, PUT_GEN) if side == "P" else CALL_GEN
 
 
 def exit_params(side: str) -> dict:
@@ -113,9 +129,10 @@ def allowed_sides(coin: str, ret_7d: float) -> list[str]:
 
 
 def _evaluate_side(side: str, mtf: dict, regime: str,
-                   rolling_vols: list[float], closes_1h: list[float]) -> dict:
+                   rolling_vols: list[float], closes_1h: list[float],
+                   coin: str = "ETH") -> dict:
     """Vol/regime/MTF/bull checks for one side — mirrors opt-app exactly."""
-    kw = gen_kwargs(side)
+    kw = gen_kwargs(side, coin)
     out = {
         "vol_high": False, "regime_ok": False, "mtf_direction_ok": False,
         "vol_pctile": None, "regime": regime, "ema_ratio": None,
@@ -161,6 +178,10 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
         "tfs_aligned": None,  # 0-3, how many of 5m/15m/1h agree on `mtf_direction` —
                                # display-only continuous MTF proxy for the entry-
                                # proximity gauge (core/proximity.py); not itself a gate.
+        "no_side_allowed": False,  # true = селектор сторон не оставил ни одной
+                                    # (напр. даунтренд при puts-only) — гейты
+                                    # дальше не считались; отличает «ждём
+                                    # условий» от «торговать нечем» (2026-08-17)
     }
     if not k5 or not k15 or not k1h:
         return out
@@ -173,6 +194,7 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
     out["ret_7d"] = round(ret_7d, 2)
     sides = allowed_sides(coin, ret_7d)
     if not sides:
+        out["no_side_allowed"] = True
         return out
 
     s5 = k5[-HIST:]
@@ -190,7 +212,7 @@ def evaluate_conditions(coin: str, k5: list, k15: list, k1h: list) -> dict:
             rolling_vols.append(rv)
     regime = detect_regime(s1h).get("regime", "unknown")
 
-    side_results = {s: _evaluate_side(s, mtf, regime, rolling_vols, closes_1h)
+    side_results = {s: _evaluate_side(s, mtf, regime, rolling_vols, closes_1h, coin)
                     for s in sides}
     active_side = next((s for s in sides if side_results[s]["ready"]), None)
     out["active_side"] = active_side

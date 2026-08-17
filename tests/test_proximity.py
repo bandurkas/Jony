@@ -148,3 +148,21 @@ class TestEntryProximity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSideOffZone(unittest.TestCase):
+    def test_no_side_allowed_shows_side_off(self):
+        from core.proximity import entry_proximity
+        p = entry_proximity({"no_side_allowed": True, "bull_filter_ok": True},
+                            None, 1_000_000)
+        self.assertEqual(p["zone"], "side-off")
+        self.assertEqual(p["proximity_pct"], 0.0)
+        self.assertFalse(p["debounce_unknown"])
+
+    def test_normal_eval_unaffected(self):
+        from core.proximity import entry_proximity
+        p = entry_proximity({"no_side_allowed": False, "vol_pctile": 0.7,
+                             "regime_ok": True, "tfs_aligned": 3,
+                             "bull_filter_ok": True}, None, 1_000_000)
+        self.assertNotEqual(p["zone"], "side-off")
+        self.assertGreater(p["proximity_pct"], 50)

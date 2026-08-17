@@ -61,6 +61,18 @@ def entry_proximity(ev: dict, window_status: dict | None = None,
     `window_status` is that coin's persisted per-minute check state (see
     db.repo.upsert_window_status / loop.py): {wid, min_in_window,
     disqualified, checked_at_ms}."""
+    if ev.get("no_side_allowed"):
+        # селектор сторон не оставил ни одной (напр. даунтренд при puts-only):
+        # гейты не считались, композит из нулей+bull-заглушки (вечные 20%)
+        # вводил в заблуждение — честная зона "side-off" с 0% (2026-08-17)
+        return {
+            "proximity_pct": 0.0,
+            "zone": "side-off",
+            "factors": {"vol": 0.0, "regime": 0.0, "mtf": 0.0, "bull": 0.0},
+            "weights": WEIGHTS,
+            "debounce_unknown": False,
+            "window_disqualified": False,
+        }
     f_vol = _f(ev.get("vol_pctile"))
     f_regime = 1.0 if ev.get("regime_ok") else 0.0
     f_mtf = _f((ev.get("tfs_aligned") or 0) / 3.0)

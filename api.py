@@ -86,6 +86,9 @@ def params():
         "coins": {c: list(s) for c, s in strategy.COIN_SIDES.items()},
         "put_gen": {**strategy.PUT_GEN,
                     "regime_filter": list(strategy.PUT_GEN["regime_filter"])},
+        "put_gen_by_coin": {c: {**g, "regime_filter": list(g["regime_filter"])}
+                            for c, g in strategy.PUT_GEN_BY_COIN.items()},
+        "ret_7d_threshold": strategy.RET_7D_THRESHOLD,
         "call_gen": {**strategy.CALL_GEN,
                      "regime_filter": list(strategy.CALL_GEN["regime_filter"])},
         "put_exit": strategy.PUT_EXIT,

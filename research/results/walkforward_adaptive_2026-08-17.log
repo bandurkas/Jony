@@ -1,0 +1,28 @@
+
+============================================================================
+### sigma=CLAMP
+============================================================================
+F=  100 nmin=3 H=0.10 | adaptive: total $   -971 mdd $ 9042 n=4762 q=[3155, -3758, -218, -150] switches=79 active/idle=123/33
+F=  100 nmin=3 H=0.25 | adaptive: total $  -2248 mdd $ 9351 n=4403 q=[734, -2318, 49, -712] switches=60 active/idle=123/33
+F=  100 nmin=8 H=0.10 | adaptive: total $  -1235 mdd $ 9038 n=4820 q=[2871, -3758, -183, -164] switches=77 active/idle=122/34
+F=  100 nmin=8 H=0.25 | adaptive: total $  -2129 mdd $ 9275 n=4528 q=[357, -2318, 60, -228] switches=61 active/idle=122/34
+F=  300 nmin=3 H=0.10 | adaptive: total $  -1077 mdd $ 9276 n=4936 q=[3469, -3758, -386, -402] switches=81 active/idle=127/29
+F=  300 nmin=3 H=0.25 | adaptive: total $  -1803 mdd $ 9053 n=4511 q=[1066, -2318, 158, -710] switches=63 active/idle=127/29
+F=  300 nmin=8 H=0.10 | adaptive: total $  -1495 mdd $ 9225 n=5033 q=[2983, -3758, -324, -396] switches=78 active/idle=127/29
+F=  300 nmin=8 H=0.25 | adaptive: total $  -1490 mdd $ 8870 n=4654 q=[580, -2318, 215, 33] switches=59 active/idle=127/29
+STATIC C       | total $   +849 mdd $ 6441 n=3294 q=[1362, -2116, 24, 1578]
+STATIC A       | total $  +1875 mdd $ 7728 n=4158 q=[2485, -648, -1706, 1745]
+
+============================================================================
+### sigma=CALIB
+============================================================================
+F=  100 nmin=3 H=0.10 | adaptive: total $  -4369 mdd $12706 n=3787 q=[755, -4980, -511, 368] switches=63 active/idle=110/46
+F=  100 nmin=3 H=0.25 | adaptive: total $  -8152 mdd $16393 n=3576 q=[681, -8611, -511, 290] switches=48 active/idle=110/46
+F=  100 nmin=8 H=0.10 | adaptive: total $  -4372 mdd $12709 n=3785 q=[755, -4980, -514, 368] switches=64 active/idle=110/46
+F=  100 nmin=8 H=0.25 | adaptive: total $  -8181 mdd $16393 n=3564 q=[681, -8611, -511, 261] switches=50 active/idle=110/46
+F=  300 nmin=3 H=0.10 | adaptive: total $  -4899 mdd $15011 n=4266 q=[1487, -4506, -1265, -615] switches=69 active/idle=132/24
+F=  300 nmin=3 H=0.25 | adaptive: total $  -8128 mdd $18466 n=4065 q=[1487, -7717, -1308, -591] switches=56 active/idle=132/24
+F=  300 nmin=8 H=0.10 | adaptive: total $  -4919 mdd $15023 n=4260 q=[1479, -4506, -1268, -624] switches=70 active/idle=128/28
+F=  300 nmin=8 H=0.25 | adaptive: total $  -8117 mdd $18471 n=4074 q=[1479, -7713, -1308, -575] switches=58 active/idle=128/28
+STATIC C       | total $  +1839 mdd $ 6764 n=3294 q=[892, -553, -848, 2349]
+STATIC A       | total $   -253 mdd $ 8633 n=4158 q=[1502, -319, -3464, 2028]
