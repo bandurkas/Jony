@@ -1,0 +1,85 @@
+H3b funding-timer backtest  run 2026-08-18T08:53:47.540175+00:00
+merged period 2022-12-01 .. 2026-08-18  (32547 bars/symbol)
+H3-unseen OOS segment: 2022-12-01 .. 2024-08-17 (entries before boundary)
+notional $1000, fees 0.075%/side, rank window 90 funding events
+
+=================== TEST A: frozen H3 config P=90 filter=True H=24h S=5% on unseen 2022-12..2024-08 ===================
+--- TEST A (OOS segment only) ---
+  BTCUSDT SHORT: n= 42 net=$ -157.47  px=$ -115.68  funding=$  21.21  fees=$ 63.00  WR=38%
+  BTCUSDT LONG : n= 84 net=$  295.56  px=$  427.92  funding=$  -6.36  fees=$126.00  WR=46%
+  BTCUSDT ALL  : n=126 net=$  138.09  px=$  312.24  funding=$  14.85  fees=$189.00  WR=44%
+  ETHUSDT SHORT: n= 33 net=$ -357.03  px=$ -325.29  funding=$  17.76  fees=$ 49.50  WR=30%
+  ETHUSDT LONG : n= 70 net=$ -157.70  px=$  -46.21  funding=$  -6.49  fees=$105.00  WR=47%
+  ETHUSDT ALL  : n=103 net=$ -514.73  px=$ -371.50  funding=$  11.27  fees=$154.50  WR=42%
+  COMBINED    : n=229 net=$ -376.64  px=$  -59.26  funding=$  26.12  fees=$343.50  WR=43%
+
+--- QUARTERLY (TEST A OOS segment) ---
+  2023Q1: n= 25  net=$  277.94  (BTC $ 215.00 / ETH $  62.95)  OK 
+  2023Q2: n= 29  net=$  117.54  (BTC $  80.23 / ETH $  37.32)  OK 
+  2023Q3: n= 38  net=$   36.31  (BTC $  57.64 / ETH $ -21.33)  OK 
+  2023Q4: n= 41  net=$ -170.70  (BTC $ -90.03 / ETH $ -80.67)  NEG
+  2024Q1: n= 33  net=$ -261.95  (BTC $ -27.12 / ETH $-234.83)  NEG
+  2024Q2: n= 49  net=$ -245.69  (BTC $ -25.72 / ETH $-219.96)  NEG
+  2024Q3: n= 14  net=$ -130.10  (BTC $ -71.90 / ETH $ -58.21)  NEG
+  quarters non-negative: 3/7 = 43%
+
+--- COMPLEMENTARITY (TEST A OOS segment; BTC ret_7d < -1% at exit) ---
+  trades in drawdown periods: 85, net there $-645.54; total net $-376.64
+  share of profit in BTC-drawdown periods: 171%  (sign-caveat: total<=0)
+
+  [sanity] same config on H3 period (2024-08..2026-08): n=278 net=$266.41 (H3 reported n=278 net=$266.41 train+holdout)
+  TEST A RESULT: net=$-376.64 n=229 WR=43%  -> FAILED
+
+=================== TEST B: plateau re-sweep on full 3.7y (70/30 split) ===================
+split(70/30) at 2025-07-07
+
+=== TRAIN SWEEP (net$ combined) ===
+  P filt   H  S% |     n      net$
+ 90    F  24   3 |   624   -887.00
+ 90    F  24   5 |   575  -1324.03
+ 90    F  48   3 |   518  -1213.93
+ 90    F  48   5 |   459  -1368.00
+ 90    F  72   3 |   479   -910.61
+ 90    F  72   5 |   417  -1523.10
+ 90    T  24   3 |   354   -511.21
+ 90    T  24   5 |   343   -543.73
+ 90    T  48   3 |   311   -744.91
+ 90    T  48   5 |   294   -697.62
+ 90    T  72   3 |   294   -784.98
+ 90    T  72   5 |   273   -664.41
+ 95    F  24   3 |   351   -391.14
+ 95    F  24   5 |   319   -474.93
+ 95    F  48   3 |   307   -738.64
+ 95    F  48   5 |   264   -653.86
+ 95    F  72   3 |   297   -644.29
+ 95    F  72   5 |   249   -700.92
+ 95    T  24   3 |   194   -351.85
+ 95    T  24   5 |   188   -503.83
+ 95    T  48   3 |   177   -499.32
+ 95    T  48   5 |   170   -613.04
+ 95    T  72   3 |   172   -372.89
+ 95    T  72   5 |   162   -599.53
+ 98    F  24   3 |   187   -197.06
+ 98    F  24   5 |   167   -249.38
+ 98    F  48   3 |   171   -370.44
+ 98    F  48   5 |   147   -469.14
+ 98    F  72   3 |   169   -297.50
+ 98    F  72   5 |   143   -515.48
+ 98    T  24   3 |    97   -232.52
+ 98    T  24   5 |    94   -167.72
+ 98    T  48   3 |    92   -326.84
+ 98    T  48   5 |    88   -301.16
+ 98    T  72   3 |    91   -281.63
+ 98    T  72   5 |    85   -306.81
+
+=== PLATEAU CONFIGS (train>0 AND all +-1-step neighbors >=0 on train) ===
+  standard (P/H/S neighbors, filter fixed): 0  []
+  strict (also filter-toggle neighbor)   : 0  []
+
+  NO plateau configs -> no holdout look taken
+
+=== VERDICT ===
+  TEST A (decisive OOS): net=$-376.64 n=229 -> FAIL
+  TEST B: plateau_std=0 plateau_strict=0; best-plateau holdout>0: False
+  quarters non-negative: TEST A OOS 43%
+  VERDICT: REJECTED

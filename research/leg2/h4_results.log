@@ -1,0 +1,103 @@
+H4 ETH/BTC ratio momentum backtest  run 2026-08-18T08:54:42.970405+00:00
+bars joined=32547  span 2022-12-01 00:00:00+00:00 .. 2026-08-18 03:00:00+00:00  non-1h gaps=1
+train entries bars [0,22782) = .. 2025-07-07 06:00:00+00:00;  holdout [22782,32547) = 2025-07-07 07:00:00+00:00 ..
+costs: 0.075%/side/leg (~0.3% RT pair); stop = S% of $1000 base (~S% adverse ratio move); funding NOT modeled
+grid cells: 45 (27 both-side cap30d + 9 both-side cap14d(S=3%) + 9 short-ETH-only cap30d(S=3%))
+
+=== SWEEP (train only, net $ per $1000/leg pair) ===
+   L   T%   S%  cap  side |      net$    n   wr%    avg$   maxDD$
+  168    2    2   30 both |   -194.32  182  31.9   -1.07   396.58
+  168    2    3   30 both |    -26.99  162  33.3   -0.17   333.56
+  168    2    5   30 both |    -75.26  156  33.3   -0.48   336.17
+  168    4    2   30 both |   -231.56  114  30.7   -2.03   459.05
+  168    4    3   30 both |    -36.49  100  32.0   -0.36   295.24
+  168    4    5   30 both |    -47.41   92  35.9   -0.52   357.51
+  168    6    2   30 both |     94.74   69  33.3    1.37   300.73
+  168    6    3   30 both |     41.27   62  35.5    0.67   408.05
+  168    6    5   30 both |    132.38   55  40.0    2.41   337.26
+  336    2    2   30 both |   -216.31  145  26.9   -1.49   635.85
+  336    2    3   30 both |   -165.09  134  29.1   -1.23   618.92
+  336    2    5   30 both |   -228.87  127  29.1   -1.80   662.84
+  336    4    2   30 both |   -255.52   92  29.3   -2.78   681.95
+  336    4    3   30 both |   -293.47   82  31.7   -3.58   718.00
+  336    4    5   30 both |   -286.13   75  33.3   -3.82   730.50
+  336    6    2   30 both |   -503.76   70  22.9   -7.20   755.54
+  336    6    3   30 both |   -476.88   62  29.0   -7.69   726.58
+  336    6    5   30 both |   -635.02   58  31.0  -10.95   858.22
+  720    2    2   30 both |   -373.45  128  23.4   -2.92  1021.40
+  720    2    3   30 both |   -288.43  115  26.1   -2.51  1040.88
+  720    2    5   30 both |   -285.44  107  28.0   -2.67  1023.44
+  720    4    2   30 both |   -294.09   98  21.4   -3.00   816.55
+  720    4    3   30 both |   -112.17   75  28.0   -1.50   782.44
+  720    4    5   30 both |   -189.21   67  31.3   -2.82   797.40
+  720    6    2   30 both |   -278.66   79  19.0   -3.53   689.74
+  720    6    3   30 both |   -245.66   63  23.8   -3.90   734.54
+  720    6    5   30 both |   -154.83   49  32.7   -3.16   749.50
+  168    2    3   14 both |    -39.85  170  34.7   -0.23   362.89
+  168    4    3   14 both |    -82.51  105  33.3   -0.79   323.17
+  168    6    3   14 both |    121.70   65  36.9    1.87   375.85
+  336    2    3   14 both |   -308.34  161  30.4   -1.92   751.81
+  336    4    3   14 both |   -431.71  100  29.0   -4.32   816.17
+  336    6    3   14 both |   -555.91   75  25.3   -7.41   755.96
+  720    2    3   14 both |   -400.35  145  29.7   -2.76  1060.95
+  720    4    3   14 both |   -139.13   99  34.3   -1.41   771.85
+  720    6    3   14 both |    -77.03   80  36.2   -0.96   650.67
+  168    2    3   30 shrt |    451.00   81  42.0    5.57   236.37
+  168    4    3   30 shrt |    226.82   57  42.1    3.98   214.44
+  168    6    3   30 shrt |    208.61   37  40.5    5.64   243.03
+  336    2    3   30 shrt |    250.35   76  35.5    3.29   226.08
+  336    4    3   30 shrt |     79.10   47  36.2    1.68   246.65
+  336    6    3   30 shrt |   -124.63   39  33.3   -3.20   390.28
+  720    2    3   30 shrt |    310.93   62  33.9    5.01   468.40
+  720    4    3   30 shrt |    264.97   44  36.4    6.02   362.77
+  720    6    3   30 shrt |     60.15   41  26.8    1.47   390.36
+
+Top-5 train:
+  L=168 T=2% S=3% cap=30d short-only: net=$451.00 n=81 wr=42.0% mdd=$236.37
+  L=720 T=2% S=3% cap=30d short-only: net=$310.93 n=62 wr=33.9% mdd=$468.40
+  L=720 T=4% S=3% cap=30d short-only: net=$264.97 n=44 wr=36.4% mdd=$362.77
+  L=336 T=2% S=3% cap=30d short-only: net=$250.35 n=76 wr=35.5% mdd=$226.08
+  L=168 T=4% S=3% cap=30d short-only: net=$226.82 n=57 wr=42.1% mdd=$214.44
+
+SELECTED: L=168 T=2% S=3% cap=30d short-only  [plateau OK (2 neighbors all >=0)]
+neighbors (train net$): L336/T2/S3/c30s=250, L168/T4/S3/c30s=227
+
+=== SELECTED CONFIG: TRAIN vs HOLDOUT ===
+train  : net=$451.00  n=81  wr=42.0%  avg=$5.57  maxDD=$236.37
+holdout: net=$-264.21  n=43  wr=27.9%  avg=$-6.14  maxDD=$331.63
+exit reasons (all): {'flip': 102, 'stop': 21, 'timecap': 1}
+median hold (h): 63
+sides: long-ETH=0  short-ETH=124
+
+=== QUARTERLY (selected config, PnL by exit quarter; T=train H=holdout) ===
+  2022Q4 [T]: net=$  -20.20  n=3
+  2023Q1 [T]: net=$  129.33  n=5
+  2023Q2 [T]: net=$   62.79  n=3
+  2023Q3 [T]: net=$  -37.62  n=4
+  2023Q4 [T]: net=$   50.77  n=8
+  2024Q1 [T]: net=$  -15.64  n=8
+  2024Q2 [T]: net=$  -24.43  n=6
+  2024Q3 [T]: net=$  143.57  n=7
+  2024Q4 [T]: net=$   16.42  n=8
+  2025Q1 [T]: net=$  183.36  n=12
+  2025Q2 [T]: net=$  -33.50  n=16
+  2025Q3 [H/T]: net=$ -148.67  n=9
+  2025Q4 [H]: net=$ -125.30  n=16
+  2026Q1 [H]: net=$  -61.50  n=12
+  2026Q2 [H]: net=$   76.44  n=6
+  2026Q3 [H]: net=$   -9.02  n=1
+quarters non-negative: 7/16 = 44%
+
+=== COMPLEMENTARITY (BTC ret_7d at entry signal) ===
+share of bars with BTC ret_7d < -1%: 38.2%
+full: total=$186.79 | stress<-1%: $27.26 (57 tr, share=15%) | deep<-5%: $46.86 (25 tr)
+holdout: total=$-264.21 | stress<-1%: $-311.07 (34 tr, share=undef (total<=0)) | deep<-5%: $-191.63 (16 tr)
+
+=== VERDICT ===
+train_pos=True  holdout_pos=False  plateau=True  quarters=False  no_catastrophe=True
+VERDICT: REJECTED
+
+Assumptions/risks: funding not modeled (perp pair carries net funding, often adverse on short-ETH leg);
+stop checked on closes only (no intrabar); stop base=$1000 (~S% ratio move); no slippage beyond fees;
+fills at next close; holdout looked at exactly once; T thresholds applied to log-ratio return (~pct);
+NOTE: short-only cells exist only at S=3%/cap=30d, so plateau check there spans L,T neighbors only (thin).
