@@ -1,0 +1,4232 @@
+[
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1085,
+   "n_tr": 632,
+   "n_ho": 453,
+   "per_day": 1.522,
+   "fx_tr": -1056.4,
+   "fx_ho": 68.9,
+   "rep_tr_ret": -5.1,
+   "rep_tr_dd": 8.7,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -212,
+    -993,
+    -39,
+    258
+   ]
+  },
+  "CALIB": {
+   "n": 1085,
+   "n_tr": 632,
+   "n_ho": 453,
+   "per_day": 1.522,
+   "fx_tr": -1152.8,
+   "fx_ho": 335.6,
+   "rep_tr_ret": -0.2,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -248,
+    -1009,
+    77,
+    362
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1085,
+   "n_tr": 632,
+   "n_ho": 453,
+   "per_day": 1.522,
+   "fx_tr": -1056.4,
+   "fx_ho": 68.9,
+   "rep_tr_ret": -5.1,
+   "rep_tr_dd": 8.7,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -212,
+    -993,
+    -39,
+    258
+   ]
+  },
+  "CALIB": {
+   "n": 1085,
+   "n_tr": 632,
+   "n_ho": 453,
+   "per_day": 1.522,
+   "fx_tr": -1152.8,
+   "fx_ho": 335.6,
+   "rep_tr_ret": -0.2,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -248,
+    -1009,
+    77,
+    362
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4235,
+   "n_tr": 2683,
+   "n_ho": 1552,
+   "per_day": 5.92,
+   "fx_tr": -3614.5,
+   "fx_ho": -165.8,
+   "rep_tr_ret": -4.2,
+   "rep_tr_dd": 8.5,
+   "rep_ho_ret": 8.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1871,
+    -2490,
+    1632,
+    -1052
+   ]
+  },
+  "CALIB": {
+   "n": 4235,
+   "n_tr": 2683,
+   "n_ho": 1552,
+   "per_day": 5.92,
+   "fx_tr": -4052.2,
+   "fx_ho": 102.3,
+   "rep_tr_ret": -6.2,
+   "rep_tr_dd": 10.7,
+   "rep_ho_ret": 7.3,
+   "rep_ho_dd": 3.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1970,
+    -2537,
+    1321,
+    -764
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4235,
+   "n_tr": 2683,
+   "n_ho": 1552,
+   "per_day": 5.92,
+   "fx_tr": -3614.5,
+   "fx_ho": -165.8,
+   "rep_tr_ret": -4.2,
+   "rep_tr_dd": 8.5,
+   "rep_ho_ret": 8.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1871,
+    -2490,
+    1632,
+    -1052
+   ]
+  },
+  "CALIB": {
+   "n": 4235,
+   "n_tr": 2683,
+   "n_ho": 1552,
+   "per_day": 5.92,
+   "fx_tr": -4052.2,
+   "fx_ho": 102.3,
+   "rep_tr_ret": -6.2,
+   "rep_tr_dd": 10.7,
+   "rep_ho_ret": 7.3,
+   "rep_ho_dd": 3.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1970,
+    -2537,
+    1321,
+    -764
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 7123,
+   "n_tr": 4663,
+   "n_ho": 2460,
+   "per_day": 9.931,
+   "fx_tr": -7637.6,
+   "fx_ho": 688.9,
+   "rep_tr_ret": -4.4,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 14.1,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3894,
+    -2697,
+    210,
+    -568
+   ]
+  },
+  "CALIB": {
+   "n": 7123,
+   "n_tr": 4663,
+   "n_ho": 2460,
+   "per_day": 9.931,
+   "fx_tr": -7101.5,
+   "fx_ho": 1320.5,
+   "rep_tr_ret": -6.0,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 10.0,
+   "rep_ho_dd": 6.8,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3301,
+    -2478,
+    175,
+    -177
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 7123,
+   "n_tr": 4663,
+   "n_ho": 2460,
+   "per_day": 9.931,
+   "fx_tr": -7637.6,
+   "fx_ho": 688.9,
+   "rep_tr_ret": -4.4,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 14.1,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3894,
+    -2697,
+    210,
+    -568
+   ]
+  },
+  "CALIB": {
+   "n": 7123,
+   "n_tr": 4663,
+   "n_ho": 2460,
+   "per_day": 9.931,
+   "fx_tr": -7101.5,
+   "fx_ho": 1320.5,
+   "rep_tr_ret": -6.0,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 10.0,
+   "rep_ho_dd": 6.8,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3301,
+    -2478,
+    175,
+    -177
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 780,
+   "n_tr": 471,
+   "n_ho": 309,
+   "per_day": 1.094,
+   "fx_tr": -543.0,
+   "fx_ho": 250.8,
+   "rep_tr_ret": -4.9,
+   "rep_tr_dd": 6.5,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    49,
+    -766,
+    109,
+    316
+   ]
+  },
+  "CALIB": {
+   "n": 780,
+   "n_tr": 471,
+   "n_ho": 309,
+   "per_day": 1.094,
+   "fx_tr": -634.5,
+   "fx_ho": 312.1,
+   "rep_tr_ret": 2.1,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 5.8,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    13,
+    -730,
+    21,
+    374
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 780,
+   "n_tr": 471,
+   "n_ho": 309,
+   "per_day": 1.094,
+   "fx_tr": -543.0,
+   "fx_ho": 250.8,
+   "rep_tr_ret": -4.9,
+   "rep_tr_dd": 6.5,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    49,
+    -766,
+    109,
+    316
+   ]
+  },
+  "CALIB": {
+   "n": 780,
+   "n_tr": 471,
+   "n_ho": 309,
+   "per_day": 1.094,
+   "fx_tr": -634.5,
+   "fx_ho": 312.1,
+   "rep_tr_ret": 2.1,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 5.8,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    13,
+    -730,
+    21,
+    374
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 3380,
+   "n_tr": 2160,
+   "n_ho": 1220,
+   "per_day": 4.725,
+   "fx_tr": -2672.8,
+   "fx_ho": -167.1,
+   "rep_tr_ret": -1.0,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 4.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1321,
+    -2447,
+    2012,
+    -1084
+   ]
+  },
+  "CALIB": {
+   "n": 3380,
+   "n_tr": 2160,
+   "n_ho": 1220,
+   "per_day": 4.725,
+   "fx_tr": -3182.0,
+   "fx_ho": -245.4,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 8.6,
+   "rep_ho_ret": 6.2,
+   "rep_ho_dd": 3.8,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1433,
+    -2483,
+    1476,
+    -986
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 3380,
+   "n_tr": 2160,
+   "n_ho": 1220,
+   "per_day": 4.725,
+   "fx_tr": -2672.8,
+   "fx_ho": -167.1,
+   "rep_tr_ret": -1.0,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 4.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1321,
+    -2447,
+    2012,
+    -1084
+   ]
+  },
+  "CALIB": {
+   "n": 3380,
+   "n_tr": 2160,
+   "n_ho": 1220,
+   "per_day": 4.725,
+   "fx_tr": -3182.0,
+   "fx_ho": -245.4,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 8.6,
+   "rep_ho_ret": 6.2,
+   "rep_ho_dd": 3.8,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1433,
+    -2483,
+    1476,
+    -986
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 6052,
+   "n_tr": 4036,
+   "n_ho": 2016,
+   "per_day": 8.438,
+   "fx_tr": -6517.3,
+   "fx_ho": 490.4,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 7.1,
+   "rep_ho_ret": 9.8,
+   "rep_ho_dd": 4.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3061,
+    -2794,
+    382,
+    -555
+   ]
+  },
+  "CALIB": {
+   "n": 6052,
+   "n_tr": 4036,
+   "n_ho": 2016,
+   "per_day": 8.438,
+   "fx_tr": -6083.4,
+   "fx_ho": 635.5,
+   "rep_tr_ret": -8.6,
+   "rep_tr_dd": 9.5,
+   "rep_ho_ret": 12.9,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2474,
+    -2616,
+    118,
+    -476
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 6052,
+   "n_tr": 4036,
+   "n_ho": 2016,
+   "per_day": 8.438,
+   "fx_tr": -6517.3,
+   "fx_ho": 490.4,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 7.1,
+   "rep_ho_ret": 9.8,
+   "rep_ho_dd": 4.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3061,
+    -2794,
+    382,
+    -555
+   ]
+  },
+  "CALIB": {
+   "n": 6052,
+   "n_tr": 4036,
+   "n_ho": 2016,
+   "per_day": 8.438,
+   "fx_tr": -6083.4,
+   "fx_ho": 635.5,
+   "rep_tr_ret": -8.6,
+   "rep_tr_dd": 9.5,
+   "rep_ho_ret": 12.9,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2474,
+    -2616,
+    118,
+    -476
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 547,
+   "n_tr": 324,
+   "n_ho": 223,
+   "per_day": 0.767,
+   "fx_tr": -231.8,
+   "fx_ho": 347.2,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    64,
+    -545,
+    339,
+    257
+   ]
+  },
+  "CALIB": {
+   "n": 547,
+   "n_tr": 324,
+   "n_ho": 223,
+   "per_day": 0.767,
+   "fx_tr": -369.5,
+   "fx_ho": 376.6,
+   "rep_tr_ret": -4.2,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    46,
+    -575,
+    233,
+    304
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 547,
+   "n_tr": 324,
+   "n_ho": 223,
+   "per_day": 0.767,
+   "fx_tr": -231.8,
+   "fx_ho": 347.2,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    64,
+    -545,
+    339,
+    257
+   ]
+  },
+  "CALIB": {
+   "n": 547,
+   "n_tr": 324,
+   "n_ho": 223,
+   "per_day": 0.767,
+   "fx_tr": -369.5,
+   "fx_ho": 376.6,
+   "rep_tr_ret": -4.2,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    46,
+    -575,
+    233,
+    304
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 2575,
+   "n_tr": 1650,
+   "n_ho": 925,
+   "per_day": 3.602,
+   "fx_tr": -1996.1,
+   "fx_ho": 481.1,
+   "rep_tr_ret": -1.3,
+   "rep_tr_dd": 5.7,
+   "rep_ho_ret": 4.6,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1159,
+    -1896,
+    2087,
+    -547
+   ]
+  },
+  "CALIB": {
+   "n": 2575,
+   "n_tr": 1650,
+   "n_ho": 925,
+   "per_day": 3.602,
+   "fx_tr": -2671.9,
+   "fx_ho": 286.9,
+   "rep_tr_ret": -4.1,
+   "rep_tr_dd": 7.4,
+   "rep_ho_ret": 3.8,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1293,
+    -2002,
+    1428,
+    -517
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 2575,
+   "n_tr": 1650,
+   "n_ho": 925,
+   "per_day": 3.602,
+   "fx_tr": -1996.1,
+   "fx_ho": 481.1,
+   "rep_tr_ret": -1.3,
+   "rep_tr_dd": 5.7,
+   "rep_ho_ret": 4.6,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1159,
+    -1896,
+    2087,
+    -547
+   ]
+  },
+  "CALIB": {
+   "n": 2575,
+   "n_tr": 1650,
+   "n_ho": 925,
+   "per_day": 3.602,
+   "fx_tr": -2671.9,
+   "fx_ho": 286.9,
+   "rep_tr_ret": -4.1,
+   "rep_tr_dd": 7.4,
+   "rep_ho_ret": 3.8,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1293,
+    -2002,
+    1428,
+    -517
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4911,
+   "n_tr": 3272,
+   "n_ho": 1639,
+   "per_day": 6.852,
+   "fx_tr": -5795.8,
+   "fx_ho": 1435.6,
+   "rep_tr_ret": -6.7,
+   "rep_tr_dd": 9.5,
+   "rep_ho_ret": 9.9,
+   "rep_ho_dd": 6.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2645,
+    -2647,
+    701,
+    231
+   ]
+  },
+  "CALIB": {
+   "n": 4911,
+   "n_tr": 3272,
+   "n_ho": 1639,
+   "per_day": 6.852,
+   "fx_tr": -5673.5,
+   "fx_ho": 1429.9,
+   "rep_tr_ret": -2.4,
+   "rep_tr_dd": 4.5,
+   "rep_ho_ret": 9.7,
+   "rep_ho_dd": 7.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2114,
+    -2670,
+    294,
+    247
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 0.5,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4911,
+   "n_tr": 3272,
+   "n_ho": 1639,
+   "per_day": 6.852,
+   "fx_tr": -5795.8,
+   "fx_ho": 1435.6,
+   "rep_tr_ret": -6.7,
+   "rep_tr_dd": 9.5,
+   "rep_ho_ret": 9.9,
+   "rep_ho_dd": 6.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2645,
+    -2647,
+    701,
+    231
+   ]
+  },
+  "CALIB": {
+   "n": 4911,
+   "n_tr": 3272,
+   "n_ho": 1639,
+   "per_day": 6.852,
+   "fx_tr": -5673.5,
+   "fx_ho": 1429.9,
+   "rep_tr_ret": -2.4,
+   "rep_tr_dd": 4.5,
+   "rep_ho_ret": 9.7,
+   "rep_ho_dd": 7.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2114,
+    -2670,
+    294,
+    247
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1135,
+   "n_tr": 676,
+   "n_ho": 459,
+   "per_day": 1.592,
+   "fx_tr": -910.5,
+   "fx_ho": 75.0,
+   "rep_tr_ret": -8.5,
+   "rep_tr_dd": 12.0,
+   "rep_ho_ret": 0.8,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -158,
+    -1000,
+    58,
+    265
+   ]
+  },
+  "CALIB": {
+   "n": 1135,
+   "n_tr": 676,
+   "n_ho": 459,
+   "per_day": 1.592,
+   "fx_tr": -996.1,
+   "fx_ho": 342.5,
+   "rep_tr_ret": -0.0,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 1.5,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -192,
+    -1013,
+    182,
+    370
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1135,
+   "n_tr": 676,
+   "n_ho": 459,
+   "per_day": 1.592,
+   "fx_tr": -910.5,
+   "fx_ho": 75.0,
+   "rep_tr_ret": -8.5,
+   "rep_tr_dd": 12.0,
+   "rep_ho_ret": 0.8,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -158,
+    -1000,
+    58,
+    265
+   ]
+  },
+  "CALIB": {
+   "n": 1135,
+   "n_tr": 676,
+   "n_ho": 459,
+   "per_day": 1.592,
+   "fx_tr": -996.1,
+   "fx_ho": 342.5,
+   "rep_tr_ret": -0.0,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 1.5,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -192,
+    -1013,
+    182,
+    370
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4461,
+   "n_tr": 2866,
+   "n_ho": 1595,
+   "per_day": 6.236,
+   "fx_tr": -3262.2,
+   "fx_ho": -112.5,
+   "rep_tr_ret": -1.9,
+   "rep_tr_dd": 8.2,
+   "rep_ho_ret": 8.1,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1734,
+    -2713,
+    2085,
+    -1012
+   ]
+  },
+  "CALIB": {
+   "n": 4461,
+   "n_tr": 2866,
+   "n_ho": 1595,
+   "per_day": 6.236,
+   "fx_tr": -3655.7,
+   "fx_ho": 174.0,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 11.5,
+   "rep_ho_ret": 6.2,
+   "rep_ho_dd": 3.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1827,
+    -2739,
+    1790,
+    -706
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4461,
+   "n_tr": 2866,
+   "n_ho": 1595,
+   "per_day": 6.236,
+   "fx_tr": -3262.2,
+   "fx_ho": -112.5,
+   "rep_tr_ret": -1.9,
+   "rep_tr_dd": 8.2,
+   "rep_ho_ret": 8.1,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1734,
+    -2713,
+    2085,
+    -1012
+   ]
+  },
+  "CALIB": {
+   "n": 4461,
+   "n_tr": 2866,
+   "n_ho": 1595,
+   "per_day": 6.236,
+   "fx_tr": -3655.7,
+   "fx_ho": 174.0,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 11.5,
+   "rep_ho_ret": 6.2,
+   "rep_ho_dd": 3.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1827,
+    -2739,
+    1790,
+    -706
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 7462,
+   "n_tr": 4943,
+   "n_ho": 2519,
+   "per_day": 10.404,
+   "fx_tr": -7338.6,
+   "fx_ho": 777.8,
+   "rep_tr_ret": -1.4,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 9.5,
+   "rep_ho_dd": 7.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3868,
+    -2880,
+    710,
+    -522
+   ]
+  },
+  "CALIB": {
+   "n": 7462,
+   "n_tr": 4943,
+   "n_ho": 2519,
+   "per_day": 10.404,
+   "fx_tr": -6792.7,
+   "fx_ho": 1427.2,
+   "rep_tr_ret": -1.5,
+   "rep_tr_dd": 4.0,
+   "rep_ho_ret": 7.9,
+   "rep_ho_dd": 8.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3299,
+    -2638,
+    686,
+    -115
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 7462,
+   "n_tr": 4943,
+   "n_ho": 2519,
+   "per_day": 10.404,
+   "fx_tr": -7338.6,
+   "fx_ho": 777.8,
+   "rep_tr_ret": -1.4,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 9.5,
+   "rep_ho_dd": 7.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3868,
+    -2880,
+    710,
+    -522
+   ]
+  },
+  "CALIB": {
+   "n": 7462,
+   "n_tr": 4943,
+   "n_ho": 2519,
+   "per_day": 10.404,
+   "fx_tr": -6792.7,
+   "fx_ho": 1427.2,
+   "rep_tr_ret": -1.5,
+   "rep_tr_dd": 4.0,
+   "rep_ho_ret": 7.9,
+   "rep_ho_dd": 8.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3299,
+    -2638,
+    686,
+    -115
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 818,
+   "n_tr": 505,
+   "n_ho": 313,
+   "per_day": 1.147,
+   "fx_tr": -448.0,
+   "fx_ho": 256.3,
+   "rep_tr_ret": -4.9,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    65,
+    -784,
+    206,
+    322
+   ]
+  },
+  "CALIB": {
+   "n": 818,
+   "n_tr": 505,
+   "n_ho": 313,
+   "per_day": 1.147,
+   "fx_tr": -531.2,
+   "fx_ho": 317.9,
+   "rep_tr_ret": 3.1,
+   "rep_tr_dd": 6.1,
+   "rep_ho_ret": 5.5,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -747,
+    125,
+    380
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 818,
+   "n_tr": 505,
+   "n_ho": 313,
+   "per_day": 1.147,
+   "fx_tr": -448.0,
+   "fx_ho": 256.3,
+   "rep_tr_ret": -4.9,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    65,
+    -784,
+    206,
+    322
+   ]
+  },
+  "CALIB": {
+   "n": 818,
+   "n_tr": 505,
+   "n_ho": 313,
+   "per_day": 1.147,
+   "fx_tr": -531.2,
+   "fx_ho": 317.9,
+   "rep_tr_ret": 3.1,
+   "rep_tr_dd": 6.1,
+   "rep_ho_ret": 5.5,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -747,
+    125,
+    380
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 3555,
+   "n_tr": 2297,
+   "n_ho": 1258,
+   "per_day": 4.969,
+   "fx_tr": -2373.5,
+   "fx_ho": -114.2,
+   "rep_tr_ret": -1.1,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 5.3,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1251,
+    -2637,
+    2443,
+    -1044
+   ]
+  },
+  "CALIB": {
+   "n": 3555,
+   "n_tr": 2297,
+   "n_ho": 1258,
+   "per_day": 4.969,
+   "fx_tr": -2867.2,
+   "fx_ho": -182.0,
+   "rep_tr_ret": 0.4,
+   "rep_tr_dd": 7.9,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1361,
+    -2673,
+    1921,
+    -936
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 3555,
+   "n_tr": 2297,
+   "n_ho": 1258,
+   "per_day": 4.969,
+   "fx_tr": -2373.5,
+   "fx_ho": -114.2,
+   "rep_tr_ret": -1.1,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 5.3,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1251,
+    -2637,
+    2443,
+    -1044
+   ]
+  },
+  "CALIB": {
+   "n": 3555,
+   "n_tr": 2297,
+   "n_ho": 1258,
+   "per_day": 4.969,
+   "fx_tr": -2867.2,
+   "fx_ho": -182.0,
+   "rep_tr_ret": 0.4,
+   "rep_tr_dd": 7.9,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1361,
+    -2673,
+    1921,
+    -936
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 6327,
+   "n_tr": 4260,
+   "n_ho": 2067,
+   "per_day": 8.821,
+   "fx_tr": -6277.0,
+   "fx_ho": 584.8,
+   "rep_tr_ret": -8.0,
+   "rep_tr_dd": 12.6,
+   "rep_ho_ret": 11.9,
+   "rep_ho_dd": 4.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3105,
+    -2943,
+    860,
+    -504
+   ]
+  },
+  "CALIB": {
+   "n": 6327,
+   "n_tr": 4260,
+   "n_ho": 2067,
+   "per_day": 8.821,
+   "fx_tr": -5874.3,
+   "fx_ho": 744.5,
+   "rep_tr_ret": -3.3,
+   "rep_tr_dd": 6.0,
+   "rep_ho_ret": 14.5,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2559,
+    -2764,
+    604,
+    -411
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 6327,
+   "n_tr": 4260,
+   "n_ho": 2067,
+   "per_day": 8.821,
+   "fx_tr": -6277.0,
+   "fx_ho": 584.8,
+   "rep_tr_ret": -8.0,
+   "rep_tr_dd": 12.6,
+   "rep_ho_ret": 11.9,
+   "rep_ho_dd": 4.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3105,
+    -2943,
+    860,
+    -504
+   ]
+  },
+  "CALIB": {
+   "n": 6327,
+   "n_tr": 4260,
+   "n_ho": 2067,
+   "per_day": 8.821,
+   "fx_tr": -5874.3,
+   "fx_ho": 744.5,
+   "rep_tr_ret": -3.3,
+   "rep_tr_dd": 6.0,
+   "rep_ho_ret": 14.5,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2559,
+    -2764,
+    604,
+    -411
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 575,
+   "n_tr": 350,
+   "n_ho": 225,
+   "per_day": 0.806,
+   "fx_tr": -136.4,
+   "fx_ho": 345.5,
+   "rep_tr_ret": -5.4,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    76,
+    -575,
+    452,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 575,
+   "n_tr": 350,
+   "n_ho": 225,
+   "per_day": 0.806,
+   "fx_tr": -268.9,
+   "fx_ho": 375.5,
+   "rep_tr_ret": -3.8,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    58,
+    -607,
+    353,
+    303
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 575,
+   "n_tr": 350,
+   "n_ho": 225,
+   "per_day": 0.806,
+   "fx_tr": -136.4,
+   "fx_ho": 345.5,
+   "rep_tr_ret": -5.4,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    76,
+    -575,
+    452,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 575,
+   "n_tr": 350,
+   "n_ho": 225,
+   "per_day": 0.806,
+   "fx_tr": -268.9,
+   "fx_ho": 375.5,
+   "rep_tr_ret": -3.8,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    58,
+    -607,
+    353,
+    303
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 2704,
+   "n_tr": 1754,
+   "n_ho": 950,
+   "per_day": 3.782,
+   "fx_tr": -1647.2,
+   "fx_ho": 500.2,
+   "rep_tr_ret": -1.5,
+   "rep_tr_dd": 5.6,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1097,
+    -2040,
+    2530,
+    -540
+   ]
+  },
+  "CALIB": {
+   "n": 2704,
+   "n_tr": 1754,
+   "n_ho": 950,
+   "per_day": 3.782,
+   "fx_tr": -2315.5,
+   "fx_ho": 303.9,
+   "rep_tr_ret": -1.8,
+   "rep_tr_dd": 5.2,
+   "rep_ho_ret": 3.9,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1232,
+    -2150,
+    1884,
+    -513
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 2704,
+   "n_tr": 1754,
+   "n_ho": 950,
+   "per_day": 3.782,
+   "fx_tr": -1647.2,
+   "fx_ho": 500.2,
+   "rep_tr_ret": -1.5,
+   "rep_tr_dd": 5.6,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1097,
+    -2040,
+    2530,
+    -540
+   ]
+  },
+  "CALIB": {
+   "n": 2704,
+   "n_tr": 1754,
+   "n_ho": 950,
+   "per_day": 3.782,
+   "fx_tr": -2315.5,
+   "fx_ho": 303.9,
+   "rep_tr_ret": -1.8,
+   "rep_tr_dd": 5.2,
+   "rep_ho_ret": 3.9,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1232,
+    -2150,
+    1884,
+    -513
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 5133,
+   "n_tr": 3456,
+   "n_ho": 1677,
+   "per_day": 7.162,
+   "fx_tr": -5491.8,
+   "fx_ho": 1496.9,
+   "rep_tr_ret": 0.2,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 9.9,
+   "rep_ho_dd": 7.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2685,
+    -2749,
+    1185,
+    254
+   ]
+  },
+  "CALIB": {
+   "n": 5133,
+   "n_tr": 3456,
+   "n_ho": 1677,
+   "per_day": 7.162,
+   "fx_tr": -5410.0,
+   "fx_ho": 1493.2,
+   "rep_tr_ret": 1.5,
+   "rep_tr_dd": 2.6,
+   "rep_ho_ret": 9.8,
+   "rep_ho_dd": 7.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2197,
+    -2775,
+    785,
+    270
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 5133,
+   "n_tr": 3456,
+   "n_ho": 1677,
+   "per_day": 7.162,
+   "fx_tr": -5491.8,
+   "fx_ho": 1496.9,
+   "rep_tr_ret": 0.2,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 9.9,
+   "rep_ho_dd": 7.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2685,
+    -2749,
+    1185,
+    254
+   ]
+  },
+  "CALIB": {
+   "n": 5133,
+   "n_tr": 3456,
+   "n_ho": 1677,
+   "per_day": 7.162,
+   "fx_tr": -5410.0,
+   "fx_ho": 1493.2,
+   "rep_tr_ret": 1.5,
+   "rep_tr_dd": 2.6,
+   "rep_ho_ret": 9.8,
+   "rep_ho_dd": 7.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2197,
+    -2775,
+    785,
+    270
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1180,
+   "n_tr": 713,
+   "n_ho": 467,
+   "per_day": 1.655,
+   "fx_tr": -828.8,
+   "fx_ho": 23.9,
+   "rep_tr_ret": -0.0,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -126,
+    -1006,
+    59,
+    267
+   ]
+  },
+  "CALIB": {
+   "n": 1180,
+   "n_tr": 713,
+   "n_ho": 467,
+   "per_day": 1.655,
+   "fx_tr": -921.8,
+   "fx_ho": 301.8,
+   "rep_tr_ret": 3.3,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -168,
+    -1019,
+    193,
+    374
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1180,
+   "n_tr": 713,
+   "n_ho": 467,
+   "per_day": 1.655,
+   "fx_tr": -828.8,
+   "fx_ho": 23.9,
+   "rep_tr_ret": -0.0,
+   "rep_tr_dd": 5.3,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -126,
+    -1006,
+    59,
+    267
+   ]
+  },
+  "CALIB": {
+   "n": 1180,
+   "n_tr": 713,
+   "n_ho": 467,
+   "per_day": 1.655,
+   "fx_tr": -921.8,
+   "fx_ho": 301.8,
+   "rep_tr_ret": 3.3,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -168,
+    -1019,
+    193,
+    374
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4654,
+   "n_tr": 3007,
+   "n_ho": 1647,
+   "per_day": 6.505,
+   "fx_tr": -2742.0,
+   "fx_ho": 55.5,
+   "rep_tr_ret": -5.5,
+   "rep_tr_dd": 9.9,
+   "rep_ho_ret": 8.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1672,
+    -2685,
+    2578,
+    -907
+   ]
+  },
+  "CALIB": {
+   "n": 4654,
+   "n_tr": 3007,
+   "n_ho": 1647,
+   "per_day": 6.505,
+   "fx_tr": -3175.1,
+   "fx_ho": 359.4,
+   "rep_tr_ret": -3.9,
+   "rep_tr_dd": 8.3,
+   "rep_ho_ret": 7.2,
+   "rep_ho_dd": 4.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1792,
+    -2697,
+    2279,
+    -605
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4654,
+   "n_tr": 3007,
+   "n_ho": 1647,
+   "per_day": 6.505,
+   "fx_tr": -2742.0,
+   "fx_ho": 55.5,
+   "rep_tr_ret": -5.5,
+   "rep_tr_dd": 9.9,
+   "rep_ho_ret": 8.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1672,
+    -2685,
+    2578,
+    -907
+   ]
+  },
+  "CALIB": {
+   "n": 4654,
+   "n_tr": 3007,
+   "n_ho": 1647,
+   "per_day": 6.505,
+   "fx_tr": -3175.1,
+   "fx_ho": 359.4,
+   "rep_tr_ret": -3.9,
+   "rep_tr_dd": 8.3,
+   "rep_ho_ret": 7.2,
+   "rep_ho_dd": 4.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1792,
+    -2697,
+    2279,
+    -605
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 7717,
+   "n_tr": 5137,
+   "n_ho": 2580,
+   "per_day": 10.76,
+   "fx_tr": -6735.0,
+   "fx_ho": 959.5,
+   "rep_tr_ret": -7.0,
+   "rep_tr_dd": 10.3,
+   "rep_ho_ret": 11.5,
+   "rep_ho_dd": 7.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3758,
+    -2886,
+    1287,
+    -418
+   ]
+  },
+  "CALIB": {
+   "n": 7717,
+   "n_tr": 5137,
+   "n_ho": 2580,
+   "per_day": 10.76,
+   "fx_tr": -6278.7,
+   "fx_ho": 1612.8,
+   "rep_tr_ret": -1.7,
+   "rep_tr_dd": 4.7,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 8.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3263,
+    -2629,
+    1255,
+    -29
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 7717,
+   "n_tr": 5137,
+   "n_ho": 2580,
+   "per_day": 10.76,
+   "fx_tr": -6735.0,
+   "fx_ho": 959.5,
+   "rep_tr_ret": -7.0,
+   "rep_tr_dd": 10.3,
+   "rep_ho_ret": 11.5,
+   "rep_ho_dd": 7.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3758,
+    -2886,
+    1287,
+    -418
+   ]
+  },
+  "CALIB": {
+   "n": 7717,
+   "n_tr": 5137,
+   "n_ho": 2580,
+   "per_day": 10.76,
+   "fx_tr": -6278.7,
+   "fx_ho": 1612.8,
+   "rep_tr_ret": -1.7,
+   "rep_tr_dd": 4.7,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 8.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3263,
+    -2629,
+    1255,
+    -29
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 845,
+   "n_tr": 528,
+   "n_ho": 317,
+   "per_day": 1.185,
+   "fx_tr": -429.0,
+   "fx_ho": 202.5,
+   "rep_tr_ret": 1.1,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    30,
+    -786,
+    207,
+    322
+   ]
+  },
+  "CALIB": {
+   "n": 845,
+   "n_tr": 528,
+   "n_ho": 317,
+   "per_day": 1.185,
+   "fx_tr": -521.1,
+   "fx_ho": 273.6,
+   "rep_tr_ret": 3.8,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 5.5,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -16,
+    -749,
+    137,
+    380
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 845,
+   "n_tr": 528,
+   "n_ho": 317,
+   "per_day": 1.185,
+   "fx_tr": -429.0,
+   "fx_ho": 202.5,
+   "rep_tr_ret": 1.1,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    30,
+    -786,
+    207,
+    322
+   ]
+  },
+  "CALIB": {
+   "n": 845,
+   "n_tr": 528,
+   "n_ho": 317,
+   "per_day": 1.185,
+   "fx_tr": -521.1,
+   "fx_ho": 273.6,
+   "rep_tr_ret": 3.8,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 5.5,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -16,
+    -749,
+    137,
+    380
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 3690,
+   "n_tr": 2391,
+   "n_ho": 1299,
+   "per_day": 5.158,
+   "fx_tr": -2006.3,
+   "fx_ho": 23.4,
+   "rep_tr_ret": -2.9,
+   "rep_tr_dd": 9.2,
+   "rep_ho_ret": 4.9,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1263,
+    -2666,
+    2897,
+    -951
+   ]
+  },
+  "CALIB": {
+   "n": 3690,
+   "n_tr": 2391,
+   "n_ho": 1299,
+   "per_day": 5.158,
+   "fx_tr": -2566.2,
+   "fx_ho": -28.0,
+   "rep_tr_ret": -9.5,
+   "rep_tr_dd": 13.5,
+   "rep_ho_ret": 7.1,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1405,
+    -2688,
+    2337,
+    -838
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 3690,
+   "n_tr": 2391,
+   "n_ho": 1299,
+   "per_day": 5.158,
+   "fx_tr": -2006.3,
+   "fx_ho": 23.4,
+   "rep_tr_ret": -2.9,
+   "rep_tr_dd": 9.2,
+   "rep_ho_ret": 4.9,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1263,
+    -2666,
+    2897,
+    -951
+   ]
+  },
+  "CALIB": {
+   "n": 3690,
+   "n_tr": 2391,
+   "n_ho": 1299,
+   "per_day": 5.158,
+   "fx_tr": -2566.2,
+   "fx_ho": -28.0,
+   "rep_tr_ret": -9.5,
+   "rep_tr_dd": 13.5,
+   "rep_ho_ret": 7.1,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1405,
+    -2688,
+    2337,
+    -838
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 6515,
+   "n_tr": 4405,
+   "n_ho": 2110,
+   "per_day": 9.084,
+   "fx_tr": -5846.4,
+   "fx_ho": 737.8,
+   "rep_tr_ret": -3.1,
+   "rep_tr_dd": 7.0,
+   "rep_ho_ret": 11.5,
+   "rep_ho_dd": 4.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3087,
+    -3006,
+    1395,
+    -410
+   ]
+  },
+  "CALIB": {
+   "n": 6515,
+   "n_tr": 4405,
+   "n_ho": 2110,
+   "per_day": 9.084,
+   "fx_tr": -5559.3,
+   "fx_ho": 914.2,
+   "rep_tr_ret": -3.7,
+   "rep_tr_dd": 6.6,
+   "rep_ho_ret": 13.8,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2617,
+    -2813,
+    1098,
+    -312
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 6515,
+   "n_tr": 4405,
+   "n_ho": 2110,
+   "per_day": 9.084,
+   "fx_tr": -5846.4,
+   "fx_ho": 737.8,
+   "rep_tr_ret": -3.1,
+   "rep_tr_dd": 7.0,
+   "rep_ho_ret": 11.5,
+   "rep_ho_dd": 4.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3087,
+    -3006,
+    1395,
+    -410
+   ]
+  },
+  "CALIB": {
+   "n": 6515,
+   "n_tr": 4405,
+   "n_ho": 2110,
+   "per_day": 9.084,
+   "fx_tr": -5559.3,
+   "fx_ho": 914.2,
+   "rep_tr_ret": -3.7,
+   "rep_tr_dd": 6.6,
+   "rep_ho_ret": 13.8,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2617,
+    -2813,
+    1098,
+    -312
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 589,
+   "n_tr": 363,
+   "n_ho": 226,
+   "per_day": 0.826,
+   "fx_tr": -120.3,
+   "fx_ho": 345.7,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    54,
+    -592,
+    508,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 589,
+   "n_tr": 363,
+   "n_ho": 226,
+   "per_day": 0.826,
+   "fx_tr": -260.1,
+   "fx_ho": 375.9,
+   "rep_tr_ret": -6.8,
+   "rep_tr_dd": 7.9,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -624,
+    409,
+    303
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 589,
+   "n_tr": 363,
+   "n_ho": 226,
+   "per_day": 0.826,
+   "fx_tr": -120.3,
+   "fx_ho": 345.7,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    54,
+    -592,
+    508,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 589,
+   "n_tr": 363,
+   "n_ho": 226,
+   "per_day": 0.826,
+   "fx_tr": -260.1,
+   "fx_ho": 375.9,
+   "rep_tr_ret": -6.8,
+   "rep_tr_dd": 7.9,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -624,
+    409,
+    303
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 2796,
+   "n_tr": 1814,
+   "n_ho": 982,
+   "per_day": 3.911,
+   "fx_tr": -1284.9,
+   "fx_ho": 661.7,
+   "rep_tr_ret": -5.4,
+   "rep_tr_dd": 10.1,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 7.0,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1086,
+    -2095,
+    3034,
+    -477
+   ]
+  },
+  "CALIB": {
+   "n": 2796,
+   "n_tr": 1814,
+   "n_ho": 982,
+   "per_day": 3.911,
+   "fx_tr": -2024.4,
+   "fx_ho": 473.5,
+   "rep_tr_ret": -4.6,
+   "rep_tr_dd": 8.0,
+   "rep_ho_ret": 4.3,
+   "rep_ho_dd": 6.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1249,
+    -2198,
+    2340,
+    -444
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 2796,
+   "n_tr": 1814,
+   "n_ho": 982,
+   "per_day": 3.911,
+   "fx_tr": -1284.9,
+   "fx_ho": 661.7,
+   "rep_tr_ret": -5.4,
+   "rep_tr_dd": 10.1,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 7.0,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1086,
+    -2095,
+    3034,
+    -477
+   ]
+  },
+  "CALIB": {
+   "n": 2796,
+   "n_tr": 1814,
+   "n_ho": 982,
+   "per_day": 3.911,
+   "fx_tr": -2024.4,
+   "fx_ho": 473.5,
+   "rep_tr_ret": -4.6,
+   "rep_tr_dd": 8.0,
+   "rep_ho_ret": 4.3,
+   "rep_ho_dd": 6.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1249,
+    -2198,
+    2340,
+    -444
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 5273,
+   "n_tr": 3562,
+   "n_ho": 1711,
+   "per_day": 7.357,
+   "fx_tr": -5027.3,
+   "fx_ho": 1673.8,
+   "rep_tr_ret": -9.6,
+   "rep_tr_dd": 13.8,
+   "rep_ho_ret": 10.4,
+   "rep_ho_dd": 6.8,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2609,
+    -2834,
+    1773,
+    317
+   ]
+  },
+  "CALIB": {
+   "n": 5273,
+   "n_tr": 3562,
+   "n_ho": 1711,
+   "per_day": 7.357,
+   "fx_tr": -5066.0,
+   "fx_ho": 1678.4,
+   "rep_tr_ret": -0.5,
+   "rep_tr_dd": 4.6,
+   "rep_ho_ret": 10.2,
+   "rep_ho_dd": 7.1,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2195,
+    -2854,
+    1322,
+    339
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 1.5,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 5273,
+   "n_tr": 3562,
+   "n_ho": 1711,
+   "per_day": 7.357,
+   "fx_tr": -5027.3,
+   "fx_ho": 1673.8,
+   "rep_tr_ret": -9.6,
+   "rep_tr_dd": 13.8,
+   "rep_ho_ret": 10.4,
+   "rep_ho_dd": 6.8,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2609,
+    -2834,
+    1773,
+    317
+   ]
+  },
+  "CALIB": {
+   "n": 5273,
+   "n_tr": 3562,
+   "n_ho": 1711,
+   "per_day": 7.357,
+   "fx_tr": -5066.0,
+   "fx_ho": 1678.4,
+   "rep_tr_ret": -0.5,
+   "rep_tr_dd": 4.6,
+   "rep_ho_ret": 10.2,
+   "rep_ho_dd": 7.1,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2195,
+    -2854,
+    1322,
+    339
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1225,
+   "n_tr": 752,
+   "n_ho": 473,
+   "per_day": 1.718,
+   "fx_tr": -839.2,
+   "fx_ho": 26.8,
+   "rep_tr_ret": -6.7,
+   "rep_tr_dd": 10.5,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -139,
+    -963,
+    4,
+    285
+   ]
+  },
+  "CALIB": {
+   "n": 1225,
+   "n_tr": 752,
+   "n_ho": 473,
+   "per_day": 1.718,
+   "fx_tr": -924.3,
+   "fx_ho": 308.4,
+   "rep_tr_ret": 3.7,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -180,
+    -973,
+    144,
+    393
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1225,
+   "n_tr": 752,
+   "n_ho": 473,
+   "per_day": 1.718,
+   "fx_tr": -839.2,
+   "fx_ho": 26.8,
+   "rep_tr_ret": -6.7,
+   "rep_tr_dd": 10.5,
+   "rep_ho_ret": 1.0,
+   "rep_ho_dd": 3.9,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -139,
+    -963,
+    4,
+    285
+   ]
+  },
+  "CALIB": {
+   "n": 1225,
+   "n_tr": 752,
+   "n_ho": 473,
+   "per_day": 1.718,
+   "fx_tr": -924.3,
+   "fx_ho": 308.4,
+   "rep_tr_ret": 3.7,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 1.6,
+   "rep_ho_dd": 4.0,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -180,
+    -973,
+    144,
+    393
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4798,
+   "n_tr": 3111,
+   "n_ho": 1687,
+   "per_day": 6.707,
+   "fx_tr": -2709.3,
+   "fx_ho": 178.8,
+   "rep_tr_ret": -2.4,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 6.0,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1643,
+    -2644,
+    2578,
+    -821
+   ]
+  },
+  "CALIB": {
+   "n": 4798,
+   "n_tr": 3111,
+   "n_ho": 1687,
+   "per_day": 6.707,
+   "fx_tr": -3069.3,
+   "fx_ho": 483.5,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 9.0,
+   "rep_ho_ret": 3.6,
+   "rep_ho_dd": 5.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1767,
+    -2646,
+    2353,
+    -526
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4798,
+   "n_tr": 3111,
+   "n_ho": 1687,
+   "per_day": 6.707,
+   "fx_tr": -2709.3,
+   "fx_ho": 178.8,
+   "rep_tr_ret": -2.4,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 6.0,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1643,
+    -2644,
+    2578,
+    -821
+   ]
+  },
+  "CALIB": {
+   "n": 4798,
+   "n_tr": 3111,
+   "n_ho": 1687,
+   "per_day": 6.707,
+   "fx_tr": -3069.3,
+   "fx_ho": 483.5,
+   "rep_tr_ret": -3.4,
+   "rep_tr_dd": 9.0,
+   "rep_ho_ret": 3.6,
+   "rep_ho_dd": 5.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1767,
+    -2646,
+    2353,
+    -526
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 7938,
+   "n_tr": 5306,
+   "n_ho": 2632,
+   "per_day": 11.067,
+   "fx_tr": -6629.9,
+   "fx_ho": 1120.0,
+   "rep_tr_ret": 0.7,
+   "rep_tr_dd": 2.8,
+   "rep_ho_ret": 7.6,
+   "rep_ho_dd": 8.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3765,
+    -2767,
+    1348,
+    -327
+   ]
+  },
+  "CALIB": {
+   "n": 7938,
+   "n_tr": 5306,
+   "n_ho": 2632,
+   "per_day": 11.067,
+   "fx_tr": -6190.8,
+   "fx_ho": 1774.6,
+   "rep_tr_ret": 0.3,
+   "rep_tr_dd": 2.7,
+   "rep_ho_ret": 6.5,
+   "rep_ho_dd": 8.6,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -3370,
+    -2496,
+    1393,
+    56
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 7938,
+   "n_tr": 5306,
+   "n_ho": 2632,
+   "per_day": 11.067,
+   "fx_tr": -6629.9,
+   "fx_ho": 1120.0,
+   "rep_tr_ret": 0.7,
+   "rep_tr_dd": 2.8,
+   "rep_ho_ret": 7.6,
+   "rep_ho_dd": 8.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3765,
+    -2767,
+    1348,
+    -327
+   ]
+  },
+  "CALIB": {
+   "n": 7938,
+   "n_tr": 5306,
+   "n_ho": 2632,
+   "per_day": 11.067,
+   "fx_tr": -6190.8,
+   "fx_ho": 1774.6,
+   "rep_tr_ret": 0.3,
+   "rep_tr_dd": 2.7,
+   "rep_ho_ret": 6.5,
+   "rep_ho_dd": 8.6,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -3370,
+    -2496,
+    1393,
+    56
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 875,
+   "n_tr": 557,
+   "n_ho": 318,
+   "per_day": 1.227,
+   "fx_tr": -499.5,
+   "fx_ho": 189.8,
+   "rep_tr_ret": 1.2,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    3,
+    -789,
+    152,
+    324
+   ]
+  },
+  "CALIB": {
+   "n": 875,
+   "n_tr": 557,
+   "n_ho": 318,
+   "per_day": 1.227,
+   "fx_tr": -588.3,
+   "fx_ho": 263.9,
+   "rep_tr_ret": 5.2,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 5.9,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -41,
+    -754,
+    88,
+    383
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 875,
+   "n_tr": 557,
+   "n_ho": 318,
+   "per_day": 1.227,
+   "fx_tr": -499.5,
+   "fx_ho": 189.8,
+   "rep_tr_ret": 1.2,
+   "rep_tr_dd": 6.3,
+   "rep_ho_ret": 5.1,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    3,
+    -789,
+    152,
+    324
+   ]
+  },
+  "CALIB": {
+   "n": 875,
+   "n_tr": 557,
+   "n_ho": 318,
+   "per_day": 1.227,
+   "fx_tr": -588.3,
+   "fx_ho": 263.9,
+   "rep_tr_ret": 5.2,
+   "rep_tr_dd": 6.2,
+   "rep_ho_ret": 5.9,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -41,
+    -754,
+    88,
+    383
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 3794,
+   "n_tr": 2468,
+   "n_ho": 1326,
+   "per_day": 5.303,
+   "fx_tr": -2016.5,
+   "fx_ho": 156.2,
+   "rep_tr_ret": -3.2,
+   "rep_tr_dd": 9.4,
+   "rep_ho_ret": 4.5,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1252,
+    -2657,
+    2904,
+    -855
+   ]
+  },
+  "CALIB": {
+   "n": 3794,
+   "n_tr": 2468,
+   "n_ho": 1326,
+   "per_day": 5.303,
+   "fx_tr": -2573.2,
+   "fx_ho": 104.9,
+   "rep_tr_ret": -3.6,
+   "rep_tr_dd": 8.0,
+   "rep_ho_ret": 7.0,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1398,
+    -2676,
+    2356,
+    -750
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 3794,
+   "n_tr": 2468,
+   "n_ho": 1326,
+   "per_day": 5.303,
+   "fx_tr": -2016.5,
+   "fx_ho": 156.2,
+   "rep_tr_ret": -3.2,
+   "rep_tr_dd": 9.4,
+   "rep_ho_ret": 4.5,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1252,
+    -2657,
+    2904,
+    -855
+   ]
+  },
+  "CALIB": {
+   "n": 3794,
+   "n_tr": 2468,
+   "n_ho": 1326,
+   "per_day": 5.303,
+   "fx_tr": -2573.2,
+   "fx_ho": 104.9,
+   "rep_tr_ret": -3.6,
+   "rep_tr_dd": 8.0,
+   "rep_ho_ret": 7.0,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1398,
+    -2676,
+    2356,
+    -750
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 6673,
+   "n_tr": 4532,
+   "n_ho": 2141,
+   "per_day": 9.304,
+   "fx_tr": -5731.4,
+   "fx_ho": 887.9,
+   "rep_tr_ret": -7.2,
+   "rep_tr_dd": 11.1,
+   "rep_ho_ret": 9.3,
+   "rep_ho_dd": 5.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3061,
+    -2919,
+    1466,
+    -329
+   ]
+  },
+  "CALIB": {
+   "n": 6673,
+   "n_tr": 4532,
+   "n_ho": 2141,
+   "per_day": 9.304,
+   "fx_tr": -5535.4,
+   "fx_ho": 1064.5,
+   "rep_tr_ret": -11.5,
+   "rep_tr_dd": 13.5,
+   "rep_ho_ret": 11.9,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2696,
+    -2719,
+    1182,
+    -238
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 6673,
+   "n_tr": 4532,
+   "n_ho": 2141,
+   "per_day": 9.304,
+   "fx_tr": -5731.4,
+   "fx_ho": 887.9,
+   "rep_tr_ret": -7.2,
+   "rep_tr_dd": 11.1,
+   "rep_ho_ret": 9.3,
+   "rep_ho_dd": 5.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3061,
+    -2919,
+    1466,
+    -329
+   ]
+  },
+  "CALIB": {
+   "n": 6673,
+   "n_tr": 4532,
+   "n_ho": 2141,
+   "per_day": 9.304,
+   "fx_tr": -5535.4,
+   "fx_ho": 1064.5,
+   "rep_tr_ret": -11.5,
+   "rep_tr_dd": 13.5,
+   "rep_ho_ret": 11.9,
+   "rep_ho_dd": 5.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2696,
+    -2719,
+    1182,
+    -238
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 617,
+   "n_tr": 391,
+   "n_ho": 226,
+   "per_day": 0.865,
+   "fx_tr": -187.5,
+   "fx_ho": 346.0,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -593,
+    467,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 617,
+   "n_tr": 391,
+   "n_ho": 226,
+   "per_day": 0.865,
+   "fx_tr": -323.7,
+   "fx_ho": 376.3,
+   "rep_tr_ret": -3.1,
+   "rep_tr_dd": 4.9,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    5,
+    -628,
+    372,
+    304
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 617,
+   "n_tr": 391,
+   "n_ho": 226,
+   "per_day": 0.865,
+   "fx_tr": -187.5,
+   "fx_ho": 346.0,
+   "rep_tr_ret": -5.7,
+   "rep_tr_dd": 6.9,
+   "rep_ho_ret": 3.2,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    28,
+    -593,
+    467,
+    256
+   ]
+  },
+  "CALIB": {
+   "n": 617,
+   "n_tr": 391,
+   "n_ho": 226,
+   "per_day": 0.865,
+   "fx_tr": -323.7,
+   "fx_ho": 376.3,
+   "rep_tr_ret": -3.1,
+   "rep_tr_dd": 4.9,
+   "rep_ho_ret": 4.4,
+   "rep_ho_dd": 3.2,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    5,
+    -628,
+    372,
+    304
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 2868,
+   "n_tr": 1863,
+   "n_ho": 1005,
+   "per_day": 4.012,
+   "fx_tr": -1288.9,
+   "fx_ho": 803.7,
+   "rep_tr_ret": 1.8,
+   "rep_tr_dd": 2.6,
+   "rep_ho_ret": 3.6,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1052,
+    -2091,
+    3062,
+    -405
+   ]
+  },
+  "CALIB": {
+   "n": 2868,
+   "n_tr": 1863,
+   "n_ho": 1005,
+   "per_day": 4.012,
+   "fx_tr": -2034.1,
+   "fx_ho": 612.5,
+   "rep_tr_ret": -0.1,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 2.8,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1222,
+    -2196,
+    2373,
+    -376
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 2868,
+   "n_tr": 1863,
+   "n_ho": 1005,
+   "per_day": 4.012,
+   "fx_tr": -1288.9,
+   "fx_ho": 803.7,
+   "rep_tr_ret": 1.8,
+   "rep_tr_dd": 2.6,
+   "rep_ho_ret": 3.6,
+   "rep_ho_dd": 7.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1052,
+    -2091,
+    3062,
+    -405
+   ]
+  },
+  "CALIB": {
+   "n": 2868,
+   "n_tr": 1863,
+   "n_ho": 1005,
+   "per_day": 4.012,
+   "fx_tr": -2034.1,
+   "fx_ho": 612.5,
+   "rep_tr_ret": -0.1,
+   "rep_tr_dd": 3.6,
+   "rep_ho_ret": 2.8,
+   "rep_ho_dd": 6.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1222,
+    -2196,
+    2373,
+    -376
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 5393,
+   "n_tr": 3655,
+   "n_ho": 1738,
+   "per_day": 7.524,
+   "fx_tr": -4834.4,
+   "fx_ho": 1833.1,
+   "rep_tr_ret": -1.0,
+   "rep_tr_dd": 4.2,
+   "rep_ho_ret": 7.1,
+   "rep_ho_dd": 8.6,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2489,
+    -2752,
+    1865,
+    375
+   ]
+  },
+  "CALIB": {
+   "n": 5393,
+   "n_tr": 3655,
+   "n_ho": 1738,
+   "per_day": 7.524,
+   "fx_tr": -4972.4,
+   "fx_ho": 1834.7,
+   "rep_tr_ret": -0.3,
+   "rep_tr_dd": 3.8,
+   "rep_ho_ret": 6.9,
+   "rep_ho_dd": 8.8,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2181,
+    -2770,
+    1421,
+    392
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 2.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 5393,
+   "n_tr": 3655,
+   "n_ho": 1738,
+   "per_day": 7.524,
+   "fx_tr": -4834.4,
+   "fx_ho": 1833.1,
+   "rep_tr_ret": -1.0,
+   "rep_tr_dd": 4.2,
+   "rep_ho_ret": 7.1,
+   "rep_ho_dd": 8.6,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2489,
+    -2752,
+    1865,
+    375
+   ]
+  },
+  "CALIB": {
+   "n": 5393,
+   "n_tr": 3655,
+   "n_ho": 1738,
+   "per_day": 7.524,
+   "fx_tr": -4972.4,
+   "fx_ho": 1834.7,
+   "rep_tr_ret": -0.3,
+   "rep_tr_dd": 3.8,
+   "rep_ho_ret": 6.9,
+   "rep_ho_dd": 8.8,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -2181,
+    -2770,
+    1421,
+    392
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1426,
+   "n_tr": 924,
+   "n_ho": 502,
+   "per_day": 2.0,
+   "fx_tr": -619.5,
+   "fx_ho": -153.1,
+   "rep_tr_ret": -9.1,
+   "rep_tr_dd": 12.7,
+   "rep_ho_ret": 3.0,
+   "rep_ho_dd": 3.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -31,
+    -867,
+    -206,
+    332
+   ]
+  },
+  "CALIB": {
+   "n": 1426,
+   "n_tr": 924,
+   "n_ho": 502,
+   "per_day": 2.0,
+   "fx_tr": -697.8,
+   "fx_ho": 161.2,
+   "rep_tr_ret": -2.7,
+   "rep_tr_dd": 7.2,
+   "rep_ho_ret": 3.8,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -79,
+    -856,
+    -46,
+    444
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1426,
+   "n_tr": 924,
+   "n_ho": 502,
+   "per_day": 2.0,
+   "fx_tr": -619.5,
+   "fx_ho": -153.1,
+   "rep_tr_ret": -9.1,
+   "rep_tr_dd": 12.7,
+   "rep_ho_ret": 3.0,
+   "rep_ho_dd": 3.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -31,
+    -867,
+    -206,
+    332
+   ]
+  },
+  "CALIB": {
+   "n": 1426,
+   "n_tr": 924,
+   "n_ho": 502,
+   "per_day": 2.0,
+   "fx_tr": -697.8,
+   "fx_ho": 161.2,
+   "rep_tr_ret": -2.7,
+   "rep_tr_dd": 7.2,
+   "rep_ho_ret": 3.8,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -79,
+    -856,
+    -46,
+    444
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 5586,
+   "n_tr": 3724,
+   "n_ho": 1862,
+   "per_day": 7.808,
+   "fx_tr": -2022.0,
+   "fx_ho": -171.3,
+   "rep_tr_ret": -2.7,
+   "rep_tr_dd": 7.5,
+   "rep_ho_ret": 11.1,
+   "rep_ho_dd": 4.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1329,
+    -2761,
+    2843,
+    -946
+   ]
+  },
+  "CALIB": {
+   "n": 5586,
+   "n_tr": 3724,
+   "n_ho": 1862,
+   "per_day": 7.808,
+   "fx_tr": -2204.4,
+   "fx_ho": 196.2,
+   "rep_tr_ret": -11.0,
+   "rep_tr_dd": 14.2,
+   "rep_ho_ret": 8.8,
+   "rep_ho_dd": 5.0,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1533,
+    -2663,
+    2811,
+    -623
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 5596,
+   "n_tr": 3734,
+   "n_ho": 1862,
+   "per_day": 7.822,
+   "fx_tr": -2214.3,
+   "fx_ho": -171.3,
+   "rep_tr_ret": -2.7,
+   "rep_tr_dd": 7.5,
+   "rep_ho_ret": 11.1,
+   "rep_ho_dd": 4.6,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1521,
+    -2761,
+    2843,
+    -946
+   ]
+  },
+  "CALIB": {
+   "n": 5596,
+   "n_tr": 3734,
+   "n_ho": 1862,
+   "per_day": 7.822,
+   "fx_tr": -2416.9,
+   "fx_ho": 196.2,
+   "rep_tr_ret": -12.1,
+   "rep_tr_dd": 15.3,
+   "rep_ho_ret": 8.8,
+   "rep_ho_dd": 5.0,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1746,
+    -2663,
+    2811,
+    -623
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 8938,
+   "n_tr": 6082,
+   "n_ho": 2856,
+   "per_day": 12.461,
+   "fx_tr": -5509.7,
+   "fx_ho": 686.6,
+   "rep_tr_ret": 1.2,
+   "rep_tr_dd": 1.8,
+   "rep_ho_ret": 14.7,
+   "rep_ho_dd": 6.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3019,
+    -2982,
+    1821,
+    -643
+   ]
+  },
+  "CALIB": {
+   "n": 8938,
+   "n_tr": 6082,
+   "n_ho": 2856,
+   "per_day": 12.461,
+   "fx_tr": -4890.3,
+   "fx_ho": 1409.1,
+   "rep_tr_ret": -9.6,
+   "rep_tr_dd": 11.6,
+   "rep_ho_ret": 10.8,
+   "rep_ho_dd": 8.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2747,
+    -2606,
+    2100,
+    -228
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.3,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 8948,
+   "n_tr": 6092,
+   "n_ho": 2856,
+   "per_day": 12.475,
+   "fx_tr": -5702.1,
+   "fx_ho": 686.6,
+   "rep_tr_ret": 1.2,
+   "rep_tr_dd": 1.8,
+   "rep_ho_ret": 14.7,
+   "rep_ho_dd": 6.3,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -3212,
+    -2982,
+    1821,
+    -643
+   ]
+  },
+  "CALIB": {
+   "n": 8948,
+   "n_tr": 6092,
+   "n_ho": 2856,
+   "per_day": 12.475,
+   "fx_tr": -5102.7,
+   "fx_ho": 1409.1,
+   "rep_tr_ret": -7.2,
+   "rep_tr_dd": 9.2,
+   "rep_ho_ret": 10.8,
+   "rep_ho_dd": 8.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2959,
+    -2606,
+    2100,
+    -228
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 1032,
+   "n_tr": 696,
+   "n_ho": 336,
+   "per_day": 1.447,
+   "fx_tr": -106.4,
+   "fx_ho": -8.3,
+   "rep_tr_ret": -5.8,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 6.8,
+   "rep_ho_dd": 1.8,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    125,
+    -686,
+    93,
+    353
+   ]
+  },
+  "CALIB": {
+   "n": 1032,
+   "n_tr": 696,
+   "n_ho": 336,
+   "per_day": 1.447,
+   "fx_tr": -178.0,
+   "fx_ho": 94.1,
+   "rep_tr_ret": 9.6,
+   "rep_tr_dd": 6.1,
+   "rep_ho_ret": 7.6,
+   "rep_ho_dd": 1.8,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    85,
+    -652,
+    71,
+    412
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 1032,
+   "n_tr": 696,
+   "n_ho": 336,
+   "per_day": 1.447,
+   "fx_tr": -106.4,
+   "fx_ho": -8.3,
+   "rep_tr_ret": -5.8,
+   "rep_tr_dd": 8.4,
+   "rep_ho_ret": 6.8,
+   "rep_ho_dd": 1.8,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    125,
+    -686,
+    93,
+    353
+   ]
+  },
+  "CALIB": {
+   "n": 1032,
+   "n_tr": 696,
+   "n_ho": 336,
+   "per_day": 1.447,
+   "fx_tr": -178.0,
+   "fx_ho": 94.1,
+   "rep_tr_ret": 9.6,
+   "rep_tr_dd": 6.1,
+   "rep_ho_ret": 7.6,
+   "rep_ho_dd": 1.8,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    85,
+    -652,
+    71,
+    412
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 4462,
+   "n_tr": 3000,
+   "n_ho": 1462,
+   "per_day": 6.237,
+   "fx_tr": -947.9,
+   "fx_ho": -91.0,
+   "rep_tr_ret": 5.5,
+   "rep_tr_dd": 6.7,
+   "rep_ho_ret": 7.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -902,
+    -2612,
+    3353,
+    -877
+   ]
+  },
+  "CALIB": {
+   "n": 4462,
+   "n_tr": 3000,
+   "n_ho": 1462,
+   "per_day": 6.237,
+   "fx_tr": -1518.6,
+   "fx_ho": -90.7,
+   "rep_tr_ret": 7.1,
+   "rep_tr_dd": 8.3,
+   "rep_ho_ret": 10.2,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1160,
+    -2626,
+    2932,
+    -755
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 4472,
+   "n_tr": 3010,
+   "n_ho": 1462,
+   "per_day": 6.251,
+   "fx_tr": -1140.2,
+   "fx_ho": -91.0,
+   "rep_tr_ret": 3.6,
+   "rep_tr_dd": 6.1,
+   "rep_ho_ret": 7.4,
+   "rep_ho_dd": 4.2,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1094,
+    -2612,
+    3353,
+    -877
+   ]
+  },
+  "CALIB": {
+   "n": 4472,
+   "n_tr": 3010,
+   "n_ho": 1462,
+   "per_day": 6.251,
+   "fx_tr": -1731.1,
+   "fx_ho": -90.7,
+   "rep_tr_ret": -7.2,
+   "rep_tr_dd": 13.2,
+   "rep_ho_ret": 10.2,
+   "rep_ho_dd": 3.4,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1372,
+    -2626,
+    2932,
+    -755
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 7536,
+   "n_tr": 5222,
+   "n_ho": 2314,
+   "per_day": 10.506,
+   "fx_tr": -4217.9,
+   "fx_ho": 565.4,
+   "rep_tr_ret": 2.2,
+   "rep_tr_dd": 5.6,
+   "rep_ho_ret": 13.2,
+   "rep_ho_dd": 4.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2270,
+    -2973,
+    2124,
+    -534
+   ]
+  },
+  "CALIB": {
+   "n": 7536,
+   "n_tr": 5222,
+   "n_ho": 2314,
+   "per_day": 10.506,
+   "fx_tr": -4035.4,
+   "fx_ho": 794.5,
+   "rep_tr_ret": -5.9,
+   "rep_tr_dd": 11.2,
+   "rep_ho_ret": 16.5,
+   "rep_ho_dd": 5.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2060,
+    -2762,
+    2009,
+    -428
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.45,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 7546,
+   "n_tr": 5232,
+   "n_ho": 2314,
+   "per_day": 10.52,
+   "fx_tr": -4410.2,
+   "fx_ho": 565.4,
+   "rep_tr_ret": -3.0,
+   "rep_tr_dd": 8.9,
+   "rep_ho_ret": 13.2,
+   "rep_ho_dd": 4.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2462,
+    -2973,
+    2124,
+    -534
+   ]
+  },
+  "CALIB": {
+   "n": 7546,
+   "n_tr": 5232,
+   "n_ho": 2314,
+   "per_day": 10.52,
+   "fx_tr": -4247.8,
+   "fx_ho": 794.5,
+   "rep_tr_ret": -10.6,
+   "rep_tr_dd": 14.7,
+   "rep_ho_ret": 16.5,
+   "rep_ho_dd": 5.1,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -2273,
+    -2762,
+    2009,
+    -428
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 734,
+   "n_tr": 506,
+   "n_ho": 228,
+   "per_day": 1.029,
+   "fx_tr": 70.2,
+   "fx_ho": 350.9,
+   "rep_tr_ret": -5.5,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.5,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    13,
+    -484,
+    631,
+    261
+   ]
+  },
+  "CALIB": {
+   "n": 734,
+   "n_tr": 506,
+   "n_ho": 228,
+   "per_day": 1.029,
+   "fx_tr": -109.0,
+   "fx_ho": 381.4,
+   "rep_tr_ret": -8.0,
+   "rep_tr_dd": 9.2,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -23,
+    -562,
+    549,
+    309
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "R",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 734,
+   "n_tr": 506,
+   "n_ho": 228,
+   "per_day": 1.029,
+   "fx_tr": 70.2,
+   "fx_ho": 350.9,
+   "rep_tr_ret": -5.5,
+   "rep_tr_dd": 6.8,
+   "rep_ho_ret": 3.5,
+   "rep_ho_dd": 3.3,
+   "q_pos": 3,
+   "q_n": 4,
+   "q_sums": [
+    13,
+    -484,
+    631,
+    261
+   ]
+  },
+  "CALIB": {
+   "n": 734,
+   "n_tr": 506,
+   "n_ho": 228,
+   "per_day": 1.029,
+   "fx_tr": -109.0,
+   "fx_ho": 381.4,
+   "rep_tr_ret": -8.0,
+   "rep_tr_dd": 9.2,
+   "rep_ho_ret": 4.7,
+   "rep_ho_dd": 3.2,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -23,
+    -562,
+    549,
+    309
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 3418,
+   "n_tr": 2330,
+   "n_ho": 1088,
+   "per_day": 4.781,
+   "fx_tr": -586.4,
+   "fx_ho": 960.4,
+   "rep_tr_ret": 0.8,
+   "rep_tr_dd": 7.2,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 6.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -897,
+    -2117,
+    3673,
+    -284
+   ]
+  },
+  "CALIB": {
+   "n": 3418,
+   "n_tr": 2330,
+   "n_ho": 1088,
+   "per_day": 4.781,
+   "fx_tr": -1452.3,
+   "fx_ho": 766.4,
+   "rep_tr_ret": 9.9,
+   "rep_tr_dd": 5.9,
+   "rep_ho_ret": 6.7,
+   "rep_ho_dd": 5.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1201,
+    -2287,
+    3063,
+    -260
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "RT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 3428,
+   "n_tr": 2340,
+   "n_ho": 1088,
+   "per_day": 4.795,
+   "fx_tr": -778.7,
+   "fx_ho": 960.4,
+   "rep_tr_ret": 0.8,
+   "rep_tr_dd": 7.2,
+   "rep_ho_ret": 7.7,
+   "rep_ho_dd": 6.5,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1089,
+    -2117,
+    3673,
+    -284
+   ]
+  },
+  "CALIB": {
+   "n": 3428,
+   "n_tr": 2340,
+   "n_ho": 1088,
+   "per_day": 4.795,
+   "fx_tr": -1664.7,
+   "fx_ho": 766.4,
+   "rep_tr_ret": -1.8,
+   "rep_tr_dd": 8.2,
+   "rep_ho_ret": 6.7,
+   "rep_ho_dd": 5.7,
+   "q_pos": 1,
+   "q_n": 4,
+   "q_sums": [
+    -1414,
+    -2287,
+    3063,
+    -260
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "b105",
+  "CLAMP": {
+   "n": 6128,
+   "n_tr": 4270,
+   "n_ho": 1858,
+   "per_day": 8.549,
+   "fx_tr": -3585.3,
+   "fx_ho": 1914.5,
+   "rep_tr_ret": -8.9,
+   "rep_tr_dd": 15.2,
+   "rep_ho_ret": 12.9,
+   "rep_ho_dd": 6.3,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -1791,
+    -2874,
+    2683,
+    311
+   ]
+  },
+  "CALIB": {
+   "n": 6128,
+   "n_tr": 4270,
+   "n_ho": 1858,
+   "per_day": 8.549,
+   "fx_tr": -3839.4,
+   "fx_ho": 1914.2,
+   "rep_tr_ret": -5.6,
+   "rep_tr_dd": 9.8,
+   "rep_ho_ret": 12.6,
+   "rep_ho_dd": 6.4,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -1657,
+    -2950,
+    2358,
+    323
+   ]
+  }
+ },
+ {
+  "coin": "BTC",
+  "ret7d": 999.0,
+  "vol": 0.6,
+  "regime": "RTT",
+  "bull": "boff",
+  "CLAMP": {
+   "n": 6138,
+   "n_tr": 4280,
+   "n_ho": 1858,
+   "per_day": 8.563,
+   "fx_tr": -3777.7,
+   "fx_ho": 1914.5,
+   "rep_tr_ret": -8.9,
+   "rep_tr_dd": 15.2,
+   "rep_ho_ret": 12.9,
+   "rep_ho_dd": 6.3,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -1984,
+    -2874,
+    2683,
+    311
+   ]
+  },
+  "CALIB": {
+   "n": 6138,
+   "n_tr": 4280,
+   "n_ho": 1858,
+   "per_day": 8.563,
+   "fx_tr": -4051.9,
+   "fx_ho": 1914.2,
+   "rep_tr_ret": -8.7,
+   "rep_tr_dd": 11.8,
+   "rep_ho_ret": 12.6,
+   "rep_ho_dd": 6.4,
+   "q_pos": 2,
+   "q_n": 4,
+   "q_sums": [
+    -1869,
+    -2950,
+    2358,
+    323
+   ]
+  }
+ }
+]
