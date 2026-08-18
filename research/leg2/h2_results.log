@@ -1,0 +1,72 @@
+H2 ETH/BTC pair mean-reversion backtest  run 2026-08-18T08:48:44.671447+00:00
+bars joined=17546  span 2024-08-17 02:00:00+00:00 .. 2026-08-18 03:00:00+00:00  non-1h gaps=0
+train entries bars [720,12282) = 2024-09-16 02:00:00+00:00 .. 2026-01-10 19:00:00+00:00
+holdout entries bars [12282,17546) = 2026-01-10 20:00:00+00:00 .. 2026-08-18 03:00:00+00:00
+costs: 0.075%/side/leg -> $3.00/round-trip pair; funding NOT modeled
+
+=== DIAGNOSTICS (ratio x = log ETH/BTC) ===
+AR(1) phi (train, 1h) = 0.999796  -> half-life = 3404 h = 142 days
+ADF t-stat (train, const, 1 lag) = -1.56   (5% crit ~ -2.86; > crit => NOT stationary)
+ratio ETH/BTC by half-year (mean, subperiod trend):
+  2024-08-17..2025-02-15: mean=0.03695  first=0.04392 last=0.02760  chg=-37.2%
+  2025-02-15..2025-08-17: mean=0.02487  first=0.02754 last=0.03829  chg=+39.0%
+  2025-08-17..2026-02-16: mean=0.03499  first=0.03853 last=0.02874  chg=-25.4%
+  2026-02-16..2026-08-18: mean=0.02893  first=0.02876 last=0.02961  chg=+3.0%
+full period ratio: 0.04392 -> 0.02954  (-32.7%)
+
+=== SWEEP (train only, net $ per $1000/leg) ===
+   N  z_in z_stop |      net$    n   wr%    avg$   maxDD$
+ 168   1.5    3.5 |   -160.59  108  60.2   -1.49   460.73
+ 168   1.5    4.5 |   -284.43  100  64.0   -2.84   607.38
+ 168   2.0    3.5 |   -297.76   86  55.8   -3.46   558.40
+ 168   2.0    4.5 |   -309.08   77  64.9   -4.01   563.90
+ 168   2.5    3.5 |    -79.76   78  56.4   -1.02   355.93
+ 168   2.5    4.5 |    -48.40   68  69.1   -0.71   457.48
+ 336   1.5    3.5 |   -238.51   54  63.0   -4.42   511.76
+ 336   1.5    4.5 |   -397.00   50  64.0   -7.94   646.36
+ 336   2.0    3.5 |   -233.05   42  57.1   -5.55   460.26
+ 336   2.0    4.5 |   -443.85   38  57.9  -11.68   618.65
+ 336   2.5    3.5 |   -322.17   35  48.6   -9.20   484.51
+ 336   2.5    4.5 |   -438.75   31  54.8  -14.15   584.16
+ 720   1.5    3.5 |   -499.83   30  56.7  -16.66   977.56
+ 720   1.5    4.5 |   -315.40   26  61.5  -12.13   851.93
+ 720   2.0    3.5 |   -362.31   25  48.0  -14.49   696.29
+ 720   2.0    4.5 |   -288.56   20  60.0  -14.43   681.87
+ 720   2.5    3.5 |   -118.86   23  47.8   -5.17   370.97
+ 720   2.5    4.5 |   -145.42   17  52.9   -8.55   426.88
+
+Top-5 train:
+  N=168 z_in=2.5 z_stop=4.5: net=$-48.40 n=68 wr=69.1% avg=$-0.71 mdd=$457.48
+  N=168 z_in=2.5 z_stop=3.5: net=$-79.76 n=78 wr=56.4% avg=$-1.02 mdd=$355.93
+  N=168 z_in=1.5 z_stop=3.5: net=$-160.59 n=108 wr=60.2% avg=$-1.49 mdd=$460.73
+  N=336 z_in=2.0 z_stop=3.5: net=$-233.05 n=42 wr=57.1% avg=$-5.55 mdd=$460.26
+  N=336 z_in=1.5 z_stop=3.5: net=$-238.51 n=54 wr=63.0% avg=$-4.42 mdd=$511.76
+
+SELECTED (by train net$, n>=30): N=168 z_in=2.5 z_stop=4.5
+
+=== SELECTED CONFIG: TRAIN vs HOLDOUT ===
+train  : net=$-48.40  n=68  wr=69.1%  avg=$-0.71  maxDD=$457.48
+holdout: net=$-17.53  n=28  wr=53.6%  avg=$-0.63  maxDD=$79.58
+exit reasons (all): {'cross0': 81, 'stop': 15}
+median hold (h): 60
+
+=== QUARTERLY (selected config, PnL by exit quarter; T=train H=holdout) ===
+  2024Q3 [T]: net=$   32.48  n=2
+  2024Q4 [T]: net=$   58.69  n=14
+  2025Q1 [T]: net=$   16.44  n=15
+  2025Q2 [T]: net=$   29.37  n=11
+  2025Q3 [T]: net=$ -397.69  n=10
+  2025Q4 [T]: net=$  203.08  n=14
+  2026Q1 [T/H]: net=$  -42.53  n=11
+  2026Q2 [H]: net=$   48.77  n=14
+  2026Q3 [H]: net=$  -14.54  n=5
+quarters non-negative: 6/9 = 67%
+
+=== COMPLEMENTARITY (BTC ret_7d < -1%) ===
+share of bars in BTC-stress regime: 39.2%
+full period: PnL in BTC-stress = $-348.66 (30 trades); total=$-65.93 (<=0, share undefined)
+holdout: PnL in BTC-stress = $-68.45 (12 trades); total=$-17.53 (<=0, share undefined)
+
+=== VERDICT ===
+train>0: False  holdout>0: False  quarters>=60% non-neg: True  catastrophe(DD>$500): False
+VERDICT: REJECTED

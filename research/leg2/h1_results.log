@@ -1,0 +1,69 @@
+[data] btc: 17546 bars, 0 gaps, 2024-08-17 .. 2026-08-18
+[data] eth: 17546 bars, 0 gaps, 2024-08-17 .. 2026-08-18
+[split] bar 12282/17546  train ends 2026-01-10 20:00 UTC
+[costs] 0.075%/side (0.15% RT), notional $1000, funding NOT modeled (short receives on avg -> conservative)
+[grid] 62 configs (sweep on TRAIN only)
+
+=== TRAIN sweep (top 15 of grid, by train net$) ===
+cfg                       n_tr    WR%      net$
+eth/A5/TC_72           66   48.5     46.05
+eth/A5/F_5_8           89   42.7     31.50
+eth/A2/COND_S5        185   37.8   -110.41
+btc/B2/F_3_5           67   38.8   -153.07
+eth/A3/F_5_8          104   39.4   -165.12
+eth/A1/F_5_8          121   40.5   -252.13
+eth/A5/F_3_5          186   37.6   -254.45
+eth/A3/COND_S5        176   36.9   -278.36
+btc/A3/F_3_5           86   38.4   -284.88
+eth/A3/F_3_5          211   37.9   -287.13
+btc/A5/F_5_8           37   37.8   -288.00
+btc/A2/F_5_8           58   39.7   -308.56
+eth/A5/TR_3           267   33.3   -366.47
+btc/A5/F_3_5           61   32.8   -380.31
+btc/A1/TC_72           88   45.5   -387.42
+
+--- bottom 5 ---
+eth/B2/TC_72           74   44.6   -830.04
+eth/B1/F_3_5          176   33.5   -843.60
+eth/B2/F_3_5          155   31.6   -939.26
+eth/B0/TC_72           89   43.8  -1034.18
+eth/B1/TR_3           262   30.5  -1065.18
+
+=== TOP-5 TRAIN (eligible n_train>=100) ===
+eth/A2/COND_S5      n= 185 WR=37.8% net=$-110.41
+eth/A3/F_5_8        n= 104 WR=39.4% net=$-165.12
+eth/A1/F_5_8        n= 121 WR=40.5% net=$-252.13
+eth/A5/F_3_5        n= 186 WR=37.6% net=$-254.45
+eth/A3/COND_S5      n= 176 WR=36.9% net=$-278.36
+
+[SELECTED] eth/A2/COND_S5
+  entry: ret_7d < -2%
+  exit : {'style': 'COND', 'S': 5, 'H': 168}
+
+=== CHOSEN CONFIG: train vs holdout ===
+  TRAIN  : n= 185  net=$  -110.41  WR=37.8%
+  HOLDOUT: n=  95  net=$   249.65  WR=33.7%
+
+=== Quarterly net$ (full history, chosen config) ===
+  2024Q3: n= 15  net=$   -47.10
+  2024Q4: n= 32  net=$  -137.85
+  2025Q1: n= 39  net=$   176.71
+  2025Q2: n= 39  net=$  -108.78
+  2025Q3: n= 27  net=$  -143.93
+  2025Q4: n= 33  net=$   150.54
+  2026Q1: n= 42  net=$   159.17
+  2026Q2: n= 30  net=$   251.85
+  2026Q3: n= 23  net=$  -161.38
+  -> 4/9 quarters non-negative (44%), catastrophic(<-200.0$): none
+
+=== Complementarity vs Jony (periods with ret_7d < -1% at entry signal) ===
+  [full] total net=$139.24; net in ret7d<-1% regime=$139.24 (280/280 trades); share of profit=100.0%
+  [holdout] total net=$249.65; net in ret7d<-1% regime=$249.65 (95/95 trades); share of profit=100.0%
+
+[optional] symmetric LONG mirror (eth): train n=226 net=$-136.77; holdout n=87 net=$-415.53
+
+=== VERDICT ===
+  train>0: False  holdout>0: True  quarters>=60% nonneg: False (44%)  no catastrophic Q: True
+  --> REJECTED
+
+[artifacts] leg2/h1_results.log, leg2/chosen_trades.json

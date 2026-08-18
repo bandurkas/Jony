@@ -1,0 +1,89 @@
+H3 funding-fade backtest  run 2026-08-18T08:49:21.115976+00:00
+period 2024-08-17 .. 2026-08-18  split(70/30) 2026-01-10
+notional $1000, fees 0.075%/side, rank window 90 funding events (30d)
+
+=== TRAIN SWEEP (net$, per symbol and combined; sweep on train only) ===
+  P filt   H  S% | BTC n  BTC net | ETH n  ETH net | tot n   tot net
+ 90    F  24   3 |   179  -333.28 |   205  -330.07 |   384   -663.35
+ 90    F  24   5 |   174  -361.01 |   183  -322.56 |   357   -683.57
+ 90    F  48   3 |   152  -552.94 |   176  -299.80 |   328   -852.74
+ 90    F  48   5 |   142  -534.89 |   153  -179.75 |   295   -714.64
+ 90    F  72   3 |   141  -535.72 |   165  -426.62 |   306   -962.34
+ 90    F  72   5 |   127  -548.91 |   140  -335.70 |   267   -884.61
+ 90    T  24   3 |   104  -105.64 |    84    81.23 |   188    -24.41
+ 90    T  24   5 |   103  -130.92 |    80   245.67 |   183    114.76
+ 90    T  48   3 |    93  -204.99 |    78    76.74 |   171   -128.24
+ 90    T  48   5 |    90  -263.69 |    74   274.68 |   164     10.99
+ 90    T  72   3 |    84  -246.63 |    74   -35.26 |   158   -281.89
+ 90    T  72   5 |    81  -251.88 |    69   183.85 |   150    -68.03
+ 95    F  24   3 |    93  -424.66 |    88   -16.56 |   181   -441.22
+ 95    F  24   5 |    91  -566.24 |    77  -117.19 |   168   -683.43
+ 95    F  48   3 |    80  -476.74 |    83  -216.89 |   163   -693.63
+ 95    F  48   5 |    77  -661.57 |    71  -199.24 |   148   -860.82
+ 95    F  72   3 |    77  -461.87 |    82  -334.93 |   159   -796.79
+ 95    F  72   5 |    71  -599.57 |    67  -321.31 |   138   -920.88
+ 95    T  24   3 |    45  -259.10 |    33    60.07 |    78   -199.02
+ 95    T  24   5 |    45  -332.39 |    32    78.78 |    77   -253.61
+ 95    T  48   3 |    40  -299.84 |    31   -90.51 |    71   -390.35
+ 95    T  48   5 |    40  -377.48 |    29   -74.28 |    69   -451.76
+ 95    T  72   3 |    39  -215.30 |    31   -69.56 |    70   -284.86
+ 95    T  72   5 |    39  -257.72 |    28   -72.94 |    67   -330.66
+ 98    F  24   3 |    42  -310.61 |    42  -236.47 |    84   -547.08
+ 98    F  24   5 |    41  -316.74 |    35  -294.00 |    76   -610.74
+ 98    F  48   3 |    40  -292.35 |    42  -201.32 |    82   -493.67
+ 98    F  48   5 |    38  -375.71 |    35  -274.03 |    73   -649.74
+ 98    F  72   3 |    40  -231.04 |    42  -226.09 |    82   -457.13
+ 98    F  72   5 |    38  -299.07 |    34  -361.58 |    72   -660.65
+ 98    T  24   3 |    20  -130.33 |    12  -128.10 |    32   -258.43
+ 98    T  24   5 |    20  -162.07 |    12  -115.23 |    32   -277.29
+ 98    T  48   3 |    18  -136.91 |    12  -101.34 |    30   -238.25
+ 98    T  48   5 |    18  -150.55 |    12  -130.27 |    30   -280.82
+ 98    T  72   3 |    18   -81.79 |    12  -103.42 |    30   -185.20
+ 98    T  72   5 |    18   -96.70 |    12  -137.76 |    30   -234.46
+
+=== TOP-5 TRAIN (n_train>=50, by combined train net$) ===
+  P=90 filter=True H=24 S=5  n=183  net=$114.76
+  P=90 filter=True H=48 S=5  n=164  net=$10.99
+  P=90 filter=True H=24 S=3  n=188  net=$-24.41
+  P=90 filter=True H=72 S=5  n=150  net=$-68.03
+  P=90 filter=True H=48 S=3  n=171  net=$-128.24
+
+=== SELECTED CONFIG: P=90 filter=True H=24h S=5%  (criterion: train net$, n>=50) ===
+
+--- TRAIN ---
+  BTCUSDT SHORT: n= 41 net=$  -93.55  px=$  -41.11  funding=$   9.06  fees=$ 61.50  WR=37%
+  BTCUSDT LONG : n= 62 net=$  -37.37  px=$   59.98  funding=$  -4.35  fees=$ 93.00  WR=48%
+  BTCUSDT ALL  : n=103 net=$ -130.92  px=$   18.87  funding=$   4.71  fees=$154.50  WR=44%
+  ETHUSDT SHORT: n= 31 net=$   10.84  px=$   50.01  funding=$   7.34  fees=$ 46.50  WR=55%
+  ETHUSDT LONG : n= 49 net=$  234.83  px=$  312.00  funding=$  -3.67  fees=$ 73.50  WR=49%
+  ETHUSDT ALL  : n= 80 net=$  245.67  px=$  362.00  funding=$   3.67  fees=$120.00  WR=51%
+  COMBINED    : n=183 net=$  114.76  px=$  380.88  funding=$   8.38  fees=$274.50  WR=47%
+
+--- HOLDOUT ---
+  BTCUSDT SHORT: n= 25 net=$   19.35  px=$   54.75  funding=$   2.10  fees=$ 37.50  WR=40%
+  BTCUSDT LONG : n= 29 net=$ -121.27  px=$  -78.53  funding=$   0.75  fees=$ 43.50  WR=41%
+  BTCUSDT ALL  : n= 54 net=$ -101.93  px=$  -23.77  funding=$   2.85  fees=$ 81.00  WR=41%
+  ETHUSDT SHORT: n= 27 net=$  260.83  px=$  299.85  funding=$   1.48  fees=$ 40.50  WR=59%
+  ETHUSDT LONG : n= 14 net=$   -7.25  px=$   13.24  funding=$   0.51  fees=$ 21.00  WR=57%
+  ETHUSDT ALL  : n= 41 net=$  253.58  px=$  313.09  funding=$   1.99  fees=$ 61.50  WR=59%
+  COMBINED    : n= 95 net=$  151.65  px=$  289.32  funding=$   4.84  fees=$142.50  WR=48%
+
+--- QUARTERLY (selected config, combined BTC+ETH, by entry time) ---
+  2024Q3: n= 27  net=$  -54.02  (BTC $ -67.29 / ETH $  13.27)  NEG
+  2024Q4: n= 27  net=$ -130.68  (BTC $ -72.79 / ETH $ -57.89)  NEG
+  2025Q1: n= 16  net=$  -61.77  (BTC $ -19.15 / ETH $ -42.62)  NEG
+  2025Q2: n= 43  net=$   80.98  (BTC $ -41.89 / ETH $ 122.87)  OK 
+  2025Q3: n= 28  net=$   18.63  (BTC $   0.57 / ETH $  18.06)  OK 
+  2025Q4: n= 37  net=$  278.80  (BTC $  90.64 / ETH $ 188.16)  OK 
+  2026Q1: n= 36  net=$  -26.22  (BTC $-115.74 / ETH $  89.52)  NEG
+  2026Q2: n= 48  net=$  191.20  (BTC $  14.65 / ETH $ 176.55)  OK 
+  2026Q3: n= 16  net=$  -30.51  (BTC $ -21.84 / ETH $  -8.67)  NEG
+  quarters non-negative: 4/9 = 44%
+
+--- COMPLEMENTARITY (BTC ret_7d < -1% at trade exit) ---
+  trades in drawdown periods: 127, net there $262.94; total net $266.41
+  share of profit in BTC-drawdown periods: 99%
+
+=== VERDICT ===
+  train net $114.76 | holdout net $151.65 (n=95) | quarters ok 44% | worst quarter $-130.68 | worst trade $-51.58
+  VERDICT: MIXED
