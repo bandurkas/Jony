@@ -1,0 +1,49 @@
+====================================================================================================
+PHASE 1: выбор offset на TRAIN/CALIB (fixed-lot, книга C, puts-only)
+====================================================================================================
+
+BTC:P
+  off 0.0%: train n=2983 WR 71.2% credit~2515.5 $ +3660.21
+  off 0.5%: train n=2983 WR 72.2% credit~2278.0 $ +4052.46
+  off 1.0%: train n=2983 WR 73.1% credit~2048.3 $ +4188.22
+  off 1.5%: train n=2983 WR 74.1% credit~1838.1 $ +4293.69
+  off 2.0%: train n=2983 WR 74.6% credit~1643.0 $ +3779.05
+  off 3.0%: train n=2983 WR 75.6% credit~1295.1 $ +3341.86
+
+ETH:P
+  off 0.0%: train n= 451 WR 72.3% credit~ 95.0 $   -81.15
+  off 0.5%: train n= 451 WR 72.5% credit~ 87.3 $   -38.32
+  off 1.0%: train n= 451 WR 72.5% credit~ 80.0 $   -59.42
+  off 1.5%: train n= 451 WR 73.6% credit~ 72.7 $   -34.36
+  off 2.0%: train n= 451 WR 73.8% credit~ 66.7 $   +10.43
+  off 3.0%: train n= 451 WR 72.3% credit~ 54.7 $  -133.49
+
+выбор по train: {'BTC': 0.015, 'ETH': 0.02} (ATM base: BTC $+3660, ETH $-81)
+
+====================================================================================================
+PHASE 2: валидация выбранных offset (holdout, CLAMP, кварталы)
+====================================================================================================
+
+BTC:P off 1.5% vs ATM:
+  CALIB off 0.0%: train n=2983 WR 71.2% credit~2515.5 $ +3660.21 | holdout n= 975 WR 73.3% credit~1848.2 $ +1394.53
+  CALIB off 1.5%: train n=2983 WR 74.1% credit~1838.1 $ +4293.69 | holdout n= 975 WR 74.7% credit~1349.9 $  +831.63
+  CALIB кварталы: ATM neg 1, off neg 1, хуже-и-в-минусе 0
+  CLAMP off 0.0%: train n=2983 WR 72.8% credit~2469.1 $ +4189.23 | holdout n= 975 WR 72.0% credit~1796.0 $ +1469.16
+  CLAMP off 1.5%: train n=2983 WR 74.4% credit~1802.0 $ +5821.14 | holdout n= 975 WR 72.5% credit~1303.5 $ +1494.96
+  CLAMP кварталы: ATM neg 1, off neg 1, хуже-и-в-минусе 0
+
+ETH:P off 2.0% vs ATM:
+  CALIB off 0.0%: train n= 451 WR 72.3% credit~ 95.0 $   -81.15 | holdout n= 130 WR 60.8% credit~ 54.7 $   +58.32
+  CALIB off 2.0%: train n= 451 WR 73.8% credit~ 66.7 $   +10.43 | holdout n= 130 WR 75.4% credit~ 36.2 $   +68.82
+  CALIB кварталы: ATM neg 2, off neg 2, хуже-и-в-минусе 0
+  CLAMP off 0.0%: train n= 451 WR 78.0% credit~135.2 $  +963.03 | holdout n= 130 WR 67.7% credit~ 64.2 $  +129.09
+  CLAMP off 2.0%: train n= 451 WR 79.4% credit~105.7 $ +1055.87 | holdout n= 130 WR 80.0% credit~ 45.4 $   +85.92
+  CLAMP кварталы: ATM neg 2, off neg 0, хуже-и-в-минусе 0
+
+====================================================================================================
+PHASE 3: портфельный replay_v2 pkc=1 — книга C ATM vs книга C OTM
+====================================================================================================
+  CALIB ATM      train   +22.8% dd 21.9% | holdout   +28.8% dd 13.2%
+  CALIB OTM best train   +22.4% dd 16.0% | holdout   +20.9% dd  9.3%
+  CLAMP ATM      train   +62.2% dd 20.8% | holdout   +37.9% dd  8.9%
+  CLAMP OTM best train   +76.0% dd 14.6% | holdout   +26.1% dd 10.3%

@@ -331,7 +331,8 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
                          start_ms: np.ndarray, sigma: float, tp2_pct: float, sl_pct: float,
                          hold_h: float, strike_round: float, expiry_h: float = jc.TARGET_EXPIRY_H,
                          vol_track: np.ndarray | None = None, vol_stop_accel: float | None = None,
-                         vol_stop_require_loss: bool = False):
+                         vol_stop_require_loss: bool = False,
+                         strike_offset: float = 0.0):
     """Prices off the option's REAL tenor (weekly, expiry_h=168h by default —
     matches config.TARGET_EXPIRY_H / pick_atm_option's weekly selection), not
     the planned holding time. hold_h only caps how long we keep walking
@@ -355,7 +356,10 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     that bar's close-based mark, regardless of price-based TP2/SL. Priority
     on a same-bar tie: sl > vol_stop > tp2 (protecting capital first)."""
     spot0 = close[entry_idx]
-    strike = round(spot0 / strike_round) * strike_round
+    # strike_offset (2026-08-18, sweep_strike_offset): доля спота в БЕЗОПАСНУЮ
+    # сторону (P ниже, C выше); 0.0 = ATM (все прежние исследования).
+    raw = spot0 * (1 - strike_offset) if side == "P" else spot0 * (1 + strike_offset)
+    strike = round(raw / strike_round) * strike_round
     T0 = expiry_h / (24 * 365)
     entry_mid = bs.price(side, spot0, strike, T0, sigma)
     if entry_mid <= 0.01:
@@ -432,7 +436,8 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 vol_stop_sides: tuple[str, ...] | None = None,
                 vol_stop_regimes: tuple[str, ...] | None = None,
                 expiry_h: float = jc.TARGET_EXPIRY_H,
-                sigma_calib: dict | None = None) -> list[dict]:
+                sigma_calib: dict | None = None,
+                strike_offset: float = 0.0) -> list[dict]:
     """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
     accept overrides — used by the exit-parameter sweep. vol_guard/
     vol_stop_accel are the experimental entry-guard/exit-stop from
@@ -516,7 +521,8 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                                        expiry_h=expiry_h,
                                        vol_track=vol_track_arr if in_scope else None,
                                        vol_stop_accel=vol_stop_accel if in_scope else None,
-                                       vol_stop_require_loss=vol_stop_require_loss)
+                                       vol_stop_require_loss=vol_stop_require_loss,
+                                       strike_offset=strike_offset)
             cooldown_until[side] = start_ms_sig[i] + jc.COOLDOWN_BARS * 300_000
             if out is None:
                 continue
