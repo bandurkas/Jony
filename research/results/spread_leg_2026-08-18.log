@@ -1,0 +1,43 @@
+====================================================================================================
+PHASE 1: выбор width на TRAIN/CALIB (fixed-lot, книга C)
+====================================================================================================
+
+BTC:P голая:      train n=2983 WR 71.2% $ +3660.21 worst1  -61.99
+BTC:P width  3.0%: train n=2983 WR 59.9% $ -4758.20 worst1  -27.97
+BTC:P width  5.0%: train n=2983 WR 65.6% $ -2575.57 worst1  -39.31
+BTC:P width  7.5%: train n=2983 WR 69.0% $    -5.94 worst1  -49.22
+BTC:P width 10.0%: train n=2983 WR 70.6% $ +1907.98 worst1  -55.45
+
+ETH:P голая:      train n= 451 WR 72.3% $   -81.15 worst1  -23.77
+ETH:P width  3.0%: train n= 451 WR 65.4% $  -224.48 worst1  -10.64
+ETH:P width  5.0%: train n= 451 WR 67.0% $  -161.23 worst1  -15.24
+ETH:P width  7.5%: train n= 451 WR 70.1% $  -131.44 worst1  -19.09
+ETH:P width 10.0%: train n= 451 WR 71.2% $  -120.51 worst1  -22.21
+
+выбор по train: {'BTC': '10.0%', 'ETH': '10.0%'}
+
+====================================================================================================
+PHASE 2: holdout/CLAMP/кварталы для выбранных width
+====================================================================================================
+  BTC CALIB голая       train n=2983 WR 71.2% $ +3660.21 worst1  -61.99 | holdout n= 975 WR 73.3% $ +1394.53 worst1  -42.91
+  BTC CALIB spread 10%  train n=2983 WR 70.6% $ +1907.98 worst1  -55.45 | holdout n= 975 WR 72.0% $  +966.58 worst1  -40.94
+  BTC CALIB худшие кварталы: голая ['-3611', '+2681', '+2790'] vs spread ['-3635', '+1946', '+2200']
+  BTC CLAMP голая       train n=2983 WR 72.8% $ +4189.23 worst1  -83.07 | holdout n= 975 WR 72.0% $ +1469.16 worst1  -47.12
+  BTC CLAMP spread 10%  train n=2983 WR 71.0% $  +291.07 worst1  -56.97 | holdout n= 975 WR 69.1% $  +639.68 worst1  -40.75
+  BTC CLAMP худшие кварталы: голая ['-4268', '+1416', '+2804'] vs spread ['-4404', '+694', '+1863']
+  ETH CALIB голая       train n= 451 WR 72.3% $   -81.15 worst1  -23.77 | holdout n= 130 WR 60.8% $   +58.32 worst1  -12.27
+  ETH CALIB spread 10%  train n= 451 WR 71.2% $  -120.51 worst1  -22.21 | holdout n= 130 WR 59.2% $   +22.88 worst1  -11.70
+  ETH CALIB худшие кварталы: голая ['-296', '-292', '+58'] vs spread ['-290', '-271', '+23']
+  ETH CLAMP голая       train n= 451 WR 78.0% $  +963.03 worst1  -31.46 | holdout n= 130 WR 67.7% $  +129.09 worst1  -11.92
+  ETH CLAMP spread 10%  train n= 451 WR 72.7% $  +174.92 worst1  -23.52 | holdout n= 130 WR 53.8% $   +34.95 worst1  -11.34
+  ETH CLAMP худшие кварталы: голая ['-139', '-61', '+129'] vs spread ['-259', '-247', '+35']
+
+====================================================================================================
+PHASE 3: портфель replay_v2 pkc=1 — голая vs spread (drag) vs spread (маржа max-loss)
+====================================================================================================
+  CALIB голая          train   +22.8% dd 21.9% conc~1.3 | holdout   +28.8% dd 13.2%
+  CALIB spread drag    train    +5.2% dd 23.2% conc~1.0 | holdout   +22.3% dd 12.5%
+  CALIB spread m-loss  train   +20.9% dd 31.4% conc~1.4 | holdout   +53.4% dd 14.8%
+  CLAMP голая          train   +62.2% dd 20.8% conc~1.4 | holdout   +37.9% dd  8.9%
+  CLAMP spread drag    train   +25.4% dd 20.2% conc~1.4 | holdout   +24.6% dd  9.0%
+  CLAMP spread m-loss  train   +63.8% dd 34.2% conc~1.4 | holdout   +62.2% dd 12.4%

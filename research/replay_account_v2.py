@@ -127,7 +127,8 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
         mult = size_mult_fn(t) if size_mult_fn is not None else 1.0
         qty, margin = jc.size_position(equity, used_margin, recent_pnls,
                                        t["strike"], t["entry_credit"], t["lot"],
-                                       size_mult=mult)
+                                       size_mult=mult,
+                                       m_lot_override=t.get("m_lot"))
         if qty <= 0:
             n_skipped_size += 1
             continue

@@ -318,7 +318,8 @@ def margin_per_lot(strike: float, premium: float, lot: float) -> float:
 
 
 def size_position(equity: float, used_margin: float, recent_pnls: list[float],
-                  strike: float, premium: float, lot: float, size_mult: float = 1.0) -> tuple[float, float]:
+                  strike: float, premium: float, lot: float, size_mult: float = 1.0,
+                  m_lot_override: float | None = None) -> tuple[float, float]:
     """size_mult: research-only extra scale on top of dyn_size_factor (default
     1.0 = live behavior unchanged) — used to test regime-aware sizing (e.g.
     smaller CALL positions specifically when regime=='trend') without
@@ -326,7 +327,8 @@ def size_position(equity: float, used_margin: float, recent_pnls: list[float],
     free = max(0.0, equity * PORT_MARGIN_CAP - used_margin)
     dyn = dyn_size_factor(recent_pnls)
     budget = min(equity * MARGIN_PCT_PER_TRADE * dyn, free) * size_mult
-    m_lot = margin_per_lot(strike, premium, lot)
+    m_lot = margin_per_lot(strike, premium, lot) if m_lot_override is None \
+        else m_lot_override
     if m_lot <= 0:
         return 0.0, 0.0
     n_lots = int(budget // m_lot)

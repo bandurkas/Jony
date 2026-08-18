@@ -412,21 +412,25 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
         idx, _, kind = min(candidates)  # earliest bar; ties broken by rank
         if kind == "sl":
             return {"resolution": "sl", "pnl_pct": -sl_pct, "exit_ts": int(start_ms[lo_idx + idx]),
-                    "strike": strike, "entry_credit": entry_credit}
+                    "strike": strike, "entry_credit": entry_credit,
+                    "entry_spot": spot0, "exit_spot": close[lo_idx + idx]}
         if kind == "tp2":
             return {"resolution": "tp2", "pnl_pct": tp2_pct, "exit_ts": int(start_ms[lo_idx + idx]),
-                    "strike": strike, "entry_credit": entry_credit}
+                    "strike": strike, "entry_credit": entry_credit,
+                    "entry_spot": spot0, "exit_spot": close[lo_idx + idx]}
         mid = bs.price(side, close[lo_idx + idx], strike, T[idx], sigma)
         buyback = mid * (1 + HALF_SPREAD)
         pnl_pct = (entry_credit - buyback) / entry_credit if entry_credit > 0 else 0.0
         return {"resolution": "vol_stop", "pnl_pct": pnl_pct, "exit_ts": int(start_ms[lo_idx + idx]),
-                "strike": strike, "entry_credit": entry_credit}
+                "strike": strike, "entry_credit": entry_credit,
+                "entry_spot": spot0, "exit_spot": close[lo_idx + idx]}
 
     final_mid = bs.price(side, close[hi_idx - 1], strike, T[-1], sigma)
     buyback = final_mid * (1 + HALF_SPREAD)
     pnl_pct = (entry_credit - buyback) / entry_credit if entry_credit > 0 else 0.0
     return {"resolution": "time_stop", "pnl_pct": pnl_pct, "exit_ts": int(start_ms[hi_idx - 1]),
-            "strike": strike, "entry_credit": entry_credit}
+            "strike": strike, "entry_credit": entry_credit,
+            "entry_spot": spot0, "exit_spot": close[hi_idx - 1]}
 
 
 def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None,
@@ -532,6 +536,8 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 "pnl_pct": out["pnl_pct"], "strike": out["strike"],
                 "entry_credit": out["entry_credit"], "lot": {"ETH": 0.1, "BTC": 0.01}[coin],
                 "regime": str(regime_arr[i]),
+                "entry_spot": out["entry_spot"], "exit_spot": out["exit_spot"],
+                "sigma": float(sigma),
             })
     return trades
 
