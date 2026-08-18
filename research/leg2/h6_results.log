@@ -1,0 +1,234 @@
+BTC: 32547 bars 2022-12-01 -> 2026-08-18 03:00, hour-gaps=1
+ETH: 32547 bars 2022-12-01 -> 2026-08-18 03:00, hour-gaps=1
+
+===== BTC ===== train bars [0,22782) end=2025-07-07, holdout [22782,32547) start=2025-07-07
+
+--- EVENT STUDY BTC (train only, bars 24..22782) ---
+ D%    n |                    +6h |                   +12h |                   +24h |                   +48h |                   +72h
+           |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg% 
+  4   80 |    0.21   0.36    35%  |    0.29   0.29    42%  |    0.49   0.71    34%  |    0.50   0.47    44%  |    0.75   0.94    38% 
+  6   30 |    0.21   0.61    37%  |    0.27   0.74    37%  |    1.61   1.53    37%  |    2.21   2.32    30%  |    2.88   2.67    33% 
+  8   13 |    0.94   0.78    38%  |    2.00   1.21    31%  |    3.82   3.10    15%  |    3.88   4.67    23%  |    5.58   3.46     8% 
+
+--- TRAIN GRID BTC (net$ on $1000, fees 0.15% RT) ---
+ D   H  S filt |    n      net$    WR%    avg$
+ 4  12  2  off |   80    -22.40   37.5   -0.28
+ 4  12  2  EMA |   42     62.43   38.1    1.49
+ 4  12  3  off |   80    -48.46   37.5   -0.61
+ 4  12  3  EMA |   42     57.83   38.1    1.38
+ 4  12  5  off |   80   -107.35   38.8   -1.34
+ 4  12  5  EMA |   42     33.59   38.1    0.80
+ 4  24  2  off |   80   -310.73   31.2   -3.88
+ 4  24  2  EMA |   42    -59.91   31.0   -1.43
+ 4  24  3  off |   80   -286.56   35.0   -3.58
+ 4  24  3  EMA |   42     35.78   38.1    0.85
+ 4  24  5  off |   80   -360.80   37.5   -4.51
+ 4  24  5  EMA |   42     15.96   38.1    0.38
+ 4  48  2  off |   79   -386.97   29.1   -4.90
+ 4  48  2  EMA |   42   -125.75   31.0   -2.99
+ 4  48  3  off |   78   -421.38   38.5   -5.40
+ 4  48  3  EMA |   41    -50.38   41.5   -1.23
+ 4  48  5  off |   77   -528.75   42.9   -6.87
+ 4  48  5  EMA |   40   -110.94   45.0   -2.77
+ 6  12  2  off |   30   -141.20   33.3   -4.71
+ 6  12  2  EMA |   21   -110.02   33.3   -5.24
+ 6  12  3  off |   30   -181.01   40.0   -6.03
+ 6  12  3  EMA |   21   -157.10   38.1   -7.48
+ 6  12  5  off |   30   -223.26   40.0   -7.44
+ 6  12  5  EMA |   21   -188.72   38.1   -8.99
+ 6  24  2  off |   30   -360.84   20.0  -12.03
+ 6  24  2  EMA |   21   -262.67   19.0  -12.51
+ 6  24  3  off |   30   -412.51   26.7  -13.75
+ 6  24  3  EMA |   21   -263.14   28.6  -12.53
+ 6  24  5  off |   30   -437.28   30.0  -14.58
+ 6  24  5  EMA |   21   -303.31   33.3  -14.44
+ 6  48  2  off |   30   -418.36   16.7  -13.95
+ 6  48  2  EMA |   21   -312.62   14.3  -14.89
+ 6  48  3  off |   30   -594.22   20.0  -19.81
+ 6  48  3  EMA |   21   -418.43   19.0  -19.93
+ 6  48  5  off |   29   -638.33   27.6  -22.01
+ 6  48  5  EMA |   21   -440.31   23.8  -20.97
+ 8  12  2  off |   13    -99.82   38.5   -7.68
+ 8  12  2  EMA |    9    -82.81   33.3   -9.20
+ 8  12  3  off |   13   -169.87   38.5  -13.07
+ 8  12  3  EMA |    9   -132.85   33.3  -14.76
+ 8  12  5  off |   13   -188.59   38.5  -14.51
+ 8  12  5  EMA |    9   -154.05   33.3  -17.12
+ 8  24  2  off |   13   -186.36   15.4  -14.34
+ 8  24  2  EMA |    9   -118.98   22.2  -13.22
+ 8  24  3  off |   13   -277.17   15.4  -21.32
+ 8  24  3  EMA |    9   -179.77   22.2  -19.97
+ 8  24  5  off |   13   -323.50   15.4  -24.88
+ 8  24  5  EMA |    9   -239.84   22.2  -26.65
+ 8  48  2  off |   13   -186.72   15.4  -14.36
+ 8  48  2  EMA |    9   -145.62   11.1  -16.18
+ 8  48  3  off |   13   -273.81   15.4  -21.06
+ 8  48  3  EMA |    9   -202.69   11.1  -22.52
+ 8  48  5  off |   13   -377.79   23.1  -29.06
+ 8  48  5  EMA |    9   -316.32   11.1  -35.15
+
+TOP-5 TRAIN BTC:
+  D=4 H=12 S=2 filt=EMA : n=42 net=62.43 WR=38.1 avg=1.49
+  D=4 H=12 S=3 filt=EMA : n=42 net=57.83 WR=38.1 avg=1.38
+  D=4 H=24 S=3 filt=EMA : n=42 net=35.78 WR=38.1 avg=0.85
+  D=4 H=12 S=5 filt=EMA : n=42 net=33.59 WR=38.1 avg=0.80
+  D=4 H=24 S=5 filt=EMA : n=42 net=15.96 WR=38.1 avg=0.38
+
+NO config passed (n>=25 & train>0 & neighbor-median>0); fallback = top train cell for reporting.
+
+CHOSEN BTC: D=4 H=12 S=2 filt=EMA | train n=42 (SMALL SAMPLE)
+  train net=62.43$ WR=38.1% avg=1.49$ | neighbors: median_net=-59.91$ share_pos=29%
+  HOLDOUT: n=25 net=-117.60$ WR=32.0% avg=-4.70$
+  QUARTERS (full period, chosen config; H=holdout-era):
+    2022Q4 : n=  1 net=   -0.93$
+    2023Q1 : n=  3 net=   34.93$
+    2023Q2 : n=  5 net=  -21.62$
+    2023Q3 : n=  2 net=   52.59$
+    2024Q1 : n=  4 net=   20.64$
+    2024Q2 : n=  7 net=    8.07$
+    2024Q3 : n=  8 net=  -79.34$
+    2024Q4 : n=  1 net=   -3.45$
+    2025Q1 : n=  5 net=   70.43$
+    2025Q2 : n=  6 net=  -18.88$
+    2025Q3H: n=  2 net=    0.27$
+    2025Q4H: n= 10 net=  -36.77$
+    2026Q1H: n=  9 net=  -88.92$
+    2026Q2H: n=  4 net=    7.83$
+  quarters non-negative: 7/14 = 50%
+  COMPLEMENTARITY: 65/67 trades with BTC ret_7d<-1%; net in those = -50.52$ (total -55.16$)
+
+===== ETH ===== train bars [0,22782) end=2025-07-07, holdout [22782,32547) start=2025-07-07
+
+--- EVENT STUDY ETH (train only, bars 24..22782) ---
+ D%    n |                    +6h |                   +12h |                   +24h |                   +48h |                   +72h
+           |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg%  |   mean%   med%   neg% 
+  4  125 |    0.10   0.44    39%  |    0.32   0.37    43%  |    0.51   0.68    33%  |    0.19   0.68    44%  |    0.60   0.47    45% 
+  6   65 |    0.02   0.39    40%  |    0.26   0.95    32%  |    0.35   0.34    45%  |    0.16   0.79    43%  |    0.04   0.13    49% 
+  8   27 |   -0.15   0.49    33%  |   -0.99   0.28    44%  |    0.75   0.66    30%  |    1.20   2.47    41%  |    1.78   2.22    41% 
+
+--- TRAIN GRID ETH (net$ on $1000, fees 0.15% RT) ---
+ D   H  S filt |    n      net$    WR%    avg$
+ 4  12  2  off |  125   -435.75   31.2   -3.49
+ 4  12  2  EMA |   61   -375.73   27.9   -6.16
+ 4  12  3  off |  125   -365.42   35.2   -2.92
+ 4  12  3  EMA |   61   -305.62   32.8   -5.01
+ 4  12  5  off |  125   -412.86   36.8   -3.30
+ 4  12  5  EMA |   61   -323.94   34.4   -5.31
+ 4  24  2  off |  124   -413.05   29.8   -3.33
+ 4  24  2  EMA |   60   -365.24   23.3   -6.09
+ 4  24  3  off |  124   -414.22   33.1   -3.34
+ 4  24  3  EMA |   60   -448.16   25.0   -7.47
+ 4  24  5  off |  124   -678.70   36.3   -5.47
+ 4  24  5  EMA |   60   -575.35   28.3   -9.59
+ 4  48  2  off |  123   -408.07   25.2   -3.32
+ 4  48  2  EMA |   59   -360.88   20.3   -6.12
+ 4  48  3  off |  123   -443.60   34.1   -3.61
+ 4  48  3  EMA |   59   -482.88   28.8   -8.18
+ 4  48  5  off |  122   -706.67   38.5   -5.79
+ 4  48  5  EMA |   59   -642.36   33.9  -10.89
+ 6  12  2  off |   65     52.46   38.5    0.81
+ 6  12  2  EMA |   41    251.67   43.9    6.14
+ 6  12  3  off |   65    -40.32   40.0   -0.62
+ 6  12  3  EMA |   41    216.33   46.3    5.28
+ 6  12  5  off |   65    112.45   43.1    1.73
+ 6  12  5  EMA |   41    278.87   48.8    6.80
+ 6  24  2  off |   65    226.54   38.5    3.49
+ 6  24  2  EMA |   41    386.20   43.9    9.42
+ 6  24  3  off |   65     11.44   41.5    0.18
+ 6  24  3  EMA |   41    296.94   46.3    7.24
+ 6  24  5  off |   65     13.71   46.2    0.21
+ 6  24  5  EMA |   41    214.64   48.8    5.24
+ 6  48  2  off |   63    -97.40   30.2   -1.55
+ 6  48  2  EMA |   39     92.80   35.9    2.38
+ 6  48  3  off |   63   -337.52   33.3   -5.36
+ 6  48  3  EMA |   39      8.72   41.0    0.22
+ 6  48  5  off |   62   -509.14   38.7   -8.21
+ 6  48  5  EMA |   39   -148.21   43.6   -3.80
+ 8  12  2  off |   27   -106.97   33.3   -3.96
+ 8  12  2  EMA |   21    -14.23   38.1   -0.68
+ 8  12  3  off |   27     53.54   40.7    1.98
+ 8  12  3  EMA |   21    138.88   47.6    6.61
+ 8  12  5  off |   27     57.58   44.4    2.13
+ 8  12  5  EMA |   21    109.09   47.6    5.19
+ 8  24  2  off |   27   -235.64   29.6   -8.73
+ 8  24  2  EMA |   21   -178.63   33.3   -8.51
+ 8  24  3  off |   27   -211.06   40.7   -7.82
+ 8  24  3  EMA |   21   -128.48   47.6   -6.12
+ 8  24  5  off |   27   -217.93   44.4   -8.07
+ 8  24  5  EMA |   21   -230.42   47.6  -10.97
+ 8  48  2  off |   27   -119.50   22.2   -4.43
+ 8  48  2  EMA |   21   -140.98   19.0   -6.71
+ 8  48  3  off |   27   -242.68   25.9   -8.99
+ 8  48  3  EMA |   21   -224.14   23.8  -10.67
+ 8  48  5  off |   27   -287.98   33.3  -10.67
+ 8  48  5  EMA |   21   -403.21   23.8  -19.20
+
+TOP-5 TRAIN ETH:
+  D=6 H=24 S=2 filt=EMA : n=41 net=386.20 WR=43.9 avg=9.42
+  D=6 H=24 S=3 filt=EMA : n=41 net=296.94 WR=46.3 avg=7.24
+  D=6 H=12 S=5 filt=EMA : n=41 net=278.87 WR=48.8 avg=6.80
+  D=6 H=12 S=2 filt=EMA : n=41 net=251.67 WR=43.9 avg=6.14
+  D=6 H=24 S=2 filt=off : n=65 net=226.54 WR=38.5 avg=3.49
+
+CHOSEN ETH: D=6 H=24 S=2 filt=EMA | train n=41 (SMALL SAMPLE)
+  train net=386.20$ WR=43.9% avg=9.42$ | neighbors: median_net=214.64$ share_pos=71%
+  HOLDOUT: n=23 net=-56.22$ WR=30.4% avg=-2.44$
+  QUARTERS (full period, chosen config; H=holdout-era):
+    2022Q4 : n=  1 net=   25.20$
+    2023Q1 : n=  2 net=   21.18$
+    2023Q2 : n=  2 net=  -21.83$
+    2023Q3 : n=  1 net=   18.26$
+    2024Q1 : n=  4 net=   95.67$
+    2024Q2 : n=  4 net=  -13.35$
+    2024Q3 : n= 10 net=   42.04$
+    2024Q4 : n=  1 net=   36.27$
+    2025Q1 : n= 10 net=  210.61$
+    2025Q2 : n=  6 net=  -27.86$
+    2025Q3H: n=  3 net=  -47.52$
+    2025Q4H: n= 10 net=  -80.67$
+    2026Q1H: n=  7 net=   66.10$
+    2026Q2H: n=  3 net=    5.88$
+  quarters non-negative: 9/14 = 64%
+  COMPLEMENTARITY: 59/64 trades with BTC ret_7d<-1%; net in those = 394.20$ (total 329.99$)
+
+===== VERDICT: REJECTED (both symbols) =====
+
+EVENT STUDY (train, the key result): after an acute -D% 24h slide, forward returns
+are POSITIVE on every horizon and every D — i.e. the market BOUNCES, it does not
+continue down. BTC D=8: +24h mean +3.82% (only 15% negative), +72h mean +5.58%
+(8% negative). BTC D=6: +48h +2.21%. ETH milder but still >=0 mean everywhere
+(D=8 +6h/+12h slightly negative mean, medians positive). Share-negative is 30-45%,
+i.e. a short entered after the event loses more often than it wins. The
+"liquidation cascade continuation" mechanism is NOT present at the 1h/daily scale
+in 2022-12..2025-07 train data; if cascades continue, it happens INSIDE the first
+24h window that defines the event, not after it.
+
+TRADING CONFIRMS:
+- BTC: 52/54 train cells negative; only pocket D=4/H=12/EMA (+$62 on n=42) with
+  NO plateau (neighbor median -$60, 29% positive neighbors). Holdout -$117.60
+  (n=25, WR 32%). Quarters non-negative 7/14=50%. Fails everything.
+- ETH: pocket D=6/EMA-filter positive on train (chosen D=6 H=24 S=2 EMA:
+  +$386 on n=41 SMALL SAMPLE, WR 43.9%, plateau ok: neighbor median +$215,
+  71% pos). But HOLDOUT -$56.22 (n=23, WR 30.4%); both first holdout quarters
+  negative (2025Q3 -$48, 2025Q4 -$81). Train pocket contradicts its own event
+  study (ETH D=6 forward means ~0..+0.35%) => profit came from path/stop
+  asymmetry in a few 2025Q1 trades, not from a continuation edge. Fails the
+  train>0 AND holdout>0 gate.
+
+COMPLEMENTARITY: as expected ~97% of trades fire when BTC ret_7d < -1%
+(BTC 65/67, ETH 59/64) - the signal does live exactly in Jony's pain regime,
+but there is no positive expectancy to harvest there with this mechanism.
+
+ASSUMPTIONS / RISKS:
+- fees 0.15% RT, no slippage, no funding (shorts usually receive => slightly
+  conservative); stop filled exactly at stop price (optimistic in gaps/wicks -
+  real fills worse => real results would be WORSE than shown).
+- events deduped by 24h lockout from last qualifying bar; one position per symbol.
+- n per cell 9-125; D=8 cells (n=13 BTC / 27 ETH) are anecdotal.
+- 1 hour-gap in merged data (negligible).
+
+CONCLUSION: crash-continuation short (H6) is dead at hourly resolution -
+post-crash drift is a bounce, same side as the market's long-run drift.
+Do NOT pair this leg with Jony short-puts. If a second leg is still wanted in
+crash regimes, the event-study numbers actually point the OTHER way
+(post-crash LONG / bounce harvesting), which is a different hypothesis.

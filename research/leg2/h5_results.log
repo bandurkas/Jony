@@ -1,0 +1,80 @@
+==============================================================================
+H5: SHORT GRID IN CONFIRMED DOWN-REGIME  (leg2, 2026-08-18)
+==============================================================================
+BTC: 32547 bars  2022-12-01 -> 2026-08-18  irregular-steps=1  gate-on bars=12482 (38.4%)
+ETH: 32547 bars  2022-12-01 -> 2026-08-18  irregular-steps=1  gate-on bars=13385 (41.1%)
+BTC 70/30 split at bar 22782 = 2025-07-07
+ETH 70/30 split at bar 22782 = 2025-07-07
+
+SWEEP (train only): G x L x TP x BUST = 3x3x2x2 = 36 cells x 2 coins
+   G   L   TP  BUST |  BTC net$   nB |  ETH net$   nE |    COMB $    n   WR%
+   2   3  1.5     8 |   -814.36  301 |   -315.41  417 |  -1129.77  718  82.3
+   2   3  1.5    12 |   -863.57  290 |   -395.91  412 |  -1259.48  702  82.6
+   2   3  2.5     8 |   -960.97  192 |   -257.09  281 |  -1218.06  473  71.5
+   2   3  2.5    12 |   -955.67  181 |   -546.71  265 |  -1502.38  446  71.7
+   2   4  1.5     8 |   -554.55  302 |   -192.32  425 |   -746.87  727  83.2
+   2   4  1.5    12 |   -602.33  297 |   -161.39  424 |   -763.72  721  83.5
+   2   4  2.5     8 |   -820.81  186 |   -309.10  271 |  -1129.90  457  71.8
+   2   4  2.5    12 |   -848.08  184 |   -562.15  267 |  -1410.23  451  72.1
+   2   6  1.5     8 |   -404.87  300 |      2.41  437 |   -402.46  737  84.0
+   2   6  1.5    12 |   -457.66  297 |    -29.75  438 |   -487.41  735  84.1
+   2   6  2.5     8 |   -522.66  191 |   -244.20  273 |   -766.86  464  72.6
+   2   6  2.5    12 |   -538.95  187 |   -262.29  266 |   -801.25  453  73.1
+   3   3  1.5     8 |   -449.97  289 |   -316.85  397 |   -766.81  686  81.9
+   3   3  1.5    12 |   -453.05  280 |   -486.02  396 |   -939.07  676  82.1
+   3   3  2.5     8 |   -771.11  177 |   -374.49  259 |  -1145.61  436  69.7
+   3   3  2.5    12 |   -769.91  174 |   -631.98  255 |  -1401.88  429  70.4
+   3   4  1.5     8 |   -346.61  286 |   -182.55  407 |   -529.16  693  82.7
+   3   4  1.5    12 |   -404.09  283 |   -189.01  396 |   -593.10  679  82.8
+   3   4  2.5     8 |   -612.96  178 |   -322.08  259 |   -935.04  437  70.5
+   3   4  2.5    12 |   -609.41  174 |   -347.39  251 |   -956.79  425  71.1
+   3   6  1.5     8 |   -265.25  283 |   -127.26  401 |   -392.52  684  82.9
+   3   6  1.5    12 |   -315.00  282 |    -45.98  396 |   -360.97  678  82.7
+   3   6  2.5     8 |   -421.89  175 |   -230.88  257 |   -652.77  432  71.1
+   3   6  2.5    12 |   -490.15  173 |   -137.19  252 |   -627.33  425  71.1
+   4   3  1.5     8 |   -511.89  272 |   -151.17  381 |   -663.06  653  81.2
+   4   3  1.5    12 |   -508.25  267 |   -237.01  382 |   -745.26  649  81.4
+   4   3  2.5     8 |   -508.48  181 |   -155.39  259 |   -663.87  440  70.7
+   4   3  2.5    12 |   -517.77  176 |   -210.92  250 |   -728.69  426  71.1
+   4   4  1.5     8 |   -353.63  267 |   -124.90  381 |   -478.53  648  81.5
+   4   4  1.5    12 |   -433.69  267 |   -174.80  382 |   -608.49  649  81.5
+   4   4  2.5     8 |   -395.86  177 |   -211.77  258 |   -607.62  435  71.0
+   4   4  2.5    12 |   -474.69  176 |   -205.45  251 |   -680.14  427  71.2
+   4   6  1.5     8 |   -276.53  267 |    -96.86  381 |   -373.39  648  81.5
+   4   6  1.5    12 |   -316.84  266 |     53.56  374 |   -263.27  640  81.6
+   4   6  2.5     8 |   -277.50  177 |   -167.17  255 |   -444.66  432  71.1
+   4   6  2.5    12 |   -380.21  176 |     54.51  246 |   -325.70  422  71.3
+
+TOP-5 by combined train net$:
+  G=4 L=6 TP=1.5 BUST=12  net=-263.27  n=640  WR=81.6%
+  G=4 L=6 TP=2.5 BUST=12  net=-325.70  n=422  WR=71.3%
+  G=3 L=6 TP=1.5 BUST=12  net=-360.97  n=678  WR=82.7%
+  G=4 L=6 TP=1.5 BUST=8  net=-373.39  n=648  WR=81.5%
+  G=3 L=6 TP=1.5 BUST=8  net=-392.52  n=684  WR=82.9%
+
+PLATEAU CHECK (neighbors +-1 step over G, L, TP must have train net$ >= 0):
+
+NO CONFIG passes selection gate (train net>0, cycles>=30, plateau). VERDICT: REJECTED
+
+DIAGNOSTICS (train only) for best cell G=4 L=6 TP=1.5 BUST=12:
+  BTC train: net=-316.84$ n=266 WR=78.9% worst cycle=-121.59$ ccDD=-326.59$
+  ETH train: net=53.56$ n=374 WR=83.4% worst cycle=-44.33$ ccDD=-128.58$
+  exit reasons (train, combined):
+       bust:    1 cycles    -121.59$  (avg -121.59$)
+     regime:  118 cycles   -1537.84$  (avg -13.03$)
+         tp:  521 cycles    1396.16$  (avg 2.68$)
+  quarterly (train, combined): 2022Q4:5$  2023Q1:-229$  2023Q2:-13$  2023Q3:-4$  2023Q4:-17$  2024Q1:22$  2024Q2:27$  2024Q3:86$  2024Q4:-43$  2025Q1:-10$  2025Q2:-88$
+  quarters nonneg: 4/11
+  complementarity: cycles closing in BTC ret7d<-1%: 479/640, pnl there 991.84$ of -263.27$ total
+  BTC MTM maxDD (full period, intrabar): -334.20$ (-33.4% of stack)
+  ETH MTM maxDD (full period, intrabar): -205.90$ (-20.6% of stack)
+
+ASSUMPTIONS / RISKS:
+- Adds are limit sells at precomputed levels, filled at level price when bar high touches (legal, no lookahead).
+- Intrabar order ambiguity resolved conservatively: adds fill first; TP suppressed on any bar where an add fills;
+  bust checked at post-add avg (worse stack). Real path could be milder or worse on gaps.
+- Bust fill at max(open, bust_price): gap-through-stop modeled, no extra slippage beyond that.
+- Fees 0.075%/side per fill; funding NOT modeled (short on average RECEIVES funding -> conservative).
+- Regime-flip exit executes next bar close after signal (1-bar lag).
+- Cycles spanning the 70/30 boundary attributed by OPEN time (minor leak; cycles are short).
+- eod force-close of any open position at last bar counted in PnL.
