@@ -452,15 +452,18 @@ class TestCliBackend(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 advisor.call_claude_cli({})
 
-    def test_rc_error_raises_immediately_no_retry(self):
+    def test_rc_error_retries_once_and_reports_stdout(self):
         import advisor
         from unittest.mock import patch as _patch, MagicMock
-        m = MagicMock(); m.returncode = 1; m.stdout = ""; m.stderr = "auth"
+        m = MagicMock(); m.returncode = 1
+        m.stdout = '{"is_error":true,"result":"overloaded"}'; m.stderr = ""
         with _patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), \
              _patch("subprocess.run", return_value=m) as mrun:
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(RuntimeError) as cm:
                 advisor.call_claude_cli({})
-        self.assertEqual(mrun.call_count, 1)
+        self.assertEqual(mrun.call_count, 2)
+        # rc!=0: CLI кладёт текст ошибки в stdout, он должен попасть в сообщение
+        self.assertIn("overloaded", str(cm.exception))
 
     def test_missing_token_fails_loud(self):
         import advisor, os as _os

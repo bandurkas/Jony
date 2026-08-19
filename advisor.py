@@ -39,6 +39,7 @@ INTERVAL_S = int(os.getenv("ADVISOR_INTERVAL_MIN", "60")) * 60
 NOTIFY_MODE = os.getenv("ADVISOR_NOTIFY_MODE", "actionable")
 ADVICE_PATH = Path(os.getenv("ADVICE_PATH", "data/advice.jsonl"))
 BACKEND = os.getenv("ADVISOR_BACKEND", "api")  # api | cli (MAX-подписка)
+FAIL_NOTIFY_STREAK = int(os.getenv("ADVISOR_FAIL_NOTIFY_STREAK", "3"))
 API_BASE = os.getenv("JONY_API_BASE", "http://jony_api:8200")
 GATES_STALE_MS = 10 * 60_000  # старше -> gate-снапшот считается протухшим
 
@@ -334,7 +335,8 @@ def call_claude_cli(payload: dict, cur_posture: str = "normal") -> dict:
     API — работает от MAX-подписки (CLAUDE_CODE_OAUTH_TOKEN), не от кредитов.
     Ревью-харденинг: чистое env (иначе CLI молча биллит ANTHROPIC_API_KEY и
     видит биржевые секреты), пустой cwd (никакого контекста репо/CLAUDE.md),
-    тулы запрещены, rc!=0 не ретраится (детерминирован), таймаут ловится."""
+    тулы запрещены, rc!=0 ретраится 1 раз (транзиентные ошибки API тоже дают
+    rc=1, текст ошибки CLI кладёт в stdout), таймаут ловится."""
     import subprocess
     import tempfile
     schema = json.dumps(ADVICE_TOOL["input_schema"], ensure_ascii=False)
@@ -362,7 +364,9 @@ def call_claude_cli(payload: dict, cur_posture: str = "normal") -> dict:
         except subprocess.TimeoutExpired:
             raise RuntimeError("claude cli timeout (180s)")
         if r.returncode != 0:
-            raise RuntimeError(f"claude cli rc={r.returncode}: {r.stderr[:300]}")
+            err = (r.stderr or r.stdout or "").strip()
+            last_err = RuntimeError(f"claude cli rc={r.returncode}: {err[:300]}")
+            continue
         try:
             envelope = json.loads(r.stdout)
             if not isinstance(envelope, dict):
@@ -841,6 +845,7 @@ def main() -> None:
         print(json.dumps(advice, ensure_ascii=False, indent=2))
         return
     last_llm_ms = 0
+    fail_streak = 0
     while True:
         try:
             now_ms = int(time.time() * 1000)
@@ -851,14 +856,22 @@ def main() -> None:
             if due or wake:
                 tick(client, wake_reason=wake)
                 last_llm_ms = now_ms
+                fail_streak = 0
         except Exception as e:
-            print(f"[advisor] tick failed: {e}", flush=True)
-            # ревью 2026-08-17: молчаливо умирающий советник = замороженная
-            # posture + отсутствие exit-надзора; человек должен узнать сразу
-            try:
-                notify(f"ADVISOR TICK FAILED: {str(e)[:200]}")
-            except Exception:
-                pass
+            fail_streak += 1
+            print(f"[advisor] tick failed (streak={fail_streak}): {e}",
+                  flush=True)
+            # единичные транзиентные сбои в TG не шлём (канал чистый);
+            # алерт только когда советник реально лежит: streak-порог,
+            # дальше повтор ~раз в 2ч (24 сбоя при 5-мин ретрае)
+            if fail_streak == FAIL_NOTIFY_STREAK or (
+                    fail_streak > FAIL_NOTIFY_STREAK
+                    and fail_streak % 24 == 0):
+                try:
+                    notify(f"ADVISOR DOWN: {fail_streak} тиков подряд, "
+                           f"последняя ошибка: {str(e)[:200]}")
+                except Exception:
+                    pass
             # retry in ~5 min: no hot-loop, but a transient failure must not
             # push the next scheduled call out by a whole hour
             last_llm_ms = int(time.time() * 1000) - (INTERVAL_S - 300) * 1000
