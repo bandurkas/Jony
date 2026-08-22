@@ -532,5 +532,77 @@ class TestWakeCooldown(unittest.TestCase):
         self.assertIsNotNone(advisor.pick_wake([b], 30 * m))
 
 
+CALL_MKT_OK = {"iv_minus_rv24": 0.05, "vol_accelerating": False, "chg_24h_pct": -1.2,
+               "chg_1h_pct": 0.2, "chg_7d_pct": 4.0, "dist_from_7d_high_pct": -3.1,
+               "funding_rate_pct": 0.01}
+
+
+class TestCallGuard(unittest.TestCase):
+    """2026-08-22: advisor-only коллы — код-дубль условий промпта + kill."""
+
+    def _p(self, conf=0.8):
+        return {"coin": "ETH", "side": "C", "confidence": conf}
+
+    def test_ok_market_passes(self):
+        self.assertIsNone(advisor.call_guard(self._p(), CALL_MKT_OK, [], 0, by_key={}))
+        self.assertIn("unavailable", advisor.call_guard(self._p(), CALL_MKT_OK, [], 0, by_key=None))
+
+    def test_each_condition(self):
+        cases = {
+            "chg_24h_pct": (0.6, "chg_24h"), "chg_1h_pct": (1.5, "chg_1h"),
+            "chg_7d_pct": (15.0, "parabolic"), "dist_from_7d_high_pct": (-0.8, "7d_high"),
+            "funding_rate_pct": (0.08, "funding"),
+        }
+        for k, (bad, word) in cases.items():
+            m = dict(CALL_MKT_OK, **{k: bad})
+            why = advisor.call_guard(self._p(), m, [], 0, by_key={})
+            self.assertIsNotNone(why, k); self.assertIn(word, why, k)
+        # крах-день → squeeze-риск
+        self.assertIn("squeeze", advisor.call_guard(self._p(), dict(CALL_MKT_OK, chg_24h_pct=-8.0), [], 0, by_key={}))
+        # отрицательный funding (шорты перегружены)
+        self.assertIn("funding", advisor.call_guard(self._p(), dict(CALL_MKT_OK, funding_rate_pct=-0.03), [], 0, by_key={}))
+        m = dict(CALL_MKT_OK); del m["funding_rate_pct"]
+        self.assertIn("funding missing", advisor.call_guard(self._p(), m, [], 0, by_key={}))
+        # нет полей → отказ (fail closed)
+        self.assertIn("missing", advisor.call_guard(self._p(), {"iv_minus_rv24": 0.05}, [], 0, by_key={}))
+
+    def test_confidence_and_daily_cap(self):
+        self.assertIn("confidence", advisor.call_guard(self._p(0.65), CALL_MKT_OK, [], 0, by_key={}))
+        h = 3_600_000
+        self.assertIn("daily cap", advisor.call_guard(self._p(), CALL_MKT_OK, [5 * h], 20 * h, by_key={}))
+        self.assertIsNone(advisor.call_guard(self._p(), CALL_MKT_OK, [5 * h], 30 * h, by_key={}))
+
+    def test_kill_switch(self):
+        ok = {"ETH:C": {"advisor": {"n": 4, "wins": 1, "pnl_usd": -10.0}},
+              "BTC:C": {"advisor": {"n": 3, "wins": 0, "pnl_usd": -8.0}}}
+        self.assertIsNone(advisor.call_kill_active(ok))  # n=7 < 8 — ещё рано
+        bad = {"ETH:C": {"advisor": {"n": 5, "wins": 1, "pnl_usd": -10.0}},
+               "BTC:C": {"advisor": {"n": 3, "wins": 2, "pnl_usd": -5.0}}}
+        self.assertIn("kill-switch", advisor.call_kill_active(bad))  # WR 3/8=37.5%
+        fine = {"ETH:C": {"advisor": {"n": 8, "wins": 5, "pnl_usd": 12.0}, "bot": {"n": 11, "wins": 2, "pnl_usd": -41.0}}}
+        self.assertIsNone(advisor.call_kill_active(fine))  # bot-история не считается
+        self.assertIsNone(advisor.call_kill_active(None))
+        self.assertIn("kill-switch", advisor.call_guard(self._p(), CALL_MKT_OK, [], 0, by_key=bad))
+
+    def test_decide_entry_routes_calls_through_guard(self):
+        mkt = {"ETH": dict(CALL_MKT_OK), "BTC": dict(CALL_MKT_OK)}
+        self.assertIsNotNone(advisor._de_test(_entry_advice("ETH", "C", 0.8), mkt, [], "normal", [], 0, by_key={}))
+        self.assertIsNone(advisor._de_test(_entry_advice("ETH", "C", 0.65), mkt, [], "normal", [], 0, by_key={}))
+        mkt["ETH"]["dist_from_7d_high_pct"] = -0.3
+        self.assertIsNone(advisor._de_test(_entry_advice("ETH", "C", 0.8), mkt, [], "normal", [], 0, by_key={}))
+        # пут теми же guard'ами не ограничен
+        self.assertIsNotNone(advisor._de_test(_entry_advice("ETH", "P", 0.65), mkt, [], "normal", [], 0))
+        # плумбинг kwargs: daily cap и kill-switch доходят до call_guard через decide_entry
+        mkt["ETH"]["dist_from_7d_high_pct"] = -3.1
+        h = 3_600_000
+        self.assertIsNone(advisor._de_test(_entry_advice("ETH", "C", 0.8), mkt, [], "normal", [], 20 * h,
+                                           recent_call_ts=[5 * h], by_key={}))
+        bad = {"ETH:C": {"advisor": {"n": 8, "wins": 2, "pnl_usd": -5.0}}}
+        self.assertIsNone(advisor._de_test(_entry_advice("ETH", "C", 0.8), mkt, [], "normal", [], 0, by_key=bad))
+        # API недоступен (by_key=None) → fail-closed для коллов, путы не затронуты
+        self.assertIsNone(advisor._de_test(_entry_advice("ETH", "C", 0.8), mkt, [], "normal", [], 0, by_key=None))
+        self.assertIsNotNone(advisor._de_test(_entry_advice("ETH", "P", 0.8), mkt, [], "normal", [], 0, by_key=None))
+
+
 if __name__ == "__main__":
     unittest.main()

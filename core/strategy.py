@@ -99,6 +99,12 @@ COIN_SIDES = {"ETH": ("P", "C"), "BTC": ("C", "P")}
 DISABLED_KEYS = frozenset(
     k.strip().upper() for k in os.getenv("JONY_DISABLED_KEYS", "").split(",")
     if k.strip())
+# Advisor-only keys (2026-08-22): механика их не торгует (гейты для коллов
+# не валидированы, 0/180), но советник может предлагать вход — проспективный
+# A/B «LLM как единственный источник колл-сигнала». JONY_ADVISOR_ONLY_KEYS="ETH:C,BTC:C"
+ADVISOR_ONLY_KEYS = frozenset(
+    k.strip().upper() for k in os.getenv("JONY_ADVISOR_ONLY_KEYS", "").split(",")
+    if k.strip())
 
 
 def gen_kwargs(side: str, coin: str) -> dict:
@@ -131,7 +137,8 @@ def allowed_sides(coin: str, ret_7d: float) -> list[str]:
     else:
         sides = ["P", "C"]
     return [s for s in sides if s in COIN_SIDES[coin]
-            and f"{coin}:{s}" not in DISABLED_KEYS]
+            and f"{coin}:{s}" not in DISABLED_KEYS
+            and f"{coin}:{s}" not in ADVISOR_ONLY_KEYS]
 
 
 def _evaluate_side(side: str, mtf: dict, regime: str,

@@ -358,5 +358,15 @@ def advice_score():
             "win_rate": round(sum(1 for p in closed_rows if p["pnl_usd"] > 0)
                               / len(closed_rows), 3) if closed_rows else None,
         }
+    # per-key × source (2026-08-22: advisor-only коллы — kill-критерий
+    # 8 закрытых с WR<40% или PnL<−$20 смотрится здесь)
+    by_key: dict = {}
+    for p in all_pos:
+        if p["status"] == "open" or p["pnl_usd"] is None:
+            continue
+        src = "advisor" if '"source": "advisor"' in (p.get("signal_payload") or "") else "bot"
+        k = by_key.setdefault(f"{p['coin']}:{p['side']}", {}).setdefault(
+            src, {"n": 0, "wins": 0, "pnl_usd": 0.0})
+        k["n"] += 1; k["wins"] += p["pnl_usd"] > 0; k["pnl_usd"] = round(k["pnl_usd"] + p["pnl_usd"], 2)
     return {"n_advices": len(records), "aggregate": agg, "entries": entries,
-            "details": details[-100:]}
+            "by_key": by_key, "details": details[-100:]}

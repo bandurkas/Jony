@@ -710,3 +710,46 @@ class TestExitSpreadGuard(unittest.TestCase):
         row = self._row(pid)
         self.assertEqual(row["status"], "closed_manual")
         self.assertAlmostEqual(row["exit_debit"], 130.0 * 1.05)
+
+
+class TestAdvisorTrailAlways(unittest.TestCase):
+    """2026-08-22: advisor-позиции под трейлингом в любой posture."""
+
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        self.conn.execute("DELETE FROM positions")
+        self.conn.execute("DELETE FROM bot_state")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+
+    def _run(self, pid, payload, mark):
+        self.conn.execute("UPDATE positions SET signal_payload=?, peak_profit_pct=0.5 WHERE id=?",
+                          (payload, pid))
+        self.conn.commit()
+        marks = {"ETH-TEST": {"mark": mark, "bid": mark - 0.1, "ask": mark + 0.1}}
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value=marks), \
+             patch("loop.notify"), \
+             patch.object(jony_loop.portfolio, "effective_posture", return_value="normal"), \
+             patch.object(jony_loop, "acct_breaker", return_value=None):
+            jony_loop.manage_exits(self.conn, repo.get_state(self.conn), 60_000)
+        return dict(self.conn.execute(
+            "SELECT status, exit_reason FROM positions WHERE id=?", (pid,)).fetchone())
+
+    def test_is_advisor_position(self):
+        self.assertTrue(jony_loop.is_advisor_position({"signal_payload": '{"source": "advisor"}'}))
+        self.assertFalse(jony_loop.is_advisor_position({"signal_payload": '{"ready": true}'}))
+        self.assertFalse(jony_loop.is_advisor_position({"signal_payload": None}))
+        self.assertFalse(jony_loop.is_advisor_position({"signal_payload": "not json"}))
+
+    def test_advisor_position_trails_in_normal_posture(self):
+        # entry 30, peak 50%, mark 21 → pnl 30% ≤ peak−giveback(10pp) → trail
+        pid = _mk_pos(self.conn, side="C", entry=30.0)
+        row = self._run(pid, '{"source": "advisor", "active_side": "C"}', 21.0)
+        self.assertEqual(row["status"], "closed_trail")
+        self.assertEqual(row["exit_reason"], "trail_lock")
+
+    def test_bot_position_no_trail_in_normal_posture(self):
+        pid = _mk_pos(self.conn, side="C", entry=30.0)
+        row = self._run(pid, '{"ready": true, "active_side": "C"}', 21.0)
+        self.assertEqual(row["status"], "open")

@@ -114,6 +114,34 @@ your_previous_advice — твоя рекомендация в прошлый р�
   IV−RV жирный. Продолжающийся слив (24ч минус, у 7д-лоу) — не предлагать.
   Качество важнее частоты: обычно entry_proposal = null, максимум 1-2
   предложения в сутки.
+
+SHORT CALL (ETH:C, BTC:C) — ИСПЫТАТЕЛЬНЫЕ advisor-only ключи. Механика их
+не торгует (live ETH:C −$41/WR 18%, бэктест минус во всех конфигах, хвост —
+blow-off top); ты — единственный источник колл-сигнала, и это A/B-тест тебя.
+Почему колл ≠ пут: хвост вверх в крипте открытый (squeeze, ликвидации
+шортов), hold всего 24ч (пут — 120ч), SL ближе. Экспектанса колла — только
+если рост ВЫДОХСЯ в ближайшие сутки. Предлагай short call, когда ВСЕ
+условия выполнены (они продублированы кодом, нарушение = отказ):
+  1. 24ч изменение в [−6%; +0.5%] — не после зелёного дня и не в день краха
+     (после краха отскок-squeeze бьёт колл сильнее теты);
+  2. |1ч изменение| ≤ 1% — не в момент импульса;
+  3. 7д изменение ≤ +12% — не в параболе;
+  4. спот ниже 7д-хая ≥ 1.5% — не продавать колл на свежем хае;
+  5. iv_minus_rv24 > 0 и вола НЕ ускоряется (rv24 vs rv24_prev_day);
+  6. funding в [−0.01%; +0.05%]/8ч — шорты не перегружены (squeeze-риск),
+     лонги не в эйфории;
+  7. confidence ≥ 0.7 (строже, чем у путов), не больше 1 колла в сутки.
+Что усиливает сигнал: откат от 7д-хая 2–6% на падающем rv, IV ATM выше
+rv24 заметно, OI не растёт, 1ч/24ч около нуля. Что запрещает даже при
+выполнении чисел: известные события в ближайшие 24ч (FOMC/CPI/крупные
+разблокировки), резкий рост OI с положительным funding (разгон), новостной
+фон «ETF/листинг/апгрейд». Для ETH:C — дополнительно смотри на BTC: колл на
+ETH при BTC у хаёв — нет.
+Выход: каждая advisor-позиция закрывается трейлингом автоматически (arm 20%
+кредита / откат 10 п.п.), плюс штатные TP2 70% / SL / 24ч. Твои HOLD/CLOSE
+по коллам — по общей политике выше. Вход на пике ралли трейлинг не спасёт.
+Kill-критерий эксперимента (код): ≥8 закрытых advisor-коллов с WR<40% или
+PnL<−$20 — коллы выключаются автоматически.
 Ответ давай вызовом tool give_advice: market_view/summary/reason — кратко и
 по-русски; по каждой открытой позиции ровно одна запись в positions.
 tg_summary — одна строка ≤90 символов для мобильного пуша (суть + действие),
@@ -171,7 +199,8 @@ def market_block(client: BybitClient) -> dict:
     for coin, sym in (("BTC", "BTCUSDT"), ("ETH", "ETHUSDT")):
         kl = client.get_klines(sym, "60", 168)  # 7d of 1h bars, oldest-first
         closes = [k["close"] for k in kl]
-        if len(closes) < 25:
+        if len(closes) < 168:  # усечённый ответ → 7д-метрики врут; монета fail-closed
+            print(f"[advisor] market_block: {coin} skipped, only {len(closes)} bars", flush=True)
             continue
         last = closes[-1]
         rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
@@ -443,6 +472,21 @@ ENTRY_MIN_CONFIDENCE = float(os.getenv("ADVISOR_ENTRY_MIN_CONF", "0.6"))
 MAX_ENTRIES_PER_DAY = int(os.getenv("ADVISOR_MAX_ENTRIES_PER_DAY", "2"))
 ENTRY_MIN_GAP_H = float(os.getenv("ADVISOR_ENTRY_MIN_GAP_H", "4"))
 REVENGE_WINDOW_H = float(os.getenv("ADVISOR_REVENGE_WINDOW_H", "4"))
+# CALL-специфичные guardrails (2026-08-22, advisor-only коллы): короткий колл
+# в крипте — открытый хвост вверх (squeeze/blow-off), hold всего 24ч, live
+# ETH:C −$41/WR 18%. Порог строже, условия «рост выдохся» продублированы кодом.
+CALL_MIN_CONF = float(os.getenv("ADVISOR_CALL_MIN_CONF", "0.7"))
+CALL_MAX_PER_DAY = int(os.getenv("ADVISOR_CALL_MAX_PER_DAY", "1"))
+CALL_MAX_CHG_24H = float(os.getenv("ADVISOR_CALL_MAX_CHG_24H", "0.5"))     # % — не после зелёного дня
+CALL_MIN_CHG_24H = float(os.getenv("ADVISOR_CALL_MIN_CHG_24H", "-6.0"))    # % — не в день краха (squeeze)
+CALL_MAX_ABS_CHG_1H = float(os.getenv("ADVISOR_CALL_MAX_ABS_CHG_1H", "1.0"))
+CALL_MAX_CHG_7D = float(os.getenv("ADVISOR_CALL_MAX_CHG_7D", "12.0"))      # % — не в параболе
+CALL_MIN_DIST_7D_HIGH = float(os.getenv("ADVISOR_CALL_MIN_DIST_7D_HIGH", "1.5"))
+CALL_FUNDING_MIN = float(os.getenv("ADVISOR_CALL_FUNDING_MIN", "-0.01"))   # %/8ч — шорты не перегружены
+CALL_FUNDING_MAX = float(os.getenv("ADVISOR_CALL_FUNDING_MAX", "0.05"))
+CALL_KILL_MIN_N = int(os.getenv("ADVISOR_CALL_KILL_MIN_N", "8"))           # предрегистрированный kill
+CALL_KILL_WR = float(os.getenv("ADVISOR_CALL_KILL_WR", "0.40"))
+CALL_KILL_PNL = float(os.getenv("ADVISOR_CALL_KILL_PNL", "-20.0"))
 WAKE_MIN_GAP_MIN = int(os.getenv("ADVISOR_WAKE_MIN_GAP_MIN", "10"))
 WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
 WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
@@ -523,10 +567,67 @@ def enabled_free_keys(open_positions: list[dict]) -> list[str]:
     return out
 
 
+def call_kill_active(by_key: dict | None) -> str | None:
+    """Предрегистрированный kill-критерий эксперимента advisor-only коллов:
+    суммарно по ETH:C+BTC:C advisor-сделкам n>=CALL_KILL_MIN_N и (WR<CALL_KILL_WR
+    или PnL<CALL_KILL_PNL) -> коллы запрещены кодом. None = эксперимент жив."""
+    n = wins = 0
+    pnl = 0.0
+    for key, srcs in (by_key or {}).items():
+        if key.endswith(":C") and isinstance(srcs, dict) and "advisor" in srcs:
+            a = srcs["advisor"]
+            n += a.get("n", 0); wins += a.get("wins", 0); pnl += a.get("pnl_usd", 0.0)
+    if n < CALL_KILL_MIN_N:
+        return None
+    wr = wins / n
+    if wr < CALL_KILL_WR or pnl < CALL_KILL_PNL:
+        return f"call kill-switch: n={n} WR={wr:.0%} PnL={pnl:+.2f}"
+    return None
+
+
+def call_guard(prop: dict, mkt: dict, recent_call_ts: list[int], now_ms: int,
+               by_key: dict | None = None) -> str | None:
+    """Код-дубль условий промпта для short call. Возвращает причину отказа
+    или None. Все пороги — env ADVISOR_CALL_*."""
+    if by_key is None:
+        return "track record unavailable (fail-closed)"
+    kill = call_kill_active(by_key)
+    if kill:
+        return kill
+    if (prop.get("confidence") or 0) < CALL_MIN_CONF:
+        return f"confidence<{CALL_MIN_CONF}"
+    if sum(1 for t in recent_call_ts if now_ms - t < 24 * 3_600_000) >= CALL_MAX_PER_DAY:
+        return "call daily cap"
+    c24 = mkt.get("chg_24h_pct")
+    c1 = mkt.get("chg_1h_pct")
+    c7 = mkt.get("chg_7d_pct")
+    dh = mkt.get("dist_from_7d_high_pct")
+    if c24 is None or c1 is None or c7 is None or dh is None:
+        return "market fields missing"
+    if c24 > CALL_MAX_CHG_24H:
+        return f"chg_24h {c24:+.1f}% > {CALL_MAX_CHG_24H}"
+    if c24 < CALL_MIN_CHG_24H:
+        return f"chg_24h {c24:+.1f}% < {CALL_MIN_CHG_24H} (squeeze risk)"
+    if abs(c1) > CALL_MAX_ABS_CHG_1H:
+        return f"|chg_1h| {c1:+.1f}% > {CALL_MAX_ABS_CHG_1H}"
+    if c7 > CALL_MAX_CHG_7D:
+        return f"chg_7d {c7:+.1f}% > {CALL_MAX_CHG_7D} (parabolic)"
+    if abs(dh) < CALL_MIN_DIST_7D_HIGH:
+        return f"dist_from_7d_high {abs(dh):.1f}% < {CALL_MIN_DIST_7D_HIGH}"
+    f = mkt.get("funding_rate_pct")
+    if f is None:
+        return "funding missing"
+    if not (CALL_FUNDING_MIN <= f <= CALL_FUNDING_MAX):
+        return f"funding {f:+.4f}% outside [{CALL_FUNDING_MIN}, {CALL_FUNDING_MAX}]"
+    return None
+
+
 def decide_entry(advice: dict, market: dict, positions: list[dict],
                  posture: str, recent_entry_ts: list[int],
                  now_ms: int, last_loss_ms: int | None = None,
-                 mech_gates: dict | None = None) -> dict | None:
+                 mech_gates: dict | None = None,
+                 recent_call_ts: list[int] | None = None,
+                 by_key: dict | None = None) -> dict | None:
     """Hard deterministic guardrails for an advisor entry proposal. Returns
     the proposal dict if it may execute, else None. Pure function.
     - ENTRIES_MODE on, confidence floor, valid enabled key
@@ -556,6 +657,11 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     mkt = market.get(coin) or {}
     if (mkt.get("iv_minus_rv24") or 0) <= 0 or mkt.get("vol_accelerating"):
         return None
+    if side == "C":
+        why = call_guard(prop, mkt, recent_call_ts or [], now_ms, by_key)
+        if why:
+            print(f"[advisor] call entry rejected: {why}", flush=True)
+            return None
     # Контр-трендовые входы (ревью 2026-08-17): промпт-условия «слив выдохся»
     # продублированы КОДОМ — одна генерация LLM не может быть единственным
     # предохранителем. Fail closed: протухший gate-снапшот = отказ.
@@ -718,25 +824,40 @@ def mechanical_gates_block(conn) -> dict:
 
 
 
+_kill_notified: list = []  # одноразовый TG при срабатывании kill-switch
+_last_by_key: dict | None = None  # per-key скоринг из /advice/score; None = API недоступен (fail-closed для коллов)
+
+
 def track_record_block() -> dict | None:
     """Собственный скоринг советника из /advice/score (P2 2026-08-17):
     подаётся ему же на вход для самокоррекции. None при недоступности API."""
+    global _last_by_key
     try:
         r = requests.get(f"{API_BASE}/advice/score", timeout=5)
-        agg = r.json().get("aggregate")
+        j = r.json()
+        _last_by_key = j.get("by_key") or {}
+        agg = j.get("aggregate")
+        if agg and j.get("by_key"):
+            agg = dict(agg, by_key=j["by_key"])
         return agg or None
     except Exception as e:
         print(f"[advisor] track_record unavailable: {e}", flush=True)
+        _last_by_key = None
         return None
 
 
 
+_last_call_ts: list[int] = []  # call-входы <24ч, заполняется _load_history
+
+
 def _load_history(now_ms: int) -> tuple[dict | None, list[int], list[int]]:
     """(previous advice record, auto-close timestamps <1h,
-    advisor-entry timestamps <24h)."""
+    advisor-entry timestamps <24h); call-входы <24ч -> _last_call_ts."""
     prev = None
     exec_ts: list[int] = []
     entry_ts: list[int] = []
+    call_ts: list[int] = []
+    _last_call_ts.clear()
     if not ADVICE_PATH.exists():
         return prev, exec_ts, entry_ts
     try:
@@ -749,10 +870,14 @@ def _load_history(now_ms: int) -> tuple[dict | None, list[int], list[int]]:
             rec = json.loads(ln)
             if now_ms - rec["ts_ms"] < 3_600_000:
                 exec_ts += [rec["ts_ms"]] * len(rec.get("executed", []))
-            if rec.get("entry_requested") and now_ms - rec["ts_ms"] < 24 * 3_600_000:
+            er = rec.get("entry_requested")
+            if er and now_ms - rec["ts_ms"] < 24 * 3_600_000:
                 entry_ts.append(rec["ts_ms"])
+                if isinstance(er, dict) and er.get("side") == "C":
+                    call_ts.append(rec["ts_ms"])
     except Exception as e:
         print(f"[advisor] history read failed: {e}", flush=True)
+    _last_call_ts.extend(call_ts)
     return prev, exec_ts, entry_ts
 
 
@@ -822,9 +947,14 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
             conn.close()
 
     # 3) entry proposal -> loop's entry queue (guardrails in decide_entry)
+    kill = call_kill_active(_last_by_key)
+    if kill and not _kill_notified:
+        _kill_notified.append(True)
+        notify(f"JONY CALL-эксперимент остановлен кодом: {kill}")
     entry = decide_entry(advice, market, pos, new_posture,
                          recent_entry_ts, now_ms, last_loss_ms,
-                         mech_gates=mech_gates)
+                         mech_gates=mech_gates, recent_call_ts=list(_last_call_ts),
+                         by_key=_last_by_key)
     if entry:
         conn = repo.connect()
         try:

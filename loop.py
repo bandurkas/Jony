@@ -35,6 +35,15 @@ def fetch_klines(coin: str) -> tuple[list, list, list]:
     return k5, k15, k1h
 
 
+def is_advisor_position(p: dict) -> bool:
+    """Позиция открыта по заявке советника (source=advisor в signal_payload)."""
+    try:
+        d = json.loads(p.get("signal_payload") or "{}")
+    except (TypeError, ValueError):
+        return False
+    return isinstance(d, dict) and d.get("source") == "advisor"
+
+
 def spread_abnormal(m: dict) -> bool:
     """Ask оторван от mark сильнее EXIT_SPREAD_GUARD — пустой стакан/спайк."""
     mark, ask = m.get("mark") or 0.0, m.get("ask") or 0.0
@@ -153,8 +162,11 @@ def manage_exits(conn, state: dict, now_ms: int,
             # через lockdown). Молодой профит под lockdown защищает
             # трейлинг-ветка ниже; полная эвакуация — Close All у человека.
             reason, status = "lockdown_profit_lock", "closed_trail"
-        elif posture in ("tight", "lockdown") and \
+        elif (posture in ("tight", "lockdown") or is_advisor_position(p)) and \
                 portfolio.trail_exit_due(peak, pnl_pct_mark):
+            # advisor-входы (в т.ч. advisor-only коллы) — под трейлингом
+            # ВСЕГДА: экспериментальный источник сигнала, профит защищаем
+            # механически (решение пользователя 2026-08-22)
             reason, status = "trail_lock", "closed_trail"
         if reason:
             # пустой стакан (bid 30/ask 1045 при mark 130, поз.65 2026-08-19):

@@ -114,3 +114,27 @@ class TestConfigC(unittest.TestCase):
             self.assertFalse(ev2["no_side_allowed"])  # ret 0 -> P допустим
         finally:
             st.DISABLED_KEYS = old
+
+
+class TestAdvisorOnlyKeys(unittest.TestCase):
+    """2026-08-22: коллы — advisor-only: механика не торгует, советник может."""
+
+    def test_mechanics_exclude_advisor_only_keys(self):
+        import core.strategy as st
+        import advisor
+        old_d, old_a, old_adv0 = st.DISABLED_KEYS, st.ADVISOR_ONLY_KEYS, advisor.DISABLED_KEYS
+        try:
+            st.DISABLED_KEYS = frozenset(); advisor.DISABLED_KEYS = frozenset()
+            st.ADVISOR_ONLY_KEYS = frozenset({"ETH:C", "BTC:C"})
+            self.assertNotIn("C", st.allowed_sides("ETH", -5.0))   # C-зона, но advisor-only
+            self.assertEqual(st.allowed_sides("BTC", 0.0), ["P"])
+            # советник видит ключ как доступный (DISABLED_KEYS пуст)
+            self.assertIn("ETH:C", advisor.enabled_free_keys([]))
+            old_adv = advisor.DISABLED_KEYS
+            advisor.DISABLED_KEYS = frozenset({"ETH:C"})  # advisor импортирует по имени
+            try:
+                self.assertNotIn("ETH:C", advisor.enabled_free_keys([]))  # kill-switch сильнее
+            finally:
+                advisor.DISABLED_KEYS = old_adv
+        finally:
+            st.DISABLED_KEYS, st.ADVISOR_ONLY_KEYS, advisor.DISABLED_KEYS = old_d, old_a, old_adv0
