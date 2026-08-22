@@ -35,11 +35,22 @@ def fetch_klines(coin: str) -> tuple[list, list, list]:
     return k5, k15, k1h
 
 
-def close_fill_price(m: dict) -> float:
-    """Paper buy-to-close: pay the ask when quoted, else mark +1%."""
+def spread_abnormal(m: dict) -> bool:
+    """Ask оторван от mark сильнее EXIT_SPREAD_GUARD — пустой стакан/спайк."""
+    mark, ask = m.get("mark") or 0.0, m.get("ask") or 0.0
+    return mark > 0 and ask > mark * (1 + config.EXIT_SPREAD_GUARD)
+
+
+def close_fill_price(m: dict, cap_slip: bool = False) -> float:
+    """Paper buy-to-close: pay the ask when quoted, else mark +1%.
+    cap_slip=True — лимитка у mark*(1+EXIT_MAX_SLIP): для профит-выходов,
+    которые уже отложены EXIT_DEFER_MAX_MIN и стакан так и не пришёл в норму."""
+    mark = m.get("mark") or 0.0
     if m.get("ask"):
+        if cap_slip and mark > 0:
+            return min(m["ask"], mark * (1 + config.EXIT_MAX_SLIP))
         return m["ask"]
-    return (m.get("mark") or 0.0) * 1.01
+    return mark * 1.01
 
 
 def acct_breaker(conn, state: dict, now_ms: int) -> str | None:
@@ -51,6 +62,7 @@ def acct_breaker(conn, state: dict, now_ms: int) -> str | None:
 
 
 _mark_logged_min: dict[int, int] = {}  # pos_id -> последняя минута записи марки (P1)
+_exit_deferred_since: dict[int, int] = {}  # pos_id -> ms первого отложенного выхода
 
 
 def manage_exits(conn, state: dict, now_ms: int,
@@ -67,6 +79,7 @@ def manage_exits(conn, state: dict, now_ms: int,
     if not open_pos:
         if stuck_alerted:
             stuck_alerted.clear()
+        _exit_deferred_since.clear()
         return state
     posture = portfolio.effective_posture(*repo.get_risk_posture(conn), now_ms)
     if posture == "normal" and acct_breaker(conn, state, now_ms):
@@ -144,12 +157,30 @@ def manage_exits(conn, state: dict, now_ms: int,
                 portfolio.trail_exit_due(peak, pnl_pct_mark):
             reason, status = "trail_lock", "closed_trail"
         if reason:
+            # пустой стакан (bid 30/ask 1045 при mark 130, поз.65 2026-08-19):
+            # любой выход платит не больше mark*(1+EXIT_MAX_SLIP); tp2/time_stop
+            # до экспирации ещё и ждут нормализации книги (не вечно). trail/
+            # lockdown/SL — защитные, ждать им нельзя: фил сразу, капированный.
+            # Таймер in-memory: рестарт loop даёт ещё ≤EXIT_DEFER_MAX_MIN —
+            # осознанно, персистить ради 10 минут не стоит.
+            cap_slip = spread_abnormal(m)
+            if cap_slip and reason in ("tp2", "time_stop") \
+                    and now_ms < p["expiry_ms"]:
+                since = _exit_deferred_since.setdefault(p["id"], now_ms)
+                if now_ms - since < config.EXIT_DEFER_MAX_MIN * 60_000:
+                    if since == now_ms:
+                        print(f"[jony] exit {reason} pos {p['id']} deferred: "
+                              f"ask {m['ask']} vs mark {mark:.2f}", flush=True)
+                    continue
             # posture exits lock in profit — they are protective harvests,
             # not strategy losses, so they never arm the circuit breaker
             arm = status != "closed_trail"
-            _close(conn, state, p, now_ms, close_fill_price(m), reason, status,
-                   arm_cb=arm)
+            _close(conn, state, p, now_ms, close_fill_price(m, cap_slip),
+                   reason, status, arm_cb=arm)
+            _exit_deferred_since.pop(p["id"], None)
             state = repo.get_state(conn)
+        else:
+            _exit_deferred_since.pop(p["id"], None)
 
     # Prune any id that resolved via a path other than expiry-settle (normal
     # TP2/SL/time_stop above, or a manual close-all between ticks — that one
@@ -162,6 +193,7 @@ def manage_exits(conn, state: dict, now_ms: int,
     for pid in list(_mark_logged_min):
         if pid not in still_open:
             _mark_logged_min.pop(pid, None)
+            _exit_deferred_since.pop(pid, None)
     return state
 
 
@@ -180,7 +212,7 @@ def close_all_now(conn, state: dict, now_ms: int) -> dict:
             print(f"[jony] close_all: no quote for {p['option_symbol']}, "
                   f"skipped (retry next tick)", flush=True)
             continue
-        _close(conn, state, p, now_ms, close_fill_price(m),
+        _close(conn, state, p, now_ms, close_fill_price(m, cap_slip=True),
                "manual_close_all", "closed_manual", arm_cb=False)
         state = repo.get_state(conn)
     return state
@@ -205,7 +237,7 @@ def close_position_now(conn, state: dict, pos_id: int, now_ms: int) -> dict:
         print(f"[jony] close_position {pos_id}: no quote for {p['option_symbol']}, "
               f"skipped (will retry on next manual request)", flush=True)
         return state
-    _close(conn, state, p, now_ms, close_fill_price(m),
+    _close(conn, state, p, now_ms, close_fill_price(m, cap_slip=True),
            "manual_close_one", "closed_manual", arm_cb=False)
     return repo.get_state(conn)
 

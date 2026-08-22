@@ -574,3 +574,139 @@ class TestPositionMarkLogging(unittest.TestCase):
             jony_loop.manage_exits(self.conn, state, now_ms=60_000)
         n = self.conn.execute("SELECT COUNT(*) FROM position_marks").fetchone()[0]
         self.assertEqual(n, 0)
+
+
+class TestExitSpreadGuard(unittest.TestCase):
+    """2026-08-22: pos #65 — TP2 по mark 130 (peak 87%), fill по ask 1045
+    в пустом стакане на спайке BTC → +$8.7 превратились в −$0.64."""
+
+    def setUp(self):
+        self.conn = repo.connect()
+        repo.apply_schema(self.conn)
+        self.conn.execute("DELETE FROM positions")
+        self.conn.execute("DELETE FROM bot_state")
+        self.conn.commit()
+        repo.init_state(self.conn, 800.0, 0)
+        jony_loop._exit_deferred_since.clear()
+
+    def _row(self, pid):
+        return dict(self.conn.execute(
+            "SELECT status, exit_debit, exit_reason FROM positions WHERE id=?",
+            (pid,)).fetchone())
+
+    def _tick(self, marks, now_ms):
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value=marks), patch("loop.notify"), \
+             patch.object(jony_loop.portfolio, "effective_posture",
+                          return_value="normal"), \
+             patch.object(jony_loop, "acct_breaker", return_value=None):
+            jony_loop.manage_exits(self.conn, state, now_ms)
+
+    def test_close_fill_price_cap(self):
+        m = {"mark": 130.0, "bid": 30.0, "ask": 1045.0}
+        self.assertTrue(jony_loop.spread_abnormal(m))
+        self.assertEqual(jony_loop.close_fill_price(m), 1045.0)
+        self.assertAlmostEqual(jony_loop.close_fill_price(m, cap_slip=True),
+                               130.0 * 1.05)
+        ok = {"mark": 13.3, "bid": 13.0, "ask": 13.8}
+        self.assertFalse(jony_loop.spread_abnormal(ok))
+        self.assertEqual(jony_loop.close_fill_price(ok, cap_slip=True), 13.8)
+        self.assertAlmostEqual(jony_loop.close_fill_price({"mark": 10.0}), 10.1)
+
+    def test_tp2_deferred_then_filled_at_normal_book(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        self._tick(bad, 60_000)
+        self.assertEqual(self._row(pid)["status"], "open")  # отложено, не 1045
+        self.assertIn(pid, jony_loop._exit_deferred_since)
+        good = {"ETH-TEST": {"mark": 135.0, "bid": 130.0, "ask": 140.0}}
+        self._tick(good, 120_000)
+        row = self._row(pid)
+        self.assertEqual(row["status"], "closed_tp2")
+        self.assertEqual(row["exit_debit"], 140.0)
+        self.assertNotIn(pid, jony_loop._exit_deferred_since)
+
+    def test_tp2_deferred_max_then_capped_fill(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        self._tick(bad, 60_000)
+        self._tick(bad, 60_000 + 5 * 60_000)
+        self.assertEqual(self._row(pid)["status"], "open")
+        self._tick(bad, 60_000 + 10 * 60_000)  # EXIT_DEFER_MAX_MIN исчерпан
+        row = self._row(pid)
+        self.assertEqual(row["status"], "closed_tp2")
+        self.assertAlmostEqual(row["exit_debit"], 130.0 * 1.05)
+
+    def test_defer_reset_when_signal_goes_away(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        self._tick(bad, 60_000)
+        self.assertIn(pid, jony_loop._exit_deferred_since)
+        # mark вернулся выше TP2-порога — выход больше не due, таймер сброшен
+        self._tick({"ETH-TEST": {"mark": 900.0, "bid": 890.0, "ask": 910.0}}, 120_000)
+        self.assertEqual(self._row(pid)["status"], "open")
+        self.assertNotIn(pid, jony_loop._exit_deferred_since)
+
+    def test_sl_never_deferred_but_capped(self):
+        pid = _mk_pos(self.conn, side="P", entry=100.0, qty=0.01, sl=0.75)
+        bad = {"ETH-TEST": {"mark": 180.0, "bid": 170.0, "ask": 260.0}}
+        self._tick(bad, 60_000)
+        row = self._row(pid)
+        self.assertEqual(row["status"], "closed_sl")
+        self.assertAlmostEqual(row["exit_debit"], 180.0 * 1.05)
+
+    def test_trail_not_deferred(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        self.conn.execute("UPDATE positions SET peak_profit_pct=0.5 WHERE id=?", (pid,))
+        self.conn.commit()
+        bad = {"ETH-TEST": {"mark": 700.0, "bid": 30.0, "ask": 1045.0}}  # 31% < peak 50% − giveback
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value=bad), \
+             patch("loop.notify"), \
+             patch.object(jony_loop.portfolio, "effective_posture", return_value="tight"), \
+             patch.object(jony_loop, "acct_breaker", return_value=None):
+            jony_loop.manage_exits(self.conn, state, 60_000)
+        row = self._row(pid)
+        self.assertEqual(row["exit_reason"], "trail_lock")
+        self.assertAlmostEqual(row["exit_debit"], 700.0 * 1.05)
+
+    def test_expired_not_deferred(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        self.conn.execute("UPDATE positions SET expiry_ms=50000 WHERE id=?", (pid,))
+        self.conn.commit()
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        self._tick(bad, 60_000)
+        self.assertEqual(self._row(pid)["status"], "closed_tp2")
+
+    def test_closed_elsewhere_while_deferred_clears_timer(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01, tp2=0.70)
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        self._tick(bad, 60_000)
+        self.assertIn(pid, jony_loop._exit_deferred_since)
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks", return_value=bad), \
+             patch("loop.notify"):
+            jony_loop.close_position_now(self.conn, state, pid, now_ms=90_000)
+        self._tick(bad, 120_000)
+        self.assertNotIn(pid, jony_loop._exit_deferred_since)
+
+    def test_manual_close_no_mark_pays_ask(self):
+        pid = _mk_pos(self.conn, side="P", entry=100.0, qty=0.01)
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value={"ETH-TEST": {"mark": None, "bid": 40.0, "ask": 50.0}}), \
+             patch("loop.notify"):
+            jony_loop.close_position_now(self.conn, state, pid, now_ms=1000)
+        self.assertEqual(self._row(pid)["exit_debit"], 50.0)
+
+    def test_manual_close_capped_not_deferred(self):
+        pid = _mk_pos(self.conn, side="P", entry=1020.0, qty=0.01)
+        bad = {"ETH-TEST": {"mark": 130.0, "bid": 30.0, "ask": 1045.0}}
+        state = repo.get_state(self.conn)
+        with patch.object(jony_loop.bybit_client, "get_option_marks",
+                          return_value=bad), patch("loop.notify"):
+            jony_loop.close_position_now(self.conn, state, pid, now_ms=1000)
+        row = self._row(pid)
+        self.assertEqual(row["status"], "closed_manual")
+        self.assertAlmostEqual(row["exit_debit"], 130.0 * 1.05)

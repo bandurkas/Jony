@@ -494,5 +494,43 @@ class TestCliBackend(unittest.TestCase):
             _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=down))
 
 
+class TestWakeCooldown(unittest.TestCase):
+    """2026-08-22: один триггер (позиция у страйка) будил модель каждые 10 мин
+    сутками — ~200 вызовов за 2 дня; теперь один ключ ≤ 1 побудки в 30 мин."""
+
+    def setUp(self):
+        advisor._wake_last.clear()
+
+    @staticmethod
+    def _kl(first, last):
+        return [{"close": first}, {"close": first}, {"close": first}, {"close": last}]
+
+    def test_triggers_keys(self):
+        pos = [{"id": 64, "coin": "ETH", "strike": 1900.0}]
+        kl = {"BTC": self._kl(64000, 65500), "ETH": self._kl(1910, 1912)}
+        t = advisor._wake_triggers(pos, kl)
+        self.assertEqual([k for k, _ in t], ["move:BTC", "prox:64"])
+        self.assertEqual(advisor._wake_triggers(pos, {"ETH": self._kl(2100, 2101)}), [])
+
+    def test_same_key_cooldown_other_key_passes(self):
+        t = [("prox:64", "ETH у страйка")]
+        m = 60_000
+        self.assertIsNotNone(advisor.pick_wake(t, 0))
+        self.assertIsNone(advisor.pick_wake(t, 10 * m))
+        self.assertIsNone(advisor.pick_wake(t, 29 * m))
+        self.assertIsNotNone(advisor.pick_wake(t, 30 * m))
+        # другой триггер в кулдаун первого не попадает
+        self.assertEqual(advisor.pick_wake([("move:BTC", "BTC +2.6%")], 31 * m), "BTC +2.6%")
+        # оба в кулдауне → тишина, следующий плановый тик всё равно придёт
+        self.assertIsNone(advisor.pick_wake(t + [("move:BTC", "x")], 40 * m))
+
+    def test_wake_stamps_all_triggered_keys(self):
+        m = 60_000
+        a, b = ("move:BTC", "BTC +2%"), ("prox:64", "ETH у страйка")
+        self.assertEqual(advisor.pick_wake([a, b], 0), "BTC +2%")
+        self.assertIsNone(advisor.pick_wake([b], 10 * m))  # b видел модель вместе с a
+        self.assertIsNotNone(advisor.pick_wake([b], 30 * m))
+
+
 if __name__ == "__main__":
     unittest.main()

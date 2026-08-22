@@ -26,6 +26,13 @@ PER_COIN_CAP = int(os.getenv("JONY_PER_COIN_CAP", "6"))
 # the live book independently reproduced the failure mode (6 identical ETH
 # puts, then 76% of equity in one expiry). Default 1 since 2026-08-14.
 PER_KEY_CAP = int(os.getenv("JONY_PER_KEY_CAP", "1"))
+# exit spread-guard 2026-08-22 (pos #65: TP2 по mark 130, fill по ask 1045
+# в пустом стакане на спайке BTC): при ask > mark*(1+EXIT_SPREAD_GUARD)
+# fill = min(ask, mark*(1+EXIT_MAX_SLIP)); tp2/time_stop до экспирации
+# сначала ждут нормализации книги до EXIT_DEFER_MAX_MIN.
+EXIT_SPREAD_GUARD = float(os.getenv("JONY_EXIT_SPREAD_GUARD", "0.10"))
+EXIT_MAX_SLIP = float(os.getenv("JONY_EXIT_MAX_SLIP", "0.05"))
+EXIT_DEFER_MAX_MIN = int(os.getenv("JONY_EXIT_DEFER_MAX_MIN", "10"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
 IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this

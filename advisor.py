@@ -446,6 +446,11 @@ REVENGE_WINDOW_H = float(os.getenv("ADVISOR_REVENGE_WINDOW_H", "4"))
 WAKE_MIN_GAP_MIN = int(os.getenv("ADVISOR_WAKE_MIN_GAP_MIN", "10"))
 WAKE_SPOT_MOVE_PCT = float(os.getenv("ADVISOR_WAKE_SPOT_MOVE_PCT", "2.0"))
 WAKE_STRIKE_PROX_PCT = float(os.getenv("ADVISOR_WAKE_STRIKE_PROX_PCT", "1.5"))
+# 2026-08-22: поз.64 стояла у страйка 32ч → ~200 внеплановых вызовов за 2 дня
+# (110 тиков 18.08), все HOLD. Один и тот же триггер (движение монеты /
+# близость страйка конкретной позиции) не будит модель чаще раза в N минут.
+WAKE_REASON_COOLDOWN_MIN = int(os.getenv("ADVISOR_WAKE_REASON_COOLDOWN_MIN", "30"))
+_wake_last: dict[str, int] = {}  # trigger key -> ms последней побудки
 
 
 def close_policy_allows(snap: dict) -> bool:
@@ -575,30 +580,62 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     return prop
 
 
-def check_wake(client: BybitClient, now_ms: int) -> str | None:
+def _wake_triggers(open_pos: list[dict], klines: dict[str, list]) -> list[tuple[str, str]]:
+    """(key, reason) для всех сработавших триггеров; key — единица кулдауна."""
+    out = []
+    for coin, kl in klines.items():
+        if len(kl) < 4:
+            continue
+        spot = kl[-1]["close"]
+        move = (spot - kl[0]["close"]) / kl[0]["close"] * 100
+        if abs(move) >= WAKE_SPOT_MOVE_PCT:
+            out.append((f"move:{coin}", f"{coin} двинулся {move:+.1f}% за 15 минут"))
+        for p in open_pos:
+            if p["coin"] != coin:
+                continue
+            dist = abs(spot - p["strike"]) / p["strike"] * 100
+            if dist <= WAKE_STRIKE_PROX_PCT:
+                out.append((f"prox:{p['id']}",
+                            f"{coin} спот {spot:.0f} в {dist:.1f}% от страйка "
+                            f"{p['strike']:.0f} (позиция #{p['id']})"))
+    return out
+
+
+def pick_wake(triggers: list[tuple[str, str]], now_ms: int) -> str | None:
+    """Первый триггер вне кулдауна; фиксирует побудку по его ключу."""
+    cd = WAKE_REASON_COOLDOWN_MIN * 60_000
+    for key, reason in triggers:
+        if now_ms - _wake_last.get(key, -cd) >= cd:
+            # модель увидит ВСЕ текущие триггеры в одном вызове — штампуем все
+            for k, _ in triggers:
+                _wake_last[k] = now_ms
+            return reason
+    return None
+
+
+def check_wake(client: BybitClient, now_ms: int,
+               stamp_only: bool = False) -> str | None:
     """Cheap market triggers that justify calling the model off-schedule.
-    Runs every poll (60s), no LLM cost."""
+    Runs every poll (60s), no LLM cost; per-trigger cooldown (pick_wake).
+    stamp_only: после планового тика — модель уже видела текущее состояние,
+    активные триггеры уходят в кулдаун без побудки."""
     try:
         conn = repo.connect()
         try:
             open_pos = repo.open_positions(conn)
         finally:
             conn.close()
-        for coin, sym in (("BTC", "BTCUSDT"), ("ETH", "ETHUSDT")):
-            kl = client.get_klines(sym, "5", 4)  # last 15 min
-            if len(kl) < 4:
-                continue
-            spot = kl[-1]["close"]
-            move = (spot - kl[0]["close"]) / kl[0]["close"] * 100
-            if abs(move) >= WAKE_SPOT_MOVE_PCT:
-                return f"{coin} двинулся {move:+.1f}% за 15 минут"
-            for p in open_pos:
-                if p["coin"] != coin:
-                    continue
-                dist = abs(spot - p["strike"]) / p["strike"] * 100
-                if dist <= WAKE_STRIKE_PROX_PCT:
-                    return (f"{coin} спот {spot:.0f} в {dist:.1f}% от страйка "
-                            f"{p['strike']:.0f} (позиция #{p['id']})")
+        klines = {coin: client.get_klines(sym, "5", 4)  # last 15 min
+                  for coin, sym in (("BTC", "BTCUSDT"), ("ETH", "ETHUSDT"))}
+        live = {f"prox:{p['id']}" for p in open_pos} | {f"move:{c}" for c in klines}
+        for k in [k for k in _wake_last if k not in live]:
+            _wake_last.pop(k, None)
+        triggers = _wake_triggers(open_pos, klines)
+        if stamp_only:
+            for k, _ in triggers:
+                _wake_last[k] = now_ms
+            return None
+        return pick_wake(triggers, now_ms)
     except Exception as e:
         print(f"[advisor] wake check failed: {e}", flush=True)
     return None
@@ -857,6 +894,8 @@ def main() -> None:
                 tick(client, wake_reason=wake)
                 last_llm_ms = now_ms
                 fail_streak = 0
+                if due:
+                    check_wake(client, now_ms, stamp_only=True)
         except Exception as e:
             fail_streak += 1
             print(f"[advisor] tick failed (streak={fail_streak}): {e}",
