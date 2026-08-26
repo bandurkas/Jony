@@ -1,0 +1,452 @@
+[
+ {
+  "n": 4560,
+  "tr": 9.7,
+  "tr_dd": 23.3,
+  "ho": 16.6,
+  "ho_dd": 11.1,
+  "full": 24.7,
+  "full_dd": 29.4,
+  "taken": 175,
+  "q": [
+   8.7,
+   22.9,
+   -14.9,
+   20.3
+  ],
+  "variant": "baseline",
+  "pass": true
+ },
+ {
+  "n": 2598,
+  "tr": -11.6,
+  "tr_dd": 21.4,
+  "ho": 1.9,
+  "ho_dd": 15.1,
+  "full": -7.8,
+  "full_dd": 30.4,
+  "taken": 134,
+  "q": [
+   -5.4,
+   14.1,
+   -20.8,
+   4.4
+  ],
+  "variant": "A_filter_accel>1.3",
+  "pass": false
+ },
+ {
+  "n": 3199,
+  "tr": 15.0,
+  "tr_dd": 18.0,
+  "ho": 18.9,
+  "ho_dd": 11.0,
+  "full": 34.4,
+  "full_dd": 21.0,
+  "taken": 150,
+  "q": [
+   11.2,
+   16.2,
+   -20.9,
+   23.4
+  ],
+  "variant": "A_filter_accel>1.5",
+  "pass": true
+ },
+ {
+  "n": 3960,
+  "tr": 10.5,
+  "tr_dd": 19.5,
+  "ho": 14.7,
+  "ho_dd": 11.1,
+  "full": 24.6,
+  "full_dd": 25.5,
+  "taken": 165,
+  "q": [
+   7.7,
+   20.4,
+   -16.9,
+   19.3
+  ],
+  "variant": "A_filter_accel>2.0",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 0.3,
+  "tr_dd": 16.3,
+  "ho": 12.4,
+  "ho_dd": 11.0,
+  "full": 9.6,
+  "full_dd": 22.6,
+  "taken": 167,
+  "q": [
+   0.6,
+   11.4,
+   -11.5,
+   14.6
+  ],
+  "variant": "A_size_accel>1.3",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 2.8,
+  "tr_dd": 17.9,
+  "ho": 20.3,
+  "ho_dd": 11.0,
+  "full": 22.9,
+  "full_dd": 23.5,
+  "taken": 168,
+  "q": [
+   2.5,
+   14.4,
+   -12.3,
+   23.8
+  ],
+  "variant": "A_size_accel>1.5",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 9.7,
+  "tr_dd": 21.2,
+  "ho": 23.5,
+  "ho_dd": 11.0,
+  "full": 30.2,
+  "full_dd": 27.9,
+  "taken": 173,
+  "q": [
+   3.1,
+   20.4,
+   -13.3,
+   26.6
+  ],
+  "variant": "A_size_accel>2.0",
+  "pass": true
+ },
+ {
+  "n": 3543,
+  "tr": 4.6,
+  "tr_dd": 17.5,
+  "ho": 12.9,
+  "ho_dd": 15.1,
+  "full": 13.4,
+  "full_dd": 27.6,
+  "taken": 166,
+  "q": [
+   -1.3,
+   22.2,
+   -15.0,
+   16.3
+  ],
+  "variant": "B_filter_vp>0.85",
+  "pass": false
+ },
+ {
+  "n": 4166,
+  "tr": 10.5,
+  "tr_dd": 22.7,
+  "ho": 16.6,
+  "ho_dd": 11.1,
+  "full": 25.5,
+  "full_dd": 28.7,
+  "taken": 171,
+  "q": [
+   6.9,
+   26.2,
+   -15.2,
+   20.3
+  ],
+  "variant": "B_filter_vp>0.95",
+  "pass": true
+ },
+ {
+  "n": 4560,
+  "tr": 10.8,
+  "tr_dd": 22.9,
+  "ho": 21.4,
+  "ho_dd": 11.0,
+  "full": 29.3,
+  "full_dd": 29.0,
+  "taken": 172,
+  "q": [
+   4.2,
+   22.1,
+   -12.1,
+   25.2
+  ],
+  "variant": "B_size_vp>0.85",
+  "pass": true
+ },
+ {
+  "n": 4560,
+  "tr": 7.2,
+  "tr_dd": 18.1,
+  "ho": 10.8,
+  "ho_dd": 11.1,
+  "full": 15.1,
+  "full_dd": 23.5,
+  "taken": 152,
+  "q": [
+   6.1,
+   14.0,
+   -6.0,
+   10.8
+  ],
+  "variant": "C_size_transition",
+  "pass": false
+ },
+ {
+  "n": 1816,
+  "tr": 6.3,
+  "tr_dd": 16.5,
+  "ho": 4.3,
+  "ho_dd": 13.0,
+  "full": 9.3,
+  "full_dd": 18.7,
+  "taken": 120,
+  "q": [
+   0.0,
+   10.4,
+   -6.0,
+   5.8
+  ],
+  "variant": "C_filter_transition",
+  "pass": false
+ },
+ {
+  "n": 4512,
+  "tr": 9.9,
+  "tr_dd": 19.1,
+  "ho": 12.8,
+  "ho_dd": 11.4,
+  "full": 22.1,
+  "full_dd": 25.5,
+  "taken": 173,
+  "q": [
+   8.8,
+   17.3,
+   -14.9,
+   17.3
+  ],
+  "variant": "I_filter_chg24<-2",
+  "pass": false
+ },
+ {
+  "n": 4549,
+  "tr": 10.2,
+  "tr_dd": 20.6,
+  "ho": 12.8,
+  "ho_dd": 11.4,
+  "full": 22.6,
+  "full_dd": 26.9,
+  "taken": 173,
+  "q": [
+   8.7,
+   19.9,
+   -14.9,
+   17.3
+  ],
+  "variant": "I_filter_chg24<-3",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 9.7,
+  "tr_dd": 23.3,
+  "ho": 16.6,
+  "ho_dd": 11.1,
+  "full": 24.7,
+  "full_dd": 29.4,
+  "taken": 175,
+  "q": [
+   8.7,
+   22.9,
+   -14.9,
+   20.3
+  ],
+  "variant": "I_filter_chg24<-5",
+  "pass": true
+ },
+ {
+  "n": 3855,
+  "tr": 18.4,
+  "tr_dd": 18.4,
+  "ho": 15.9,
+  "ho_dd": 15.9,
+  "full": 30.0,
+  "full_dd": 27.7,
+  "taken": 165,
+  "q": [
+   5.7,
+   24.1,
+   -12.7,
+   19.6
+  ],
+  "variant": "I_filter_chg24>+3",
+  "pass": false
+ },
+ {
+  "n": 4403,
+  "tr": 13.8,
+  "tr_dd": 16.8,
+  "ho": 22.9,
+  "ho_dd": 11.6,
+  "full": 33.7,
+  "full_dd": 23.0,
+  "taken": 170,
+  "q": [
+   8.2,
+   26.7,
+   -15.2,
+   25.7
+  ],
+  "variant": "I_filter_chg24>+5",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 10.5,
+  "tr_dd": 22.1,
+  "ho": 15.4,
+  "ho_dd": 11.3,
+  "full": 24.0,
+  "full_dd": 28.2,
+  "taken": 175,
+  "q": [
+   8.7,
+   21.7,
+   -14.9,
+   19.2
+  ],
+  "variant": "I_size_chg24<-3",
+  "pass": false
+ },
+ {
+  "n": 4240,
+  "tr": 45.4,
+  "tr_dd": 17.2,
+  "ho": 12.2,
+  "ho_dd": 11.2,
+  "full": 67.2,
+  "full_dd": 22.6,
+  "taken": 163,
+  "q": [
+   21.8,
+   23.2,
+   -11.2,
+   18.1
+  ],
+  "variant": "J_filter_weekend",
+  "pass": false
+ },
+ {
+  "n": 3857,
+  "tr": 46.0,
+  "tr_dd": 17.1,
+  "ho": 13.8,
+  "ho_dd": 11.2,
+  "full": 68.2,
+  "full_dd": 22.6,
+  "taken": 155,
+  "q": [
+   22.9,
+   23.2,
+   -9.2,
+   19.5
+  ],
+  "variant": "J_filter_fri_after12",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 9.7,
+  "tr_dd": 22.9,
+  "ho": 16.3,
+  "ho_dd": 11.1,
+  "full": 25.4,
+  "full_dd": 29.6,
+  "taken": 169,
+  "q": [
+   9.0,
+   24.1,
+   -14.7,
+   21.8
+  ],
+  "variant": "J_size_weekend",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": 16.8,
+  "tr_dd": 13.2,
+  "ho": 19.1,
+  "ho_dd": 9.0,
+  "full": 36.0,
+  "full_dd": 15.5,
+  "taken": 163,
+  "q": [
+   9.3,
+   16.0,
+   -6.6,
+   19.9
+  ],
+  "variant": "E_size_near_hi1.5",
+  "pass": true
+ },
+ {
+  "n": 4477,
+  "tr": 14.4,
+  "tr_dd": 20.4,
+  "ho": 13.5,
+  "ho_dd": 11.3,
+  "full": 29.8,
+  "full_dd": 26.5,
+  "taken": 172,
+  "q": [
+   8.7,
+   21.9,
+   -10.7,
+   20.6
+  ],
+  "variant": "E_filter_near_lo2",
+  "pass": false
+ },
+ {
+  "n": 4560,
+  "tr": -2.1,
+  "tr_dd": 15.4,
+  "ho": 13.2,
+  "ho_dd": 8.9,
+  "full": 9.9,
+  "full_dd": 20.0,
+  "taken": 140,
+  "q": [
+   2.1,
+   7.3,
+   -7.4,
+   14.0
+  ],
+  "variant": "K_size_accel1.5+trans",
+  "pass": false
+ },
+ {
+  "n": 3952,
+  "tr": 10.9,
+  "tr_dd": 18.6,
+  "ho": 12.9,
+  "ho_dd": 11.0,
+  "full": 20.6,
+  "full_dd": 24.6,
+  "taken": 164,
+  "q": [
+   7.5,
+   20.4,
+   -16.9,
+   15.3
+  ],
+  "variant": "K_filter_accel2+chg24<-3",
+  "pass": false
+ }
+]

@@ -1,0 +1,44 @@
+honest candidates 4560
+baseline                   n=4560 taken 175 | tr   +9.7/dd23.3 ho  +16.6/dd11.1 full  +24.7/dd29.4 | Q [np.float64(8.7), np.float64(22.9), np.float64(-14.9), np.float64(20.3)] PASS
+A_filter_accel>1.3         n=2598 taken 134 | tr  -11.6/dd21.4 ho   +1.9/dd15.1 full   -7.8/dd30.4 | Q [np.float64(-5.4), np.float64(14.1), np.float64(-20.8), np.float64(4.4)] 
+A_filter_accel>1.5         n=3199 taken 150 | tr  +15.0/dd18.0 ho  +18.9/dd11.0 full  +34.4/dd21.0 | Q [np.float64(11.2), np.float64(16.2), np.float64(-20.9), np.float64(23.4)] PASS
+A_filter_accel>2.0         n=3960 taken 165 | tr  +10.5/dd19.5 ho  +14.7/dd11.1 full  +24.6/dd25.5 | Q [np.float64(7.7), np.float64(20.4), np.float64(-16.9), np.float64(19.3)] 
+A_size_accel>1.3           n=4560 taken 167 | tr   +0.3/dd16.3 ho  +12.4/dd11.0 full   +9.6/dd22.6 | Q [np.float64(0.6), np.float64(11.4), np.float64(-11.5), np.float64(14.6)] 
+A_size_accel>1.5           n=4560 taken 168 | tr   +2.8/dd17.9 ho  +20.3/dd11.0 full  +22.9/dd23.5 | Q [np.float64(2.5), np.float64(14.4), np.float64(-12.3), np.float64(23.8)] 
+A_size_accel>2.0           n=4560 taken 173 | tr   +9.7/dd21.2 ho  +23.5/dd11.0 full  +30.2/dd27.9 | Q [np.float64(3.1), np.float64(20.4), np.float64(-13.3), np.float64(26.6)] PASS
+B_filter_vp>0.85           n=3543 taken 166 | tr   +4.6/dd17.5 ho  +12.9/dd15.1 full  +13.4/dd27.6 | Q [np.float64(-1.3), np.float64(22.2), np.float64(-15.0), np.float64(16.3)] 
+B_filter_vp>0.95           n=4166 taken 171 | tr  +10.5/dd22.7 ho  +16.6/dd11.1 full  +25.5/dd28.7 | Q [np.float64(6.9), np.float64(26.2), np.float64(-15.2), np.float64(20.3)] PASS
+B_size_vp>0.85             n=4560 taken 172 | tr  +10.8/dd22.9 ho  +21.4/dd11.0 full  +29.3/dd29.0 | Q [np.float64(4.2), np.float64(22.1), np.float64(-12.1), np.float64(25.2)] PASS
+C_size_transition          n=4560 taken 152 | tr   +7.2/dd18.1 ho  +10.8/dd11.1 full  +15.1/dd23.5 | Q [np.float64(6.1), np.float64(14.0), np.float64(-6.0), np.float64(10.8)] 
+C_filter_transition        n=1816 taken 120 | tr   +6.3/dd16.5 ho   +4.3/dd13.0 full   +9.3/dd18.7 | Q [np.float64(0.0), np.float64(10.4), np.float64(-6.0), np.float64(5.8)] 
+I_filter_chg24<-2          n=4512 taken 173 | tr   +9.9/dd19.1 ho  +12.8/dd11.4 full  +22.1/dd25.5 | Q [np.float64(8.8), np.float64(17.3), np.float64(-14.9), np.float64(17.3)] 
+I_filter_chg24<-3          n=4549 taken 173 | tr  +10.2/dd20.6 ho  +12.8/dd11.4 full  +22.6/dd26.9 | Q [np.float64(8.7), np.float64(19.9), np.float64(-14.9), np.float64(17.3)] 
+I_filter_chg24<-5          n=4560 taken 175 | tr   +9.7/dd23.3 ho  +16.6/dd11.1 full  +24.7/dd29.4 | Q [np.float64(8.7), np.float64(22.9), np.float64(-14.9), np.float64(20.3)] PASS
+I_filter_chg24>+3          n=3855 taken 165 | tr  +18.4/dd18.4 ho  +15.9/dd15.9 full  +30.0/dd27.7 | Q [np.float64(5.7), np.float64(24.1), np.float64(-12.7), np.float64(19.6)] 
+I_filter_chg24>+5          n=4403 taken 170 | tr  +13.8/dd16.8 ho  +22.9/dd11.6 full  +33.7/dd23.0 | Q [np.float64(8.2), np.float64(26.7), np.float64(-15.2), np.float64(25.7)] 
+I_size_chg24<-3            n=4560 taken 175 | tr  +10.5/dd22.1 ho  +15.4/dd11.3 full  +24.0/dd28.2 | Q [np.float64(8.7), np.float64(21.7), np.float64(-14.9), np.float64(19.2)] 
+J_filter_weekend           n=4240 taken 163 | tr  +45.4/dd17.2 ho  +12.2/dd11.2 full  +67.2/dd22.6 | Q [np.float64(21.8), np.float64(23.2), np.float64(-11.2), np.float64(18.1)] 
+J_filter_fri_after12       n=3857 taken 155 | tr  +46.0/dd17.1 ho  +13.8/dd11.2 full  +68.2/dd22.6 | Q [np.float64(22.9), np.float64(23.2), np.float64(-9.2), np.float64(19.5)] 
+J_size_weekend             n=4560 taken 169 | tr   +9.7/dd22.9 ho  +16.3/dd11.1 full  +25.4/dd29.6 | Q [np.float64(9.0), np.float64(24.1), np.float64(-14.7), np.float64(21.8)] 
+E_size_near_hi1.5          n=4560 taken 163 | tr  +16.8/dd13.2 ho  +19.1/dd 9.0 full  +36.0/dd15.5 | Q [np.float64(9.3), np.float64(16.0), np.float64(-6.6), np.float64(19.9)] PASS
+E_filter_near_lo2          n=4477 taken 172 | tr  +14.4/dd20.4 ho  +13.5/dd11.3 full  +29.8/dd26.5 | Q [np.float64(8.7), np.float64(21.9), np.float64(-10.7), np.float64(20.6)] 
+K_size_accel1.5+trans      n=4560 taken 140 | tr   -2.1/dd15.4 ho  +13.2/dd 8.9 full   +9.9/dd20.0 | Q [np.float64(2.1), np.float64(7.3), np.float64(-7.4), np.float64(14.0)] 
+K_filter_accel2+chg24<-3   n=3952 taken 164 | tr  +10.9/dd18.6 ho  +12.9/dd11.0 full  +20.6/dd24.6 | Q [np.float64(7.5), np.float64(20.4), np.float64(-16.9), np.float64(15.3)] 
+Traceback (most recent call last):
+  File "/Users/styserg/Desktop/Jony/research/advisor_rules_sweep_2026-08-27.py", line 95, in <module>
+    main()
+    ~~~~^^
+  File "/Users/styserg/Desktop/Jony/research/advisor_rules_sweep_2026-08-27.py", line 92, in main
+    Path("results/advisor_rules_sweep_2026-08-27.json").write_text(json.dumps(rows, indent=1))
+                                                                   ~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+                    f'is not JSON serializable')
+TypeError: Object of type bool is not JSON serializable
