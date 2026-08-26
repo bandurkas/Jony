@@ -315,10 +315,15 @@ class TestDecideEntry(unittest.TestCase):
         self.assertIsNone(advisor._de_test(
             _entry_advice(conf=0.4), GOOD_MKT, [], "normal", [], 0))
 
-    def test_posture_must_be_normal(self):
-        for posture in ("tight", "lockdown"):
-            self.assertIsNone(advisor._de_test(
-                _entry_advice(), GOOD_MKT, [], posture, [], 0))
+    def test_posture_gating(self):
+        # self-lock fix 2026-08-26: lockdown blocks; tight blocks only when
+        # market_risk == 'high'; tight + medium risk passes
+        self.assertIsNone(advisor._de_test(
+            _entry_advice(), GOOD_MKT, [], "lockdown", [], 0))
+        hi = dict(_entry_advice(), market_risk="high")
+        self.assertIsNone(advisor._de_test(hi, GOOD_MKT, [], "tight", [], 0))
+        med = dict(_entry_advice(), market_risk="medium")
+        self.assertIsNotNone(advisor._de_test(med, GOOD_MKT, [], "tight", [], 0))
 
     def test_key_already_taken_rejected(self):
         pos = [{"coin": "BTC", "side": "P"}]

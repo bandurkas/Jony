@@ -499,8 +499,10 @@ class TestPostureExits(unittest.TestCase):
         self.assertEqual(repo.pop_entry_requests(self.conn), [])
 
     def test_advisor_entry_blocked_outside_normal_posture(self):
+        # self-lock fix 2026-08-26: only lockdown blocks advisor entries in
+        # the loop (tight is allowed; advisor.decide_entry gates market_risk)
         now = 5_000_000
-        repo.set_risk_posture(self.conn, "tight", now - 1000)
+        repo.set_risk_posture(self.conn, "lockdown", now - 1000)
         repo.request_entry(self.conn, "ETH", "C", now, "{}")
         with patch("loop.notify"):
             jony_loop.process_entry_requests(self.conn,

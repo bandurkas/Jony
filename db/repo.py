@@ -32,6 +32,14 @@ def apply_schema(conn: sqlite3.Connection) -> None:
         "ALTER TABLE bot_control ADD COLUMN risk_posture TEXT NOT NULL DEFAULT 'normal'",
         "ALTER TABLE bot_control ADD COLUMN posture_updated_ms INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE positions ADD COLUMN peak_profit_pct REAL NOT NULL DEFAULT 0",
+        # Track B 2026-08-26 (execution)
+        "ALTER TABLE positions ADD COLUMN closing_order_id INTEGER",
+        "ALTER TABLE positions ADD COLUMN close_attempts INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE positions ADD COLUMN exchange_im_usd REAL",
+        "ALTER TABLE bot_control ADD COLUMN exec_halt INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE bot_control ADD COLUMN exec_halt_reason TEXT",
+        "ALTER TABLE orders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE positions ADD COLUMN closed_by_order_id INTEGER",
     ]
     for m in migrations:
         try:
@@ -198,22 +206,31 @@ def pop_close_requests(conn: sqlite3.Connection) -> list[int]:
     return ids
 
 
-def insert_position(conn: sqlite3.Connection, p: dict) -> int:
+def insert_position(conn: sqlite3.Connection, p: dict, commit: bool = True) -> int:
     keys = ",".join(p)
     marks = ",".join("?" * len(p))
     cur = conn.execute(f"INSERT INTO positions ({keys}) VALUES ({marks})",
                        tuple(p.values()))
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.lastrowid
+
+
+def position_row(conn: sqlite3.Connection, pos_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM positions WHERE id=?", (pos_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def close_position(conn: sqlite3.Connection, pos_id: int, *, status: str,
                    closed_at_ms: int, exit_debit: float, exit_reason: str,
-                   pnl_pct: float, pnl_usd: float, commit: bool = True) -> None:
+                   pnl_pct: float, pnl_usd: float, commit: bool = True,
+                   closed_by_order_id: int | None = None) -> None:
     conn.execute(
         "UPDATE positions SET status=?, closed_at_ms=?, exit_debit=?,"
-        " exit_reason=?, pnl_pct=?, pnl_usd=? WHERE id=?",
-        (status, closed_at_ms, exit_debit, exit_reason, pnl_pct, pnl_usd, pos_id))
+        " exit_reason=?, pnl_pct=?, pnl_usd=?, closing_order_id=NULL,"
+        " closed_by_order_id=? WHERE id=?",
+        (status, closed_at_ms, exit_debit, exit_reason, pnl_pct, pnl_usd,
+         closed_by_order_id, pos_id))
     if commit:
         conn.commit()
 
@@ -271,4 +288,77 @@ def insert_position_mark(conn: sqlite3.Connection, ts_ms: int, pos_id: int,
         (ts_ms, pos_id, option_symbol, m.get("mark"), m.get("bid"),
          m.get("ask"), m.get("mark_iv"), m.get("underlying"), m.get("delta"),
          pnl_pct_mark))
+    conn.commit()
+
+
+# ── Execution (Track B 2026-08-26) ──
+
+def insert_order(conn: sqlite3.Connection, o: dict) -> int:
+    keys = ",".join(o)
+    cur = conn.execute(f"INSERT INTO orders ({keys}) VALUES ({','.join('?' * len(o))})",
+                       tuple(o.values()))
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_order(conn: sqlite3.Connection, oid: int, *, commit: bool = True,
+                 **fields) -> None:
+    keys = ", ".join(f"{k}=?" for k in fields)
+    conn.execute(f"UPDATE orders SET {keys} WHERE id=?",
+                 (*fields.values(), oid))
+    if commit:
+        conn.commit()
+
+
+def active_orders(conn: sqlite3.Connection) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT * FROM orders WHERE status='active' ORDER BY id")]
+
+
+def get_order(conn: sqlite3.Connection, order_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def recent_orders(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT * FROM orders ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+def set_closing(conn: sqlite3.Connection, pos_id: int, order_id: int | None,
+                bump_attempts: bool = False, commit: bool = True) -> None:
+    conn.execute(
+        "UPDATE positions SET closing_order_id=?, close_attempts=close_attempts+? WHERE id=?",
+        (order_id, 1 if bump_attempts else 0, pos_id))
+    if commit:
+        conn.commit()
+
+
+def set_exchange_im(conn: sqlite3.Connection, pos_id: int, im_usd: float | None) -> None:
+    conn.execute("UPDATE positions SET exchange_im_usd=?, margin_usd=COALESCE(?, margin_usd)"
+                 " WHERE id=?", (im_usd, im_usd, pos_id))
+    conn.commit()
+
+
+def get_exec_halt(conn: sqlite3.Connection) -> tuple[bool, str | None]:
+    row = conn.execute(
+        "SELECT exec_halt, exec_halt_reason FROM bot_control WHERE id=1").fetchone()
+    if row is None:
+        return False, None
+    return bool(row["exec_halt"]), row["exec_halt_reason"]
+
+
+def set_exec_halt(conn: sqlite3.Connection, halt: bool, reason: str | None) -> None:
+    conn.execute("INSERT OR IGNORE INTO bot_control (id) VALUES (1)")
+    conn.execute("UPDATE bot_control SET exec_halt=?, exec_halt_reason=? WHERE id=1",
+                 (int(halt), reason))
+    conn.commit()
+
+
+def insert_iv_log(conn: sqlite3.Connection, ts_ms: int, coin: str, spot: float | None,
+                  sym_p: str | None, iv_p: float | None,
+                  sym_c: str | None, iv_c: float | None) -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO iv_log (ts_ms, coin, spot, sym_p, iv_p, sym_c, iv_c)"
+        " VALUES (?,?,?,?,?,?,?)", (ts_ms, coin, spot, sym_p, iv_p, sym_c, iv_c))
     conn.commit()

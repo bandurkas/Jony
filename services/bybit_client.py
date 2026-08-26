@@ -1,16 +1,17 @@
 """Bybit v5 client (pybit) — klines with pagination (the public API caps at
 1000 bars/request; ret_7d needs 2016+ 5m bars) + options chain.
 
-Authenticates with the ex-Grogu account key when BYBIT_API_KEY/SECRET are set.
-v1 has NO order-placement path at all — the key only enables authenticated
-reads; going live will require adding an execution module, not just flipping
-JONY_TRADING_MODE."""
+Authenticates when BYBIT_API_KEY/SECRET are set. Order placement lives in the
+thin wrappers at the bottom (Track B 2026-08-26) and is only ever called by
+services/execution.LiveExecutor — the loop never touches pybit directly."""
 from __future__ import annotations
 
+import math
 import os
 import time
 from datetime import datetime, timezone
 
+from pybit.exceptions import InvalidRequestError
 from pybit.unified_trading import HTTP
 
 
@@ -32,6 +33,12 @@ def _with_retry(label: str, fn):
             time.sleep(delay)
         try:
             return fn()
+        except InvalidRequestError as e:
+            # retCode != 0 — a definitive answer from Bybit (bad params,
+            # duplicate link id, already filled/cancelled). Retrying would
+            # only burn 7 s of tick time (review 2026-08-26 #10).
+            print(f"[bybit] {label} rejected: {e}", flush=True)
+            return None
         except Exception as e:
             last_err = e
             print(f"[bybit] {label} attempt {attempt + 1}/{len(RETRY_DELAYS_S) + 1} "
@@ -45,10 +52,13 @@ class BybitClient:
     def __init__(self):
         key = os.getenv("BYBIT_API_KEY", "").strip()
         secret = os.getenv("BYBIT_API_SECRET", "").strip()
-        if key and secret:
-            self.session = HTTP(testnet=False, api_key=key, api_secret=secret)
+        testnet = os.getenv("BYBIT_TESTNET", "0").strip() == "1"
+        self.has_key = bool(key and secret)
+        if self.has_key:
+            self.session = HTTP(testnet=testnet, api_key=key, api_secret=secret)
         else:
-            self.session = HTTP(testnet=False)
+            self.session = HTTP(testnet=testnet)
+        self._tick_cache: dict[str, float] = {}
 
     def get_klines(self, symbol: str, interval: str, limit: int) -> list[dict]:
         """Oldest→newest candles; paginates when limit > 1000. A page that
@@ -94,8 +104,12 @@ class BybitClient:
         if items is None:
             return []
         out = []
+        suffix = os.getenv("JONY_OPTION_SETTLE_SUFFIX", "-USDT")
         for it in items:
-            parsed = parse_option_symbol(it.get("symbol", ""))
+            sym = it.get("symbol", "")
+            if suffix and not sym.endswith(suffix):
+                continue                    # USDT-settled book only (review #7)
+            parsed = parse_option_symbol(sym)
             if not parsed:
                 continue
             out.append({
@@ -119,6 +133,134 @@ class BybitClient:
                               "mark_iv": o["mark_iv"], "underlying": o["underlying_price"],
                               "delta": o["delta"]}
                 for o in self.get_options_tickers(base_coin)}
+
+
+    # ── Execution wrappers (Track B). Each returns None on total failure. ──
+
+    def tick_size(self, symbol: str) -> float:
+        """0.0 = unknown this call (not cached — review #11)."""
+        if symbol not in self._tick_cache:
+            r = _with_retry(f"instruments({symbol})",
+                            lambda: self.session.get_instruments_info(
+                                category="option", symbol=symbol)["result"]["list"])
+            tick = _f(r[0]["priceFilter"]["tickSize"]) if r else 0.0
+            if tick > 0:
+                self._tick_cache[symbol] = tick
+            return tick
+        return self._tick_cache[symbol]
+
+    def place_order(self, symbol: str, side: str, qty: float, price: float,
+                    link_id: str, reduce_only: bool) -> tuple[str, str | None]:
+        """side: 'Sell'|'Buy'. Limit GTC. Returns (outcome, orderId):
+        ('ok', id) | ('rejected', None) — Bybit answered retCode!=0 |
+        ('unknown', None) — transport failure, the order MAY exist (review r2 F4)."""
+        try:
+            r = self.session.place_order(
+                category="option", symbol=symbol, side=side,
+                orderType="Limit", qty=fmt_qty(qty), price=fmt_px(price),
+                timeInForce="GTC", orderLinkId=link_id, reduceOnly=reduce_only)["result"]
+            return ("ok", r.get("orderId")) if r.get("orderId") else ("rejected", None)
+        except InvalidRequestError as e:
+            print(f"[bybit] place({symbol} {side} {qty}@{price}) rejected: {e}", flush=True)
+            return "rejected", None
+        except Exception as e:
+            print(f"[bybit] place({symbol} {side} {qty}@{price}) unknown outcome: {e}", flush=True)
+            return "unknown", None
+
+    def amend_order(self, symbol: str, order_id: str, price: float) -> bool:
+        r = _with_retry(f"amend({symbol} {order_id} -> {price})",
+                        lambda: self.session.amend_order(
+                            category="option", symbol=symbol, orderId=order_id,
+                            price=fmt_px(price))["result"])
+        return r is not None
+
+    def cancel_order(self, symbol: str, order_id: str | None,
+                     link_id: str | None = None) -> bool:
+        kw = {"orderId": order_id} if order_id else {"orderLinkId": link_id}
+        r = _with_retry(f"cancel({symbol} {order_id or link_id})",
+                        lambda: self.session.cancel_order(
+                            category="option", symbol=symbol, **kw)["result"])
+        return r is not None
+
+    def get_order(self, symbol: str, link_id: str) -> dict | None:
+        """Open first, then history — Bybit drops filled/cancelled orders from
+        realtime quickly. Returns the raw order dict, {} when BOTH endpoints
+        answered and neither knows the link id (definitively absent), or None
+        when the API could not be reached (unknown — caller must wait)."""
+        absent = True
+        for fn in (self.session.get_open_orders, self.session.get_order_history):
+            r = _with_retry(f"order({link_id})",
+                            lambda fn=fn: fn(category="option", symbol=symbol,
+                                             orderLinkId=link_id)["result"]["list"])
+            if r:
+                return r[0]
+            if r is None:
+                absent = False
+        return {} if absent else None
+
+    def get_open_orders_all(self) -> list[dict] | None:
+        """Every resting option order on the account (reconcile: zombie/foreign
+        orders). None = API failure."""
+        r = _with_retry("open_orders(all)",
+                        lambda: self.session.get_open_orders(
+                            category="option", settleCoin="USDT", limit=50)["result"]["list"])
+        return None if r is None else [{"symbol": o.get("symbol"),
+                                        "orderLinkId": o.get("orderLinkId"),
+                                        "orderId": o.get("orderId")} for o in r]
+
+    def get_executions(self, symbol: str, order_id: str) -> list[dict]:
+        r = _with_retry(f"executions({order_id})",
+                        lambda: self.session.get_executions(
+                            category="option", symbol=symbol, orderId=order_id,
+                            limit=100)["result"]["list"])
+        return r or []
+
+    def get_option_positions(self, base_coin: str) -> dict[str, dict] | None:
+        """symbol -> {size, side, avg_price, im}. None = API failure (caller must
+        treat as unknown, never as 'flat')."""
+        r = _with_retry(f"positions({base_coin})",
+                        lambda: self.session.get_positions(
+                            category="option", baseCoin=base_coin,
+                            limit=200)["result"]["list"])
+        if r is None:
+            return None
+        out = {}
+        for p in r:
+            size = _f(p.get("size"))
+            if size == 0:
+                continue
+            out[p["symbol"]] = {"size": size, "side": p.get("side"),
+                                "avg_price": _f(p.get("avgPrice")),
+                                "im": _f(p.get("positionIM"))}
+        return out
+
+    def get_delivery(self, symbol: str) -> dict | None:
+        r = _with_retry(f"delivery({symbol})",
+                        lambda: self.session.get_option_delivery_record(
+                            category="option", symbol=symbol, limit=5)["result"]["list"])
+        return r[0] if r else None
+
+    def key_status(self) -> dict | None:
+        r = _with_retry("query-api", lambda: self.session.get_api_key_information()["result"])
+        return r
+
+
+def fmt_qty(q: float) -> str:
+    return f"{q:.4f}".rstrip("0").rstrip(".")
+
+
+def fmt_px(p: float) -> str:
+    return f"{p:.4f}".rstrip("0").rstrip(".")
+
+
+def round_to_tick(price: float, tick: float, up: bool) -> float:
+    """Round to the instrument tick. up=True rounds toward the passive side for
+    a seller (higher), False for a buyer (lower)."""
+    if tick <= 0:
+        return round(price, 4)
+    n = price / tick
+    n = math.ceil(n - 1e-9) if up else math.floor(n + 1e-9)
+    return round(n * tick, 6)
 
 
 def parse_option_symbol(symbol: str) -> dict | None:

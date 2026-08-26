@@ -34,7 +34,9 @@ EXIT_SPREAD_GUARD = float(os.getenv("JONY_EXIT_SPREAD_GUARD", "0.10"))
 EXIT_MAX_SLIP = float(os.getenv("JONY_EXIT_MAX_SLIP", "0.05"))
 EXIT_DEFER_MAX_MIN = int(os.getenv("JONY_EXIT_DEFER_MAX_MIN", "10"))
 PORT_MARGIN_CAP = 0.80          # portfolio margin ceiling × equity
-IM_RATE = 0.10                  # initial-margin approx: 10% of strike + premium
+# IM approx: rate × strike + premium. 0.10 was the backtest constant; real Bybit
+# short-option IM ~0.15 (measured on the first live fill — LIVE_GOLIVE_PLAN §1b).
+IM_RATE = float(os.getenv("JONY_IM_RATE", "0.10"))
 DYN_SIZE_WR_FLOOR = 0.40        # halve size when 10-trade WR under this
 # CB arms unconditionally on any single losing close (loop.py::_close) — no
 # consecutive-loss counter exists live or in the backtest engine
@@ -77,6 +79,28 @@ EQUITY_SNAPSHOT_EVERY_MIN = 30
 STUCK_SETTLEMENT_ALERT_MIN = 15  # alert once if a position can't settle
                                  # this long past expiry (Bybit outage) —
                                  # self-healing retry continues either way
+
+# ── Execution (Track B 2026-08-26, EXECUTION_DESIGN_2026-08-26.md) ──
+BYBIT_TESTNET = os.getenv("BYBIT_TESTNET", "0").strip() == "1"
+EXEC_MID_WAIT_S = int(os.getenv("JONY_EXEC_MID_WAIT_S", "90"))      # limit @mid
+EXEC_RETREAT_WAIT_S = int(os.getenv("JONY_EXEC_RETREAT_WAIT_S", "60"))  # then @bid/ask
+EXEC_URGENT_WAIT_S = int(os.getenv("JONY_EXEC_URGENT_WAIT_S", "30"))    # protective: @ask, chase
+EXEC_URGENT_CHASE_PCT = float(os.getenv("JONY_EXEC_URGENT_CHASE_PCT", "0.02"))
+EXEC_URGENT_MAX_SLIP = float(os.getenv("JONY_EXEC_URGENT_MAX_SLIP", "0.25"))  # chase ceiling vs fresh mark
+EXEC_DEADLINE_S = int(os.getenv("JONY_EXEC_DEADLINE_S", "300"))   # patient order hard stop
+EXEC_ALERT_EVERY = int(os.getenv("JONY_EXEC_ALERT_EVERY", "24"))   # ticks between repeat alerts
+EXEC_MAX_ATTEMPTS = int(os.getenv("JONY_EXEC_MAX_ATTEMPTS", "12"))  # unknown polls / cancel retries
+CLOSE_MAX_ATTEMPTS = int(os.getenv("JONY_CLOSE_MAX_ATTEMPTS", "3"))  # then halt + alert
+SETTLE_RECORD_WAIT_MIN = int(os.getenv("JONY_SETTLE_RECORD_WAIT_MIN", "30"))
+# SL as $ is capped at this fraction of equity (0 = off): sl_pct_eff =
+# min(SL_PCT, cap×equity/(credit×qty)). Closes the SL($47) > daily breaker($23) gap.
+SL_EQUITY_CAP_PCT = float(os.getenv("JONY_SL_EQUITY_CAP_PCT", "0.025"))
+# Near-7d-high put sizing (Phase 10b): size×MULT when spot within PCT of 7d high.
+# 0 = off. Backtest $1500: DD −15%, return ±5%; live-replay −$5.85.
+NEAR_HIGH_PCT = float(os.getenv("JONY_NEAR_HIGH_PCT", "0"))
+NEAR_HIGH_MULT = float(os.getenv("JONY_NEAR_HIGH_MULT", "0.5"))
+IV_LOG_EVERY_MIN = int(os.getenv("JONY_IV_LOG_EVERY_MIN", "10"))
+RECONCILE_EVERY_MIN = int(os.getenv("JONY_RECONCILE_EVERY_MIN", "1"))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

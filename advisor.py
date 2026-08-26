@@ -631,7 +631,7 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     """Hard deterministic guardrails for an advisor entry proposal. Returns
     the proposal dict if it may execute, else None. Pure function.
     - ENTRIES_MODE on, confidence floor, valid enabled key
-    - posture must be 'normal' (never add exposure in an elevated regime)
+    - posture not lockdown; tight allowed unless market_risk == 'high'
     - key free under per_key_cap (loop re-checks anyway)
     - VRP must be paid (iv_minus_rv24 > 0) and vol must not be accelerating
     - rate: <= MAX_ENTRIES_PER_DAY / rolling 24h, >= ENTRY_MIN_GAP_H apart
@@ -648,7 +648,12 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
         return None
     if (prop.get("confidence") or 0) < ENTRY_MIN_CONFIDENCE:
         return None
-    if posture != "normal":
+    # self-lock fix 2026-08-26: tight (typically an ITM position on ONE coin)
+    # no longer freezes entries on the other coin; lockdown or market_risk
+    # 'high' still do. Advisor positions trail unconditionally either way.
+    if posture == "lockdown":
+        return None
+    if posture == "tight" and advice.get("market_risk") == "high":
         return None
     if last_loss_ms and now_ms - last_loss_ms < REVENGE_WINDOW_H * 3_600_000:
         return None

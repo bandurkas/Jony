@@ -29,7 +29,47 @@ _conn.close()
 
 @app.get("/health")
 def health():
-    return {"ok": True, "bot": config.BOT_TAG, "mode": config.TRADING_MODE}
+    conn = repo.connect()
+    try:
+        halted, why = repo.get_exec_halt(conn)
+    finally:
+        conn.close()
+    return {"ok": True, "bot": config.BOT_TAG, "mode": config.TRADING_MODE,
+            "testnet": config.BYBIT_TESTNET, "exec_halt": halted,
+            "exec_halt_reason": why}
+
+
+@app.post("/exec/unhalt")
+def exec_unhalt():
+    """Operator lifts an execution halt after checking the exchange book.
+    bot_control is the one table the API may write (same as pause)."""
+    conn = repo.connect()
+    try:
+        halted, why = repo.get_exec_halt(conn)
+        repo.set_exec_halt(conn, False, None)
+        return {"ok": True, "was_halted": halted, "reason": why}
+    finally:
+        conn.close()
+
+
+@app.get("/orders")
+def orders(limit: int = 50):
+    conn = repo.connect()
+    try:
+        return {"active": repo.active_orders(conn),
+                "recent": repo.recent_orders(conn, limit)}
+    finally:
+        conn.close()
+
+
+@app.get("/iv")
+def iv_recent(limit: int = 288):
+    conn = repo.connect()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM iv_log ORDER BY ts_ms DESC LIMIT ?", (limit,))][::-1]
+    finally:
+        conn.close()
 
 
 @app.get("/state")

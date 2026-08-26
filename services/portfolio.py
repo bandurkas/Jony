@@ -28,11 +28,13 @@ def margin_per_lot(strike: float, premium: float, lot: float) -> float:
 
 
 def size_position(equity: float, used_margin: float, recent_pnls: list[float],
-                  strike: float, premium: float, lot: float) -> tuple[float, float]:
+                  strike: float, premium: float, lot: float,
+                  size_mult: float = 1.0) -> tuple[float, float]:
     """Returns (qty, margin_usd); qty=0 → margin-blocked. Compounding: budget
-    scales with current equity, capped by free portfolio margin."""
+    scales with current equity, capped by free portfolio margin. size_mult:
+    extra multiplier on the per-trade budget (near-high sizing, Phase 10b)."""
     free = max(0.0, equity * config.PORT_MARGIN_CAP - used_margin)
-    dyn = dyn_size_factor(recent_pnls)
+    dyn = dyn_size_factor(recent_pnls) * size_mult
     budget = min(equity * config.MARGIN_PCT_PER_TRADE * dyn, free)
     m_lot = margin_per_lot(strike, premium, lot)
     if m_lot <= 0:
@@ -92,3 +94,28 @@ def can_open(open_pos: list[dict], coin: str, side: str) -> str | None:
            if p["coin"] == coin and p["side"] == side) >= config.PER_KEY_CAP:
         return "per_key_cap"
     return None
+
+
+def sl_pct_effective(sl_pct: float, equity: float, credit: float, qty: float,
+                     cap_pct: float | None = None) -> float:
+    """SL in $ never exceeds cap_pct × equity (decision 2026-08-26). Never
+    loosens the strategy SL; cap_pct<=0 or bad inputs → unchanged."""
+    if cap_pct is None:
+        cap_pct = config.SL_EQUITY_CAP_PCT
+    if cap_pct <= 0 or equity <= 0 or credit <= 0 or qty <= 0:
+        return sl_pct
+    return min(sl_pct, cap_pct * equity / (credit * qty))
+
+
+def near_high_mult(side: str, dist_7d_high_pct: float | None,
+                   pct: float | None = None, mult: float | None = None) -> float:
+    """Put opened within `pct` of the 7d high → size × mult. Off when pct<=0
+    or distance unknown (fail-open to the validated base sizing). Defaults
+    are read at call time so env/tests can change them after import."""
+    if pct is None:
+        pct = config.NEAR_HIGH_PCT
+    if mult is None:
+        mult = config.NEAR_HIGH_MULT
+    if pct <= 0 or side != "P" or dist_7d_high_pct is None:
+        return 1.0
+    return mult if dist_7d_high_pct > -pct else 1.0

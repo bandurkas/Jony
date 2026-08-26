@@ -89,9 +89,53 @@ CREATE TABLE IF NOT EXISTS positions (
     exit_reason TEXT,
     pnl_pct REAL,                                -- of premium
     pnl_usd REAL,
-    signal_payload TEXT                          -- JSON gate snapshot at fire
+    signal_payload TEXT,                         -- JSON gate snapshot at fire
+    closing_order_id INTEGER,                    -- Track B: close order in flight
+    close_attempts INTEGER NOT NULL DEFAULT 0,
+    exchange_im_usd REAL,
+    closed_by_order_id INTEGER                   -- which order booked the close
 );
 CREATE INDEX IF NOT EXISTS positions_status ON positions(status, opened_at_ms DESC);
+
+-- Execution orders (Track B 2026-08-26): every open/close goes through this
+-- state machine, paper included (PaperExecutor fills instantly). Single
+-- writer = loop. stage: mid | retreat | urgent | done | cancelled.
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,                          -- open | close
+    pos_id INTEGER,                              -- close: position being closed
+    coin TEXT NOT NULL,
+    side TEXT NOT NULL,                          -- option side P/C
+    option_symbol TEXT NOT NULL,
+    qty REAL NOT NULL,
+    price REAL NOT NULL,                         -- current limit price
+    stage TEXT NOT NULL,
+    urgent INTEGER NOT NULL DEFAULT 0,
+    order_id TEXT,
+    order_link_id TEXT UNIQUE,
+    placed_at_ms INTEGER,                        -- when the current stage's price was set
+    filled_qty REAL NOT NULL DEFAULT 0,
+    avg_price REAL,
+    fee_usd REAL,
+    status TEXT NOT NULL DEFAULT 'active',       -- active | filled | partial | no_fill | error
+    reason TEXT,                                 -- close reason / open source
+    attempts INTEGER NOT NULL DEFAULT 0,         -- cancel retries / unknown-poll ticks
+    payload TEXT,                                -- JSON: everything finalize needs
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS orders_active ON orders(status, created_at_ms);
+
+-- ATM weekly IV log (both sides) for the future IV−RV gate (VPS2 history is
+-- ETH-only, 3 weeks). One row per coin per IV_LOG_EVERY_MIN.
+CREATE TABLE IF NOT EXISTS iv_log (
+    ts_ms INTEGER NOT NULL,
+    coin TEXT NOT NULL,
+    spot REAL,
+    sym_p TEXT, iv_p REAL,
+    sym_c TEXT, iv_c REAL,
+    PRIMARY KEY (ts_ms, coin)
+);
 
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     ts_ms INTEGER PRIMARY KEY,

@@ -1,0 +1,50 @@
+[CALIB] base n=4539
+  fixed-lot baseline                                   +5032  q=[3192, 2898, -3907, 2849]
+  fixed-lot rolldown A (always re-enter) [1757 rolls]   +5417  q=[4634, 3670, -6094, 3207]
+  fixed-lot rolldown B (re-enter if ready) [1757 rolls]   +9370  q=[5148, 2001, 23, 2197]
+  eq800 baseline                     tr  +22.8/21.9 ho  +28.8/13.2 full   +51.3/28.7 taken 171
+  eq800 rolldown A (always re-enter) [1757 rolls] tr   +4.1/14.9 ho  +21.7/ 7.8 full   +25.8/19.0 taken 152
+  eq800 rolldown B (re-enter if ready) [1757 rolls] tr   +3.6/18.3 ho  +22.3/ 7.7 full   +24.6/18.3 taken 149
+  eq800 dd-scale x0.5 if DD>5%       tr  +17.9/ 8.1 ho   +5.1/11.3 full   +29.4/10.4 taken 87
+  eq800 dd-scale x0.5 if DD>10%      tr   +0.5/16.4 ho  +18.8/13.2 full    +4.5/16.6 taken 80
+  eq800 dd-scale x0.5 if DD>15%      tr   -6.5/20.0 ho  +28.8/13.2 full    -0.9/22.5 taken 90
+  eq1500 baseline                     tr  +25.6/22.7 ho  +34.9/12.2 full   +68.1/26.4 taken 175
+  eq1500 rolldown A (always re-enter) [1757 rolls] tr   +4.3/15.8 ho  +24.1/ 7.7 full   +30.0/15.8 taken 205
+  eq1500 rolldown B (re-enter if ready) [1757 rolls] tr  +14.3/16.1 ho  +25.7/ 7.6 full   +45.5/16.1 taken 213
+  eq1500 dd-scale x0.5 if DD>5%       tr  +31.5/15.8 ho  +24.2/ 9.6 full   +45.8/19.3 taken 170
+  eq1500 dd-scale x0.5 if DD>10%      tr   +7.0/18.0 ho  +29.6/12.2 full   +33.6/18.0 taken 147
+  eq1500 dd-scale x0.5 if DD>15%      tr  +21.6/22.8 ho  +34.9/12.2 full   +30.3/25.8 taken 175
+[CLAMP] base n=4539
+  fixed-lot baseline                                   +6751  q=[5902, 2322, -4407, 2933]
+  fixed-lot rolldown A (always re-enter) [1746 rolls]   +6500  q=[6394, 3923, -6570, 2753]
+  fixed-lot rolldown B (re-enter if ready) [1746 rolls]  +10327  q=[7239, 1884, -577, 1781]
+  eq800 baseline                     tr  +62.2/20.8 ho  +37.9/ 8.9 full  +139.6/21.2 taken 178
+  eq800 rolldown A (always re-enter) [1746 rolls] tr  +27.7/ 9.6 ho  +19.3/ 6.7 full   +54.5/13.7 taken 197
+  eq800 rolldown B (re-enter if ready) [1746 rolls] tr  +54.4/ 9.7 ho  +20.5/ 7.2 full   +91.5/12.5 taken 190
+  eq800 dd-scale x0.5 if DD>5%       tr   -3.9/12.2 ho   +6.9/ 9.1 full    +4.0/12.2 taken 52
+  eq800 dd-scale x0.5 if DD>10%      tr  +51.1/13.5 ho  +37.9/ 8.9 full  +124.3/13.5 taken 147
+  eq800 dd-scale x0.5 if DD>15%      tr  +55.5/20.8 ho  +37.9/ 8.9 full  +129.9/20.8 taken 162
+  eq1500 baseline                     tr  +63.8/22.8 ho  +45.7/ 8.6 full  +136.5/25.0 taken 178
+  eq1500 rolldown A (always re-enter) [1746 rolls] tr  +35.6/13.3 ho  +24.4/ 7.4 full   +68.9/15.4 taken 224
+  eq1500 rolldown B (re-enter if ready) [1746 rolls] tr  +50.0/13.1 ho  +26.0/ 7.6 full   +90.5/14.5 taken 217
+  eq1500 dd-scale x0.5 if DD>5%       tr  +59.0/15.9 ho  +29.1/ 7.1 full   +98.4/16.4 taken 178
+  eq1500 dd-scale x0.5 if DD>10%      tr  +67.3/17.6 ho  +45.7/ 8.6 full  +132.7/18.0 taken 178
+  eq1500 dd-scale x0.5 if DD>15%      tr  +59.4/22.8 ho  +45.7/ 8.6 full  +115.7/23.2 taken 178
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+  File "rv2p", line 38, in <module>
+NameError: name '__file__' is not defined. Did you mean: '__name__'?
+
+=== roll-down with CB exempt on roll_stop (real roll semantics)
+[CALIB eq800] baseline         tr  +22.8/21.9 ho  +28.8/13.2 full   +51.3/28.7 taken 171 Q [11, 33, -3, 33]
+[CALIB eq800] roll A always    tr  -14.1/25.3 ho  +14.5/17.4 full   +14.9/27.0 taken 156 Q [8, -10, -12, 28]
+[CALIB eq800] roll B if ready  tr   +1.9/18.3 ho  +21.8/ 7.7 full   +21.9/18.3 taken 151 Q [9, -3, 3, 19]
+[CALIB eq1500] baseline         tr  +25.6/22.7 ho  +34.9/12.2 full   +68.1/26.4 taken 175 Q [18, 19, -13, 37]
+[CALIB eq1500] roll A always    tr   -7.4/16.7 ho  +31.8/ 9.7 full   +29.5/20.6 taken 219 Q [2, 1, -13, 35]
+[CALIB eq1500] roll B if ready  tr  +12.8/16.1 ho  +24.9/ 7.6 full   +41.1/16.1 taken 215 Q [18, -1, 3, 22]
+[CLAMP eq800] baseline         tr  +62.2/20.8 ho  +37.9/ 8.9 full  +139.6/21.2 taken 178 Q [42, 14, -8, 45]
+[CLAMP eq800] roll A always    tr   +6.5/20.2 ho  +20.1/12.5 full   +27.3/20.2 taken 170 Q [-7, -2, -12, 28]
+[CLAMP eq800] roll B if ready  tr  +56.5/ 9.5 ho  +21.2/ 7.2 full   +97.3/12.3 taken 193 Q [41, -4, 4, 19]
+[CLAMP eq1500] baseline         tr  +63.8/22.8 ho  +45.7/ 8.6 full  +136.5/25.0 taken 178 Q [47, 30, -18, 50]
+[CLAMP eq1500] roll A always    tr   -7.2/21.4 ho  +24.2/11.7 full   +17.1/21.7 taken 221 Q [-4, 4, -13, 33]
+[CLAMP eq1500] roll B if ready  tr  +49.9/13.2 ho  +26.5/ 7.6 full   +92.6/16.0 taken 221 Q [39, 3, -1, 25]
