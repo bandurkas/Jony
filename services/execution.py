@@ -32,6 +32,7 @@ Invariants (review r1 #2-#6, r2 F3-F6):
 from __future__ import annotations
 
 import json
+import uuid
 
 from db import repo
 from services import config
@@ -87,7 +88,7 @@ class LiveExecutor:
     def place(self, o: dict) -> tuple[str, str | None]:
         px = self._px(o, o["price"])
         if px is None:
-            return "unknown", None          # retry placement next tick
+            return "rejected", None         # nothing was sent (tick unknown) — r3 sm #3
         return self.c.place_order(o["option_symbol"], self._side(o), o["qty"], px,
                                   o["order_link_id"], reduce_only=(o["kind"] == "close"))
 
@@ -156,6 +157,12 @@ def open_floor(quote: dict | None) -> float | None:
     return mark * (1 - config.EXIT_MAX_SLIP) if mark > 0 else None
 
 
+def urgent_ceiling(quote: dict | None) -> float | None:
+    """Chase cap for protective closes: mark×(1+EXEC_URGENT_MAX_SLIP)."""
+    mark = (quote or {}).get("mark") or 0.0
+    return mark * (1 + config.EXEC_URGENT_MAX_SLIP) if mark > 0 else None
+
+
 def _stage_price(o: dict, quote: dict | None) -> float | None:
     """Price for the next stage from a fresh quote {bid, ask, mark}. None =
     no usable quote (caller applies a blind fallback or waits)."""
@@ -171,7 +178,7 @@ def _stage_price(o: dict, quote: dict | None) -> float | None:
         # chase: +CHASE per step, never above the ask, never above the
         # ceiling mark_fresh×(1+URGENT_MAX_SLIP) — a phantom ask is not chased
         step = o["price"] * (1 + config.EXEC_URGENT_CHASE_PCT)
-        ceil = mark * (1 + config.EXEC_URGENT_MAX_SLIP) if mark > 0 else None
+        ceil = urgent_ceiling(quote) or o.get("ceiling")   # quote w/o mark → last known
         px = step
         if ask:
             px = min(px, ask)
@@ -190,20 +197,22 @@ TERMINAL_DEAD = ("Cancelled", "Rejected", "Deactivated", "PartiallyFilledCancele
 
 def submit(conn, ex, *, kind: str, coin: str, side: str, symbol: str, qty: float,
            price: float, urgent: bool, reason: str | None, payload: dict,
-           now_ms: int, pos_id: int | None = None) -> int:
+           now_ms: int, pos_id: int | None = None,
+           ceiling: float | None = None) -> int:
     """Create the order row, reserve the position, place. Returns the row id.
     Outcomes: placed (active, order_id set) | unknown (active, order_id NULL,
-    adopted later) | rejected (status=error, position released)."""
+    adopted later) | rejected (status=error, position released).
+    The link id is generated before the insert so the row is never visible
+    with order_link_id NULL (r3 int #3)."""
+    link = f"jony-{kind[0]}-{uuid.uuid4().hex[:24]}"   # 31 chars ≤ 36
     oid = repo.insert_order(conn, {
         "kind": kind, "pos_id": pos_id, "coin": coin, "side": side,
         "option_symbol": symbol, "qty": qty, "price": price,
         "stage": "urgent" if urgent else "mid", "urgent": int(urgent),
-        "order_link_id": None, "placed_at_ms": now_ms, "status": "active",
-        "reason": reason, "payload": json.dumps(payload),
+        "order_link_id": link, "placed_at_ms": now_ms, "status": "active",
+        "reason": reason, "payload": json.dumps(payload), "ceiling": ceiling,
         "created_at_ms": now_ms, "updated_at_ms": now_ms,
-    })
-    link = f"jony-{kind[0]}-{oid}-{now_ms}"      # ≤36 chars, unique per row+time
-    repo.update_order(conn, oid, order_link_id=link, commit=False)
+    }, commit=False)
     if pos_id is not None:                       # reserve BEFORE sending (r2 F6)
         repo.set_closing(conn, pos_id, oid, bump_attempts=True, commit=False)
     conn.commit()
@@ -236,9 +245,33 @@ def _page(conn, o: dict, now_ms: int, why: str, notify) -> None:
                f"(tick {n}) — holding, no duplicate will be sent")
 
 
-def _retire_absent(conn, o: dict, now_ms: int, notify) -> None:
+def _exchange_size(ex, symbol: str) -> float | None:
+    pos = ex.positions(symbol.split("-")[0])
+    if pos is None:
+        return None
+    return abs((pos.get(symbol) or {}).get("size") or 0.0)
+
+
+def _db_size(conn, symbol: str) -> float:
+    return sum(p["qty"] for p in repo.open_positions(conn) if p["option_symbol"] == symbol)
+
+
+def _retire_absent(conn, ex, o: dict, now_ms: int, notify) -> None:
     """The exchange definitively never had this order: safe to drop it and
-    release the position (nothing rests on the book)."""
+    release the position (nothing rests on the book). Before dropping, the
+    exchange position size must still match the book — a silent fill would
+    otherwise be lost (r3 sm #2)."""
+    size = _exchange_size(ex, o["option_symbol"])
+    if size is None:
+        _page(conn, o, now_ms, "absent, positions unavailable", notify)
+        return
+    db_size = _db_size(conn, o["option_symbol"])   # per-symbol aggregate, like the exchange
+    changed = (size + 1e-9 < db_size) if o["kind"] == "close" else (size > db_size + 1e-9)
+    if changed:
+        _page(conn, o, now_ms, "absent but exchange size changed", notify)
+        _halt(conn, now_ms, f"order {o['id']} {o['option_symbol']} absent on exchange but "
+                            f"position size changed (exch {size:g}) — check the book", notify)
+        return
     repo.update_order(conn, o["id"], status="error", stage="cancelled",
                       updated_at_ms=now_ms, commit=False)
     if o["pos_id"] is not None:
@@ -258,16 +291,26 @@ def advance(conn, ex, o: dict, now_ms: int, quote: dict | None,
         return
     st = ex.poll(o)
     if st is None:
+        if o.get("absent_ticks"):           # outage breaks the "consecutive" run
+            repo.update_order(conn, o["id"], absent_ticks=0, commit=False)
+            o["absent_ticks"] = 0
         _page(conn, o, now_ms, "exchange unreachable", notify)
         return                              # unknown — never guess (r2 F3)
     if st["status"] == "Absent":
         if not o.get("order_id"):
-            # placement outcome was unknown: give Bybit a few ticks, then retire
-            if _bump(conn, o, now_ms) >= config.EXEC_MAX_ATTEMPTS:
-                _retire_absent(conn, o, now_ms, notify)
+            # placement outcome was unknown: give Bybit a few CONSECUTIVE
+            # absent answers (own counter, not `attempts` — r3 sm #2), then retire
+            n = (o.get("absent_ticks") or 0) + 1
+            repo.update_order(conn, o["id"], absent_ticks=n, updated_at_ms=now_ms)
+            o["absent_ticks"] = n
+            if n >= config.EXEC_MAX_ATTEMPTS:
+                _retire_absent(conn, ex, o, now_ms, notify)
             return
         _page(conn, o, now_ms, "known order missing from exchange", notify)
         return
+    if o.get("absent_ticks"):
+        repo.update_order(conn, o["id"], absent_ticks=0, updated_at_ms=now_ms)
+        o["absent_ticks"] = 0
     if st.get("order_id") and not o.get("order_id"):
         repo.update_order(conn, o["id"], order_id=st["order_id"], updated_at_ms=now_ms)
         o["order_id"] = st["order_id"]
@@ -315,9 +358,20 @@ def advance(conn, ex, o: dict, now_ms: int, quote: dict | None,
         repo.update_order(conn, o["id"], stage="cancelled", updated_at_ms=now_ms)
         return
     if o["stage"] == "urgent" and waited >= config.EXEC_URGENT_WAIT_S:
+        ceil = urgent_ceiling(quote)
+        if ceil is not None and ceil != o.get("ceiling"):
+            repo.update_order(conn, o["id"], ceiling=ceil, updated_at_ms=now_ms)
+            o["ceiling"] = ceil
         px = _stage_price(o, quote)
-        if px is None:                      # blind step when quotes are down
-            px = o["price"] * (1 + config.EXEC_URGENT_CHASE_PCT)
+        if px is None or (not urgent_ceiling(quote) and not o.get("ceiling")):
+            # quotes down / no mark: blind step capped by the last known
+            # ceiling; with no ceiling ever seen — hold and page (r3 sm #1)
+            if o.get("ceiling"):
+                px = min(o["price"] * (1 + config.EXEC_URGENT_CHASE_PCT), o["ceiling"])
+            else:
+                repo.update_order(conn, o["id"], placed_at_ms=now_ms, updated_at_ms=now_ms)
+                _page(conn, o, now_ms, "urgent close, no quote and no ceiling", notify)
+                return
         if px > o["price"] + 1e-12:
             sent = ex.amend(o, px)
             if sent is not None:

@@ -11,7 +11,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from pybit.exceptions import InvalidRequestError
+from pybit.exceptions import FailedRequestError, InvalidRequestError
 from pybit.unified_trading import HTTP
 
 
@@ -155,17 +155,38 @@ class BybitClient:
         ('ok', id) | ('rejected', None) — Bybit answered retCode!=0 |
         ('unknown', None) — transport failure, the order MAY exist (review r2 F4)."""
         try:
-            r = self.session.place_order(
+            resp = self.session.place_order(
                 category="option", symbol=symbol, side=side,
                 orderType="Limit", qty=fmt_qty(qty), price=fmt_px(price),
-                timeInForce="GTC", orderLinkId=link_id, reduceOnly=reduce_only)["result"]
-            return ("ok", r.get("orderId")) if r.get("orderId") else ("rejected", None)
+                timeInForce="GTC", orderLinkId=link_id, reduceOnly=reduce_only)
         except InvalidRequestError as e:
             print(f"[bybit] place({symbol} {side} {qty}@{price}) rejected: {e}", flush=True)
             return "rejected", None
+        except KeyError as e:
+            # pybit's 10006 rate-limit handler reads a header Bybit may omit →
+            # bare KeyError; retCode 10006 = nothing rests on the book (r3 sm #3)
+            if "X-Bapi-Limit-Reset-Timestamp" not in str(e):
+                print(f"[bybit] place({symbol} {side} {qty}@{price}) unknown outcome: {e!r}", flush=True)
+                return "unknown", None
+            print(f"[bybit] place({symbol} {side} {qty}@{price}) rate-limited: {e!r}", flush=True)
+            return "rejected", None
+        except FailedRequestError as e:
+            # client-side HTTP answer (400/401/403/404) = definitive reject;
+            # 5xx/409(JSON decode)/pybit "retries exceeded" = order MAY exist
+            code = getattr(e, "status_code", None)
+            msg = str(getattr(e, "message", "")).lower()
+            if code in (400, 401, 403, 404) and "retries exceeded" not in msg:
+                print(f"[bybit] place({symbol} {side} {qty}@{price}) rejected (HTTP {code}): {e}",
+                      flush=True)
+                return "rejected", None
+            print(f"[bybit] place({symbol} {side} {qty}@{price}) unknown outcome (HTTP {code}): {e}",
+                  flush=True)
+            return "unknown", None
         except Exception as e:
             print(f"[bybit] place({symbol} {side} {qty}@{price}) unknown outcome: {e}", flush=True)
             return "unknown", None
+        r = (resp or {}).get("result") or {}
+        return ("ok", r.get("orderId")) if r.get("orderId") else ("rejected", None)
 
     def amend_order(self, symbol: str, order_id: str, price: float) -> bool:
         r = _with_retry(f"amend({symbol} {order_id} -> {price})",

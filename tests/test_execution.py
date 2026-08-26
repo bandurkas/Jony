@@ -833,3 +833,227 @@ class TestPaperParity(unittest.TestCase):
         self.assertEqual(json.loads(st["cb_until_json"])["ETH:P"], now + config.CB_PAUSE_HOURS * 3_600_000)
         o = repo.recent_orders(self.conn, 1)[0]
         self.assertEqual((o["status"], o["price"], o["avg_price"]), ("filled", 61.0, 61.0))
+
+
+class TestReviewRound3(Base):
+    """Review r3 fixes: blind-chase cap, absent counter, rejected
+    classification, manual book-flat, unhalt reset, atomic submit."""
+
+    def _close(self, reason="sl", now=0, quote=QUOTE, pid=None):
+        pid = pid or _pos(self.conn)
+        self.fake.positions.setdefault("ETH", {})["ETH-TEST-P"] = {"size": 0.3, "side": "Sell"}
+        p = repo.get_open_position(self.conn, pid)
+        jony_loop._request_close(self.conn, repo.get_state(self.conn), p, now, 110.0,
+                                 reason, "closed_" + reason.split("_")[0], True, True, quote)
+        return pid
+
+    def test_blind_chase_capped_by_stored_ceiling(self):
+        self._close()
+        o = repo.active_orders(self.conn)[0]
+        ceil = QUOTE["mark"] * (1 + config.EXEC_URGENT_MAX_SLIP)
+        self.assertAlmostEqual(o["ceiling"], ceil)
+        t = 0
+        for _ in range(60):                       # quotes down for 30 min
+            t += (config.EXEC_URGENT_WAIT_S + 1) * S
+            self.tick(t, quote=None)
+        price = repo.active_orders(self.conn)[0]["price"]
+        self.assertLessEqual(price, ceil + 0.1)   # ≤ ceiling (+1 tick rounding)
+        self.assertGreater(price, 110.0)          # but it did chase
+
+    def test_no_ceiling_no_quote_holds(self):
+        execution.submit(self.conn, self.ex, kind="close", coin="ETH", side="P",
+                         symbol="ETH-TEST-P", qty=0.3, price=110.0, urgent=True,
+                         reason="sl", payload={"reason": "sl", "status": "closed_sl"},
+                         now_ms=0, pos_id=_pos(self.conn))
+        t = 0
+        for _ in range(10):
+            t += (config.EXEC_URGENT_WAIT_S + 1) * S
+            self.tick(t, quote=None)
+        self.assertEqual(repo.active_orders(self.conn)[0]["price"], 110.0)
+        self.assertEqual([l for l in self.fake.log if l[0] == "amend"], [])
+
+    def _ghost(self, kind="open", pos_id=None, attempts=0):
+        return repo.insert_order(self.conn, {
+            "kind": kind, "pos_id": pos_id, "coin": "ETH", "side": "P",
+            "option_symbol": "ETH-TEST-P", "qty": 0.3, "price": 105.0, "stage": "mid",
+            "urgent": 0, "order_link_id": "jony-o-ghost-2", "placed_at_ms": 0,
+            "status": "active", "reason": "bid", "payload": "{}", "attempts": attempts,
+            "created_at_ms": 0, "updated_at_ms": 0})
+
+    def test_absent_counter_independent_of_attempts(self):
+        # paged attempts (outage) must not shorten the absent grace period
+        oid = self._ghost(attempts=config.EXEC_MAX_ATTEMPTS - 1)
+        self.tick(S)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "active")
+        for i in range(config.EXEC_MAX_ATTEMPTS - 2):
+            self.tick((2 + i) * S)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "active")
+        self.fake.api_down = True                 # outage resets the run
+        self.tick(100 * S)
+        self.fake.api_down = False
+        self.assertEqual(repo.get_order(self.conn, oid)["absent_ticks"], 0)
+        for i in range(config.EXEC_MAX_ATTEMPTS):
+            self.tick((200 + i) * S)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "error")
+
+    def test_absent_close_not_retired_when_exchange_size_changed(self):
+        pid = _pos(self.conn)
+        oid = self._ghost(kind="close", pos_id=pid)
+        repo.set_closing(self.conn, pid, oid)
+        self.fake.positions = {"ETH": {}}         # position gone: maybe our fill
+        for i in range(config.EXEC_MAX_ATTEMPTS + 3):
+            self.tick(i * S)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "active")
+        self.assertTrue(repo.get_exec_halt(self.conn)[0])
+        self.assertEqual(repo.get_open_position(self.conn, pid)["closing_order_id"], oid)
+
+    def test_unknown_tick_is_rejected_not_unknown(self):
+        self.fake.tick_size = lambda sym: 0.0
+        pid = self._close()
+        self.assertEqual(self.fake.log, [])
+        self.assertEqual(repo.active_orders(self.conn), [])
+        p = repo.get_open_position(self.conn, pid)
+        self.assertEqual((p["close_attempts"], p["closing_order_id"]), (1, None))
+
+    def test_manual_close_books_flat_when_exchange_has_none(self):
+        pid = _pos(self.conn)
+        self.fake.positions = {"ETH": {}}
+        p = repo.get_open_position(self.conn, pid)
+        eq0 = repo.get_state(self.conn)["equity_usd"]
+        jony_loop._request_close(self.conn, repo.get_state(self.conn), p, 0, 110.0,
+                                 "manual_close_one", "closed_manual", False, True, QUOTE)
+        self.assertEqual(self.fake.log, [])
+        row = repo.position_row(self.conn, pid)
+        self.assertEqual((row["status"], row["exit_reason"]), ("closed_manual", "manual_book_flat"))
+        self.assertEqual(row["exit_debit"], QUOTE["mark"])
+        self.assertNotEqual(repo.get_state(self.conn)["equity_usd"], eq0)
+        self.assertFalse(repo.get_exec_halt(self.conn)[0])
+
+    def test_manual_guard_partial_size_does_not_bump_attempts(self):
+        pid = _pos(self.conn)
+        self.fake.positions = {"ETH": {"ETH-TEST-P": {"size": 0.1, "side": "Sell"}}}
+        p = repo.get_open_position(self.conn, pid)
+        jony_loop._request_close(self.conn, repo.get_state(self.conn), p, 0, 110.0,
+                                 "manual_close_one", "closed_manual", False, True, QUOTE)
+        self.assertEqual(repo.get_open_position(self.conn, pid)["close_attempts"], 0)
+        self.assertTrue(repo.get_exec_halt(self.conn)[0])
+
+    def test_unhalt_resets_close_attempts(self):
+        pid = _pos(self.conn)
+        self.conn.execute("UPDATE positions SET close_attempts=3 WHERE id=?", (pid,))
+        self.conn.commit()
+        self.assertEqual(repo.reset_close_attempts(self.conn), 1)
+        self.assertEqual(repo.get_open_position(self.conn, pid)["close_attempts"], 0)
+
+    def test_submit_row_never_without_link_and_sweep(self):
+        seen = []
+        orig = self.fake.place_order
+
+        def spy(*a, **k):
+            seen.append(repo.active_orders(self.conn)[0]["order_link_id"])
+            return orig(*a, **k)
+        self.fake.place_order = spy
+        self._close()
+        self.assertTrue(seen and seen[0].startswith("jony-c-") and len(seen[0]) <= 36)
+        pid = _pos(self.conn)
+        oid = repo.insert_order(self.conn, {
+            "kind": "close", "pos_id": pid, "coin": "ETH", "side": "P",
+            "option_symbol": "ETH-TEST-P", "qty": 0.3, "price": 105.0, "stage": "urgent",
+            "urgent": 1, "order_link_id": None, "placed_at_ms": 0, "status": "active",
+            "reason": "sl", "payload": "{}", "created_at_ms": 0, "updated_at_ms": 0})
+        repo.set_closing(self.conn, pid, oid)
+        self.assertEqual(repo.sweep_unlinked_orders(self.conn), 1)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "error")
+        self.assertIsNone(repo.get_open_position(self.conn, pid)["closing_order_id"])
+
+
+class TestPlaceOrderClassification(unittest.TestCase):
+    def _client(self, exc):
+        from services import bybit_client as bc
+        c = bc.BybitClient.__new__(bc.BybitClient)
+
+        class Sess:
+            def place_order(self, **kw):
+                raise exc
+        c.session = Sess()
+        return c
+
+    def test_rate_limit_keyerror_is_rejected(self):
+        c = self._client(KeyError("X-Bapi-Limit-Reset-Timestamp"))
+        self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True), ("rejected", None))
+
+    def test_http_error_rejected_but_retries_exceeded_unknown(self):
+        from pybit.exceptions import FailedRequestError
+        c = self._client(FailedRequestError("req", "forbidden", 403, "t", None))
+        self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True)[0], "rejected")
+        c = self._client(FailedRequestError("req", "Bad Request. Retries exceeded maximum.",
+                                            400, "t", None))
+        self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True)[0], "unknown")
+
+    def test_connection_error_unknown(self):
+        c = self._client(ConnectionError("boom"))
+        self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True)[0], "unknown")
+
+
+class TestReviewRound3b(Base):
+    def test_quote_without_mark_uses_stored_ceiling(self):
+        pid = _pos(self.conn)
+        self.fake.positions = {"ETH": {"ETH-TEST-P": {"size": 0.3, "side": "Sell"}}}
+        p = repo.get_open_position(self.conn, pid)
+        jony_loop._request_close(self.conn, repo.get_state(self.conn), p, 0, 110.0,
+                                 "sl", "closed_sl", True, True, QUOTE)
+        ceil = QUOTE["mark"] * (1 + config.EXEC_URGENT_MAX_SLIP)
+        t = 0
+        for _ in range(60):
+            t += (config.EXEC_URGENT_WAIT_S + 1) * S
+            self.tick(t, quote={"bid": 0, "ask": 0, "mark": None})
+        self.assertLessEqual(repo.active_orders(self.conn)[0]["price"], ceil + 0.1)
+
+    def test_absent_close_shared_symbol_uses_aggregate(self):
+        a, b = _pos(self.conn, qty=0.1), _pos(self.conn, qty=0.1)
+        oid = repo.insert_order(self.conn, {
+            "kind": "close", "pos_id": a, "coin": "ETH", "side": "P",
+            "option_symbol": "ETH-TEST-P", "qty": 0.1, "price": 105.0, "stage": "urgent",
+            "urgent": 1, "order_link_id": "jony-c-ghost-3", "placed_at_ms": 0,
+            "status": "active", "reason": "sl", "payload": "{}",
+            "created_at_ms": 0, "updated_at_ms": 0})
+        repo.set_closing(self.conn, a, oid)
+        self.fake.positions = {"ETH": {"ETH-TEST-P": {"size": 0.1, "side": "Sell"}}}  # 0.2 → 0.1
+        for i in range(config.EXEC_MAX_ATTEMPTS + 3):
+            self.tick(i * S)
+        self.assertEqual(repo.get_order(self.conn, oid)["status"], "active")
+        self.assertTrue(repo.get_exec_halt(self.conn)[0])
+
+    def test_manual_book_flat_expired_uses_intrinsic(self):
+        pid = _pos(self.conn, expiry_ms=1000, strike=2500)
+        self.fake.positions = {"ETH": {}}
+        p = repo.get_open_position(self.conn, pid)
+        jony_loop._request_close(self.conn, repo.get_state(self.conn), p, 5000, 110.0,
+                                 "manual_close_one", "closed_manual", False, True,
+                                 dict(QUOTE, underlying=2400.0))
+        self.assertEqual(repo.position_row(self.conn, pid)["exit_debit"], 100.0)
+
+    def test_sweep_keeps_foreign_reservation(self):
+        pid = _pos(self.conn)
+        row = {"kind": "close", "pos_id": pid, "coin": "ETH", "side": "P",
+               "option_symbol": "ETH-TEST-P", "qty": 0.3, "price": 105.0, "stage": "urgent",
+               "urgent": 1, "placed_at_ms": 0, "status": "active", "reason": "sl",
+               "payload": "{}", "created_at_ms": 0, "updated_at_ms": 0}
+        bad = repo.insert_order(self.conn, dict(row, order_link_id=None))
+        good = repo.insert_order(self.conn, dict(row, order_link_id="jony-c-good"))
+        repo.set_closing(self.conn, pid, good)
+        repo.sweep_unlinked_orders(self.conn)
+        self.assertEqual(repo.get_order(self.conn, bad)["status"], "error")
+        self.assertEqual(repo.get_open_position(self.conn, pid)["closing_order_id"], good)
+
+
+class TestPlaceOrderClassification2(TestPlaceOrderClassification):
+    def test_5xx_and_json_decode_unknown(self):
+        from pybit.exceptions import FailedRequestError
+        for code, msg in ((502, "bad gateway"), (504, "timeout"), (409, "Conflict. Could not decode JSON.")):
+            c = self._client(FailedRequestError("req", msg, code, "t", None))
+            self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True)[0], "unknown", code)
+
+    def test_foreign_keyerror_unknown(self):
+        c = self._client(KeyError("result"))
+        self.assertEqual(c.place_order("ETH-X-P", "Buy", 0.1, 10.0, "l", True)[0], "unknown")

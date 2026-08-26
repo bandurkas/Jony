@@ -47,7 +47,8 @@ def exec_unhalt():
     try:
         halted, why = repo.get_exec_halt(conn)
         repo.set_exec_halt(conn, False, None)
-        return {"ok": True, "was_halted": halted, "reason": why}
+        n = repo.reset_close_attempts(conn)     # else next tick halts again (r3 int #2)
+        return {"ok": True, "was_halted": halted, "reason": why, "close_attempts_reset": n}
     finally:
         conn.close()
 

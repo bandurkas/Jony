@@ -40,6 +40,8 @@ def apply_schema(conn: sqlite3.Connection) -> None:
         "ALTER TABLE bot_control ADD COLUMN exec_halt_reason TEXT",
         "ALTER TABLE orders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE positions ADD COLUMN closed_by_order_id INTEGER",
+        "ALTER TABLE orders ADD COLUMN absent_ticks INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE orders ADD COLUMN ceiling REAL",
     ]
     for m in migrations:
         try:
@@ -293,12 +295,34 @@ def insert_position_mark(conn: sqlite3.Connection, ts_ms: int, pos_id: int,
 
 # ── Execution (Track B 2026-08-26) ──
 
-def insert_order(conn: sqlite3.Connection, o: dict) -> int:
+def insert_order(conn: sqlite3.Connection, o: dict, commit: bool = True) -> int:
     keys = ",".join(o)
     cur = conn.execute(f"INSERT INTO orders ({keys}) VALUES ({','.join('?' * len(o))})",
                        tuple(o.values()))
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.lastrowid
+
+
+def sweep_unlinked_orders(conn: sqlite3.Connection) -> int:
+    """Startup: an active order without a link id can never be adopted or
+    polled — mark it error and release its position (r3 int #3)."""
+    rows = conn.execute("SELECT id, pos_id FROM orders WHERE status='active'"
+                        " AND order_link_id IS NULL").fetchall()
+    for r in rows:
+        conn.execute("UPDATE orders SET status='error', stage='cancelled' WHERE id=?", (r["id"],))
+        if r["pos_id"] is not None:
+            conn.execute("UPDATE positions SET closing_order_id=NULL WHERE id=?"
+                         " AND closing_order_id=?", (r["pos_id"], r["id"]))
+    conn.commit()
+    return len(rows)
+
+
+def reset_close_attempts(conn: sqlite3.Connection) -> int:
+    cur = conn.execute("UPDATE positions SET close_attempts=0 WHERE status='open'"
+                       " AND close_attempts>0")
+    conn.commit()
+    return cur.rowcount
 
 
 def update_order(conn: sqlite3.Connection, oid: int, *, commit: bool = True,

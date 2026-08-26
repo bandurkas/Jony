@@ -401,17 +401,32 @@ def _request_close(conn, state: dict, p: dict, now_ms: int, paper_price: float,
         # never send a reduce-only buy against a position the exchange no
         # longer has (settled/liquidated/closed in UI) — r2 F10
         pos = executor.positions(p["coin"])
-        if pos is not None and abs((pos.get(p["option_symbol"]) or {}).get("size") or 0) + 1e-9 < p["qty"]:
-            repo.set_closing(conn, p["id"], None, bump_attempts=True)
+        size = abs((pos.get(p["option_symbol"]) or {}).get("size") or 0) if pos is not None else None
+        if size is not None and size + 1e-9 < p["qty"]:
+            if manual and size < 1e-9:
+                # operator closes a row the exchange is already flat on:
+                # book it at the current mark, no order (r3 int #1)
+                mark = (m or {}).get("mark") or paper_price
+                if now_ms >= p["expiry_ms"]:      # exchange settled at intrinsic
+                    und = (m or {}).get("underlying") or p["underlying_at_open"]
+                    mark = max(0.0, (p["strike"] - und) if p["side"] == "P" else (und - p["strike"]))
+                _close(conn, state, p, now_ms, mark, "manual_book_flat", status,
+                       arm_cb=False, fee_close=0.0)
+                notify(f"CLOSE pos {p['id']} {p['option_symbol']} booked flat @ {mark:g} "
+                       f"(exchange had no position, no order sent)")
+                return
+            repo.set_closing(conn, p["id"], None, bump_attempts=not manual)
             execution._halt(conn, now_ms, f"pos {p['id']} {p['option_symbol']}: exchange "
-                                          f"size < db qty — closed outside the bot?", notify)
+                                          f"size {size:g} < db qty {p['qty']:g} — closed "
+                                          f"outside the bot?", notify)
             return
     px = _quote_px(m, "close", urgent, paper_price)
     oid = execution.submit(
         conn, executor, kind="close", coin=p["coin"], side=p["side"],
         symbol=p["option_symbol"], qty=p["qty"], price=px, urgent=urgent,
         reason=reason, payload={"reason": reason, "status": status, "arm_cb": arm_cb},
-        now_ms=now_ms, pos_id=p["id"])
+        now_ms=now_ms, pos_id=p["id"],
+        ceiling=execution.urgent_ceiling(m) if executor.live else None)
     o = repo.get_order(conn, oid)
     if o["status"] != "active":
         n = attempts + 1                    # submit bumped close_attempts (r2 F6)
@@ -731,8 +746,12 @@ def main() -> None:
     err = execution.live_preflight(bybit_client)
     if err:
         print(f"[jony] FATAL: {err}", flush=True)
-        notify(f"FATAL: {err} — loop not started")
+        notify(f"FATAL: {err} — loop not started (retry in 5 min)")
+        time.sleep(300)                     # restart:unless-stopped → no TG spam (r3 int #4)
         sys.exit(1)
+    n = repo.sweep_unlinked_orders(conn)
+    if n:
+        notify(f"startup: {n} active order(s) without link id marked error")
     now_ms = int(time.time() * 1000)
     state = repo.init_state(conn, config.START_EQUITY_USD, now_ms)
     print(f"[jony] started, mode={config.TRADING_MODE}, "

@@ -119,7 +119,9 @@ CREATE TABLE IF NOT EXISTS orders (
     fee_usd REAL,
     status TEXT NOT NULL DEFAULT 'active',       -- active | filled | partial | no_fill | error
     reason TEXT,                                 -- close reason / open source
-    attempts INTEGER NOT NULL DEFAULT 0,         -- cancel retries / unknown-poll ticks
+    attempts INTEGER NOT NULL DEFAULT 0,         -- cancel retries / page ticks
+    absent_ticks INTEGER NOT NULL DEFAULT 0,     -- consecutive "Absent" polls (order_id NULL)
+    ceiling REAL,                                -- last known urgent-chase cap mark×(1+MAX_SLIP)
     payload TEXT,                                -- JSON: everything finalize needs
     created_at_ms INTEGER NOT NULL,
     updated_at_ms INTEGER NOT NULL
