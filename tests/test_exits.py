@@ -349,11 +349,16 @@ class TestPostureExits(unittest.TestCase):
             "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
         self.assertEqual(row["status"], "open")
 
+    MATURE = 20 * 3_600_000  # 20ч из hold_h=24 (>= 70%, close_policy)
+
     def test_tight_trail_locks_profit_without_cb(self):
+        # 2026-08-27: trail только на зрелом профите — возраст 20/24ч,
+        # пик 50% (mark 15) → откат до 30% (mark 21): giveback 20пп, профит ≥25%
         pid = _mk_pos(self.conn)
-        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, 1000)
-        repo.set_risk_posture(self.conn, "tight", 1500)
-        self._tick({"ETH-TEST": {"mark": 25.5, "ask": 25.5, "bid": 25.0}}, 2000)
+        now = self.MATURE
+        self._tick({"ETH-TEST": {"mark": 15.0, "ask": 15.0, "bid": 14.0}}, now)
+        repo.set_risk_posture(self.conn, "tight", now + 500)
+        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, now + 1000)
         row = dict(self.conn.execute(
             "SELECT status, exit_reason, pnl_usd FROM positions WHERE id=?",
             (pid,)).fetchone())
@@ -363,11 +368,46 @@ class TestPostureExits(unittest.TestCase):
         st = repo.get_state(self.conn)
         self.assertEqual(json.loads(st["cb_until_json"]), {})  # no CB arm
 
+    def test_tight_trail_skips_young_position(self):
+        # тот же откат 50%→30%, но возраст ~0ч → под close_policy не трогаем
+        # (live 14–26.08: 4 из 8 trail-закрытий в первые 0.6–2.5ч, −$24 к механике)
+        pid = _mk_pos(self.conn)
+        self._tick({"ETH-TEST": {"mark": 15.0, "ask": 15.0, "bid": 14.0}}, 1000)
+        repo.set_risk_posture(self.conn, "tight", 1500)
+        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, 2000)
+        row = dict(self.conn.execute(
+            "SELECT status, peak_profit_pct FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+        self.assertAlmostEqual(row["peak_profit_pct"], 0.50, places=6)
+
+    def test_tight_trail_skips_mature_but_thin_profit(self):
+        # зрелая, пик 30% → откат до 15%: giveback 15пп, но профит < 25% → open
+        pid = _mk_pos(self.conn)
+        now = self.MATURE
+        self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, now)
+        repo.set_risk_posture(self.conn, "tight", now + 500)
+        self._tick({"ETH-TEST": {"mark": 25.5, "ask": 25.5, "bid": 25.0}}, now + 1000)
+        row = dict(self.conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "open")
+
+    def test_tight_trail_flag_off_restores_young_trail(self):
+        pid = _mk_pos(self.conn)
+        self._tick({"ETH-TEST": {"mark": 15.0, "ask": 15.0, "bid": 14.0}}, 1000)
+        repo.set_risk_posture(self.conn, "tight", 1500)
+        with patch.object(jony_loop.config, "TRAIL_REQUIRE_ENDGAME", False):
+            self._tick({"ETH-TEST": {"mark": 21.0, "ask": 21.0, "bid": 20.0}}, 2000)
+        row = dict(self.conn.execute(
+            "SELECT status, exit_reason FROM positions WHERE id=?", (pid,)).fetchone())
+        self.assertEqual(row["status"], "closed_trail")
+        self.assertEqual(row["exit_reason"], "trail_lock")
+
     def test_lockdown_harvests_only_mature_profit(self):
         # Политика закрытий (core/close_policy, 2026-08-17): lockdown снимает
         # только ЗРЕЛЫЙ профит (возраст >= 70% hold_h И профит >= 25% кредита).
-        # Молодой винер остаётся под трейлинг-защитой (паническая жатва молодых
-        # позиций измеренно убыточна — кейс id56-59), убыточная — открыта
+        # Молодой винер остаётся открытым (паническая жатва молодых позиций
+        # измеренно убыточна — кейс id56-59; с 2026-08-27 и trail под
+        # close_policy), убыточная — открыта
         # (резка убытка не автоматизирована).
         now = 20 * 3_600_000  # 20ч
         _mk_pos(self.conn, symbol="ETH-RIPE")                 # возраст 20/24ч
@@ -386,19 +426,18 @@ class TestPostureExits(unittest.TestCase):
         self.assertEqual(rows["ETH-YOUNG"]["status"], "open")
         self.assertEqual(rows["ETH-LOSS"]["status"], "open")
 
-    def test_lockdown_young_winner_still_trail_protected(self):
-        # молодой винер под lockdown не жнётся политикой, но трейлинг-лок
-        # (общий для tight/lockdown) продолжает защищать его от отката с пика
+    def test_lockdown_young_winner_not_trailed(self):
+        # 2026-08-27: под lockdown молодой винер больше НЕ жнётся и трейлингом —
+        # close_policy едина для lockdown-жатвы, trail и советника
         _mk_pos(self.conn, symbol="ETH-YOUNG")
-        self._tick({"ETH-YOUNG": {"mark": 21.0, "ask": 21.0, "bid": 20.0}},
-                   1000)  # peak 30%
+        self._tick({"ETH-YOUNG": {"mark": 15.0, "ask": 15.0, "bid": 14.0}},
+                   1000)  # peak 50%
         repo.set_risk_posture(self.conn, "lockdown", 1500)
-        self._tick({"ETH-YOUNG": {"mark": 25.5, "ask": 25.5, "bid": 25.0}},
-                   2000)  # retrace 30%→15% (>10pp giveback) при возрасте ~0ч
+        self._tick({"ETH-YOUNG": {"mark": 21.0, "ask": 21.0, "bid": 20.0}},
+                   2000)  # retrace 50%→30% при возрасте ~0ч
         row = dict(self.conn.execute(
-            "SELECT status, exit_reason FROM positions").fetchone())
-        self.assertEqual(row["status"], "closed_trail")
-        self.assertEqual(row["exit_reason"], "trail_lock")
+            "SELECT status FROM positions").fetchone())
+        self.assertEqual(row["status"], "open")
 
     def _insert_closed(self, closed_at_ms, pnl_usd, status="closed_sl"):
         pid = repo.insert_position(self.conn, {
@@ -449,14 +488,14 @@ class TestPostureExits(unittest.TestCase):
         pid = repo.insert_position(self.conn, {
             "coin": "ETH", "side": "C", "option_symbol": "ETH-OPEN-OPT",
             "strike": 2500, "expiry_ms": now + 48 * 3_600_000, "qty": 0.1,
-            "opened_at_ms": now - 3_600_000, "underlying_at_open": 2500,
+            "opened_at_ms": now - 40 * 3_600_000, "underlying_at_open": 2500,
             "entry_credit": 30, "entry_source": "bid", "margin_usd": 28,
             "fee_open_usd": 0.1, "tp2_pct": 0.5, "sl_pct": 2.0, "hold_h": 48})
-        self.conn.execute("UPDATE positions SET peak_profit_pct=0.30 WHERE id=?",
+        self.conn.execute("UPDATE positions SET peak_profit_pct=0.50 WHERE id=?",
                           (pid,))
         self.conn.commit()
-        # peak 0.30 armed; mark 25.5 → pnl 0.15 <= peak-giveback → trail fires
-        marks = {"ETH-OPEN-OPT": {"mark": 25.5, "ask": 25.5}}
+        # зрелая (40/48ч), peak 0.50; mark 21 → pnl 0.30 <= peak-giveback → trail
+        marks = {"ETH-OPEN-OPT": {"mark": 21.0, "ask": 21.0}}
         self._tick(marks, now)
         row = dict(self.conn.execute(
             "SELECT status FROM positions WHERE id=?", (pid,)).fetchone())
@@ -668,7 +707,7 @@ class TestExitSpreadGuard(unittest.TestCase):
              patch("loop.notify"), \
              patch.object(jony_loop.portfolio, "effective_posture", return_value="tight"), \
              patch.object(jony_loop, "acct_breaker", return_value=None):
-            jony_loop.manage_exits(self.conn, state, 60_000)
+            jony_loop.manage_exits(self.conn, state, 20 * 3_600_000)  # зрелая 20/24ч
         row = self._row(pid)
         self.assertEqual(row["exit_reason"], "trail_lock")
         self.assertAlmostEqual(row["exit_debit"], 700.0 * 1.05)
@@ -725,7 +764,7 @@ class TestAdvisorTrailAlways(unittest.TestCase):
         self.conn.commit()
         repo.init_state(self.conn, 800.0, 0)
 
-    def _run(self, pid, payload, mark):
+    def _run(self, pid, payload, mark, now_ms=60_000):
         self.conn.execute("UPDATE positions SET signal_payload=?, peak_profit_pct=0.5 WHERE id=?",
                           (payload, pid))
         self.conn.commit()
@@ -734,7 +773,7 @@ class TestAdvisorTrailAlways(unittest.TestCase):
              patch("loop.notify"), \
              patch.object(jony_loop.portfolio, "effective_posture", return_value="normal"), \
              patch.object(jony_loop, "acct_breaker", return_value=None):
-            jony_loop.manage_exits(self.conn, repo.get_state(self.conn), 60_000)
+            jony_loop.manage_exits(self.conn, repo.get_state(self.conn), now_ms)
         return dict(self.conn.execute(
             "SELECT status, exit_reason FROM positions WHERE id=?", (pid,)).fetchone())
 
@@ -746,10 +785,17 @@ class TestAdvisorTrailAlways(unittest.TestCase):
 
     def test_advisor_position_trails_in_normal_posture(self):
         # entry 30, peak 50%, mark 21 → pnl 30% ≤ peak−giveback(10pp) → trail
+        # (зрелая 20/24ч — close_policy едина и для advisor-позиций, 2026-08-27)
         pid = _mk_pos(self.conn, side="C", entry=30.0)
-        row = self._run(pid, '{"source": "advisor", "active_side": "C"}', 21.0)
+        row = self._run(pid, '{"source": "advisor", "active_side": "C"}', 21.0,
+                        now_ms=20 * 3_600_000)
         self.assertEqual(row["status"], "closed_trail")
         self.assertEqual(row["exit_reason"], "trail_lock")
+
+    def test_advisor_position_young_no_trail(self):
+        pid = _mk_pos(self.conn, side="C", entry=30.0)
+        row = self._run(pid, '{"source": "advisor", "active_side": "C"}', 21.0)
+        self.assertEqual(row["status"], "open")
 
     def test_bot_position_no_trail_in_normal_posture(self):
         pid = _mk_pos(self.conn, side="C", entry=30.0)

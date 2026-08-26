@@ -187,11 +187,16 @@ def manage_exits(conn, state: dict, now_ms: int,
             # lockdown снимает только ЗРЕЛЫЙ профит (политика закрытий,
             # core/close_policy.py — ревью 2026-08-17: иначе советник,
             # которому вето не даёт CLOSE, харвестил бы молодые позиции
-            # через lockdown). Молодой профит под lockdown защищает
-            # трейлинг-ветка ниже; полная эвакуация — Close All у человека.
+            # через lockdown). Молодой профит под lockdown НЕ трогаем
+            # (с 2026-08-27 trail-ветка ниже под той же close_policy, т.е.
+            # в lockdown недостижима); полная эвакуация — Close All у человека.
             reason, status = "lockdown_profit_lock", "closed_trail"
         elif (posture in ("tight", "lockdown") or is_advisor_position(p)) and \
-                portfolio.trail_exit_due(peak, pnl_pct_mark):
+                portfolio.trail_exit_due(peak, pnl_pct_mark) and \
+                (not config.TRAIL_REQUIRE_ENDGAME or
+                 close_policy.endgame_ok(pnl_pct_mark, held_h, p["hold_h"])):
+            # 2026-08-27: trail только на зрелом профите (close_policy) —
+            # единое правило досрочных закрытий для всех каналов
             # advisor-входы (в т.ч. advisor-only коллы) — под трейлингом
             # ВСЕГДА: экспериментальный источник сигнала, профит защищаем
             # механически (решение пользователя 2026-08-22)

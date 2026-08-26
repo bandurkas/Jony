@@ -116,6 +116,11 @@ BOT_TAG = "Jony"
 # appropriate because tight mode IS the elevated-risk state.
 TRAIL_ARM = float(os.getenv("JONY_TRAIL_ARM", "0.20"))         # profit fraction of credit
 TRAIL_GIVEBACK = float(os.getenv("JONY_TRAIL_GIVEBACK", "0.10"))  # retrace from peak
+# 2026-08-27 (RESEARCH_LOG Phase 12): 8 live trail-закрытий в tight — −$24 к механике,
+# 4 из 8 в первые 0.6–2.5ч после входа (шум). Trail теперь подчинён той же
+# close_policy, что и советник: только ЗРЕЛЫЙ профит (age ≥70% hold_h И профит
+# ≥25% кредита). "0" = прежнее поведение (откат без деплоя).
+TRAIL_REQUIRE_ENDGAME = os.getenv("JONY_TRAIL_REQUIRE_ENDGAME", "1") == "1"
 LOCKDOWN_STALE_H = float(os.getenv("JONY_LOCKDOWN_STALE_H", "4"))  # dead-advisor guard
 
 # ── Account-level circuit breaker (2026-08-15) ──
