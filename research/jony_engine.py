@@ -171,7 +171,7 @@ def bar_ema_ratio(closes_1h: np.ndarray) -> np.ndarray:
 _BASE_CACHE: dict[str, dict] = {}
 
 
-def build_coin_base(coin: str) -> dict:
+def build_coin_base(coin: str, feature_lag: bool = False) -> dict:
     """Everything about a coin's 5m timeline that does NOT depend on
     put_gen/call_gen: directions, regime, rv1h (pre-threshold), ema_ratio,
     mtf consensus, ret_7d allowed-sides gate. Computed once per coin
@@ -182,8 +182,13 @@ def build_coin_base(coin: str) -> dict:
     Fully vectorized (no DataFrame.apply(axis=1)) — the row-wise Python
     applies in the original port cost ~68s/coin for 210k 5m bars; this is
     the same math expressed as numpy/pandas vector ops."""
-    if coin in _BASE_CACHE:
-        return _BASE_CACHE[coin]
+    # feature_lag (honest_replay 2026-08-27): 15m/1h features become
+    # available at bar END (start_ms + tf), not at bar start — the default
+    # merges the in-progress bar's FINAL close onto 5m bars (up to 55 min
+    # of future price in regime/rv1h/dir1h/ema_ratio).
+    ck = (coin, feature_lag)
+    if ck in _BASE_CACHE:
+        return _BASE_CACHE[ck]
 
     d5 = load_klines(coin, "5m")
     d15 = load_klines(coin, "15m")
@@ -200,8 +205,11 @@ def build_coin_base(coin: str) -> dict:
     rv1h = rolling_realized_vol(d1h["close"], lookback=24)
     ema_ratio = bar_ema_ratio(d1h["close"].values)
 
-    d1h_ext = d1h.assign(direction=dir1h, regime=regime, ema_ratio=ema_ratio, rv1h=rv1h.values)
-    d15_ext = d15.assign(direction=dir15)
+    lag1h = 3_600_000 if feature_lag else 0
+    lag15 = 900_000 if feature_lag else 0
+    d1h_ext = d1h.assign(direction=dir1h, regime=regime, ema_ratio=ema_ratio, rv1h=rv1h.values,
+                         start_ms=d1h["start_ms"] + lag1h)
+    d15_ext = d15.assign(direction=dir15, start_ms=d15["start_ms"] + lag15)
     ret7d = (d5["close"] - d5["close"].shift(jc.BARS_7D)) / d5["close"].shift(jc.BARS_7D) * 100
     d5_ext = d5.assign(direction=dir5, ret7d=ret7d)
 
@@ -235,11 +243,11 @@ def build_coin_base(coin: str) -> dict:
         # evaluate_gates() (bug caught by a fidelity check against known-good
         # trade counts: rolling the already-5m-broadcast series fired signals
         # ~10x too early).
-        "rv1h_native": rv1h.values, "start_ms_1h": d1h["start_ms"].values,
+        "rv1h_native": rv1h.values, "start_ms_1h": (d1h["start_ms"] + lag1h).values,
         "mtf_dir": mtf_dir, "mtf_aligned": mtf_aligned,
         "allowed_P": allowed_P, "allowed_C": allowed_C,
     }
-    _BASE_CACHE[coin] = base
+    _BASE_CACHE[ck] = base
     return base
 
 
@@ -332,7 +340,10 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
                          hold_h: float, strike_round: float, expiry_h: float = jc.TARGET_EXPIRY_H,
                          vol_track: np.ndarray | None = None, vol_stop_accel: float | None = None,
                          vol_stop_require_loss: bool = False,
-                         strike_offset: float = 0.0):
+                         strike_offset: float = 0.0,
+                         sigma_grid: np.ndarray | None = None,
+                         half_spread: float | None = None,
+                         sigma_path_beta: float = 1.0):
     """Prices off the option's REAL tenor (weekly, expiry_h=168h by default —
     matches config.TARGET_EXPIRY_H / pick_atm_option's weekly selection), not
     the planned holding time. hold_h only caps how long we keep walking
@@ -355,6 +366,7 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     vol_stop_accel-x the entry-time rv, the position is bought back early at
     that bar's close-based mark, regardless of price-based TP2/SL. Priority
     on a same-bar tie: sl > vol_stop > tp2 (protecting capital first)."""
+    hs = HALF_SPREAD if half_spread is None else half_spread
     spot0 = close[entry_idx]
     # strike_offset (2026-08-18, sweep_strike_offset): доля спота в БЕЗОПАСНУЮ
     # сторону (P ниже, C выше); 0.0 = ATM (все прежние исследования).
@@ -364,9 +376,9 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     entry_mid = bs.price(side, spot0, strike, T0, sigma)
     if entry_mid <= 0.01:
         return None
-    entry_credit = entry_mid * (1 - HALF_SPREAD)
-    tp2_mid = entry_credit * (1 - tp2_pct) / (1 + HALF_SPREAD)
-    sl_mid = entry_credit * (1 + sl_pct) / (1 + HALF_SPREAD)
+    entry_credit = entry_mid * (1 - hs)
+    tp2_mid = entry_credit * (1 - tp2_pct) / (1 + hs)
+    sl_mid = entry_credit * (1 + sl_pct) / (1 + hs)
 
     bars_limit = int(hold_h * 12)  # 5m bars — caps the walk, not the option's real tenor
     lo_idx, hi_idx = entry_idx + 1, min(entry_idx + 1 + bars_limit, len(close))
@@ -376,12 +388,25 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
     m = hi_idx - lo_idx
     elapsed_h = (np.arange(1, m + 1)) * 5 / 60
     T = np.maximum(0.0, (expiry_h - elapsed_h) / (24 * 365))
-    if side == "C":
-        premium_high = _vec_bs_price(side, hi_spot, strike, T, sigma)
-        premium_low = _vec_bs_price(side, lo_spot, strike, T, sigma)
+    # sigma_path (honest_replay 2026-08-27): reprice each forward bar with
+    # the sigma KNOWN at that bar (calibrated trailing rv1h), instead of
+    # freezing the entry sigma for the whole hold — captures vol expansion
+    # on adverse moves (short-put SL hits sooner, buybacks cost more).
+    if sigma_grid is not None:
+        sig_fwd = sigma_grid[lo_idx:hi_idx].astype(float)
+        sig_fwd = np.where(np.isnan(sig_fwd) | (sig_fwd <= 0), sigma, sig_fwd)
+        if sigma_path_beta != 1.0:  # damped path: sigma_entry * (calib_t/calib_entry)^beta
+            sig_fwd = sigma * (sig_fwd / sigma) ** sigma_path_beta
     else:
-        premium_high = _vec_bs_price(side, lo_spot, strike, T, sigma)
-        premium_low = _vec_bs_price(side, hi_spot, strike, T, sigma)
+        sig_fwd = sigma
+    if side == "C":
+        premium_high = _vec_bs_price(side, hi_spot, strike, T, sig_fwd)
+        premium_low = _vec_bs_price(side, lo_spot, strike, T, sig_fwd)
+    else:
+        premium_high = _vec_bs_price(side, lo_spot, strike, T, sig_fwd)
+        premium_low = _vec_bs_price(side, hi_spot, strike, T, sig_fwd)
+    def _sig_at(k):
+        return float(sig_fwd[k]) if sigma_grid is not None else sigma
 
     sl_hits = np.flatnonzero(premium_high >= sl_mid)
     tp_hits = np.flatnonzero(premium_low <= tp2_mid)
@@ -399,7 +424,7 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
                 # round-1 sweep found a pure vol-level trigger clips winners
                 # that see a transient vol uptick before recovering to TP2;
                 # this restricts it to the loss case the idea was meant for.
-                premium_close = _vec_bs_price(side, close[lo_idx:hi_idx], strike, T, sigma)
+                premium_close = _vec_bs_price(side, close[lo_idx:hi_idx], strike, T, sig_fwd)
                 vol_hit_mask = vol_hit_mask & (premium_close > entry_credit)
             vol_hits = np.flatnonzero(vol_hit_mask)
             if len(vol_hits):
@@ -418,15 +443,15 @@ def simulate_option_exit(side: str, entry_idx: int, close: np.ndarray, high: np.
             return {"resolution": "tp2", "pnl_pct": tp2_pct, "exit_ts": int(start_ms[lo_idx + idx]),
                     "strike": strike, "entry_credit": entry_credit,
                     "entry_spot": spot0, "exit_spot": close[lo_idx + idx]}
-        mid = bs.price(side, close[lo_idx + idx], strike, T[idx], sigma)
-        buyback = mid * (1 + HALF_SPREAD)
+        mid = bs.price(side, close[lo_idx + idx], strike, T[idx], _sig_at(idx))
+        buyback = mid * (1 + hs)
         pnl_pct = (entry_credit - buyback) / entry_credit if entry_credit > 0 else 0.0
         return {"resolution": "vol_stop", "pnl_pct": pnl_pct, "exit_ts": int(start_ms[lo_idx + idx]),
                 "strike": strike, "entry_credit": entry_credit,
                 "entry_spot": spot0, "exit_spot": close[lo_idx + idx]}
 
-    final_mid = bs.price(side, close[hi_idx - 1], strike, T[-1], sigma)
-    buyback = final_mid * (1 + HALF_SPREAD)
+    final_mid = bs.price(side, close[hi_idx - 1], strike, T[-1], _sig_at(m - 1))
+    buyback = final_mid * (1 + hs)
     pnl_pct = (entry_credit - buyback) / entry_credit if entry_credit > 0 else 0.0
     return {"resolution": "time_stop", "pnl_pct": pnl_pct, "exit_ts": int(start_ms[hi_idx - 1]),
             "strike": strike, "entry_credit": entry_credit,
@@ -441,7 +466,9 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                 vol_stop_regimes: tuple[str, ...] | None = None,
                 expiry_h: float = jc.TARGET_EXPIRY_H,
                 sigma_calib: dict | None = None,
-                strike_offset: float = 0.0) -> list[dict]:
+                strike_offset: float = 0.0,
+                feature_lag: bool = False, sigma_path: bool = False,
+                spread_pct: float | None = None, sigma_path_beta: float = 1.0) -> list[dict]:
     """put_exit/call_exit default to jc.PUT_EXIT/CALL_EXIT (live-deployed) but
     accept overrides — used by the exit-parameter sweep. vol_guard/
     vol_stop_accel are the experimental entry-guard/exit-stop from
@@ -472,8 +499,9 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
     monotonic sigma transform doesn't change which trades fire)."""
     put_exit = jc.PUT_EXIT if put_exit is None else put_exit
     call_exit = jc.CALL_EXIT if call_exit is None else call_exit
-    base = build_coin_base(coin)
+    base = build_coin_base(coin, feature_lag=feature_lag)
     sig = evaluate_gates(base, put_gen=put_gen, call_gen=call_gen, vol_guard=vol_guard)
+    half_spread = None if spread_pct is None else spread_pct / 200.0
     d5 = load_klines(coin, "5m")
     close, high, low = d5["close"].values, d5["high"].values, d5["low"].values
     start_ms_arr = d5["start_ms"].values
@@ -485,7 +513,10 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
         rv1h = (sigma_calib["b0"] + sigma_calib["b1"] * rv1h_raw).clip(
             sigma_calib["floor"], sigma_calib["ceiling"])
     # map each 5m bar to nearest-past 1h sigma reading
-    sig = pd.merge_asof(sig, d1h[["start_ms"]].assign(sigma=rv1h.values), on="start_ms", direction="backward")
+    lag1h = 3_600_000 if feature_lag else 0
+    sig = pd.merge_asof(sig, d1h[["start_ms"]].assign(sigma=rv1h.values, start_ms=d1h["start_ms"] + lag1h),
+                        on="start_ms", direction="backward")
+    sigma_grid = sig["sigma"].values.astype(float) if sigma_path else None
 
     vol_track_arr = None
     if vol_stop_accel is not None:
@@ -526,7 +557,9 @@ def coin_trades(coin: str, sides_enabled=("P", "C"), put_gen: dict | None = None
                                        vol_track=vol_track_arr if in_scope else None,
                                        vol_stop_accel=vol_stop_accel if in_scope else None,
                                        vol_stop_require_loss=vol_stop_require_loss,
-                                       strike_offset=strike_offset)
+                                       strike_offset=strike_offset,
+                                       sigma_grid=sigma_grid, half_spread=half_spread,
+                                       sigma_path_beta=sigma_path_beta)
             cooldown_until[side] = start_ms_sig[i] + jc.COOLDOWN_BARS * 300_000
             if out is None:
                 continue

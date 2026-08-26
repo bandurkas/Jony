@@ -1,0 +1,49 @@
+[CALIB] v0 as-is (Phase10 baseline)  n=4539 WR 71.5 res {'tp2': 2249, 'sl': 659, 'time_stop': 1631} | fx tr  +3481 ho +1551 (ETH:P    -23/581 BTC:P  +5055/3958)
+        $800  tr   +22.8%/dd 21.9 ho   +28.8%/dd 13.2 full   +51.3%/dd 28.7 skip_size 238
+        $1500 tr   +25.6%/dd 22.7 ho   +34.9%/dd 12.2 full   +68.1%/dd 26.4 skip_size 0
+        quarters fx [3192, 2898, -3907, 2849]  rep$1500 [np.float64(18.3), np.float64(19.2), np.float64(-13.3), np.float64(36.9)]  (3s)
+[CALIB] L  feature_lag               n=4560 WR 71.0 res {'tp2': 2227, 'sl': 679, 'time_stop': 1654} | fx tr  +2791 ho +1347 (ETH:P   -255/584 BTC:P  +4393/3976)
+        $800  tr   +17.7%/dd 22.5 ho   +12.0%/dd 12.2 full   +29.5%/dd 28.5 skip_size 338
+        $1500 tr   +10.4%/dd 22.3 ho   +16.2%/dd 11.2 full   +25.0%/dd 28.5 skip_size 0
+        quarters fx [2847, 2347, -3661, 2604]  rep$1500 [np.float64(9.9), np.float64(20.6), np.float64(-15.2), np.float64(19.9)]  (3s)
+[CALIB] S  sigma_path                n=4539 WR 72.4 res {'tp2': 2443, 'sl': 675, 'time_stop': 1421} | fx tr  +4981 ho +1830 (ETH:P   +131/581 BTC:P  +6680/3958)
+        $800  tr   +39.1%/dd 20.9 ho   +31.5%/dd  9.2 full   +70.0%/dd 20.9 skip_size 179
+        $1500 tr   +42.4%/dd 21.7 ho   +33.7%/dd  9.9 full   +84.3%/dd 21.7 skip_size 0
+        quarters fx [3094, 3551, -2946, 3113]  rep$1500 [np.float64(21.5), np.float64(22.9), np.float64(-6.9), np.float64(34.6)]  (2s)
+[CALIB] LS honest                    n=4560 WR 71.9 res {'tp2': 2443, 'sl': 691, 'time_stop': 1426} | fx tr  +4518 ho +1749 (ETH:P    -88/584 BTC:P  +6355/3976)
+        $800  tr   +46.0%/dd 17.0 ho   +27.1%/dd  8.4 full   +80.1%/dd 17.0 skip_size 235
+        $1500 tr   +26.3%/dd 18.4 ho   +28.9%/dd  9.6 full   +63.3%/dd 18.4 skip_size 0
+        quarters fx [2913, 3038, -2685, 3002]  rep$1500 [np.float64(8.8), np.float64(23.5), np.float64(-3.4), np.float64(29.7)]  (2s)
+[CALIB] LS honest spread5            n=4560 WR 71.3 res {'tp2': 2413, 'sl': 740, 'time_stop': 1407} | fx tr  +3009 ho +1224 (ETH:P   -142/584 BTC:P  +4375/3976)
+        $800  tr    +0.6%/dd 22.1 ho   +15.6%/dd 10.7 full   +10.4%/dd 22.1 skip_size 2000
+        $1500 tr   +26.5%/dd 15.5 ho   +19.0%/dd 11.4 full   +46.9%/dd 15.7 skip_size 0
+        quarters fx [2473, 2262, -2970, 2468]  rep$1500 [np.float64(5.3), np.float64(18.4), np.float64(-4.1), np.float64(19.5)]  (2s)
+[CALIB] LS honest spread10           n=4560 WR 70.4 res {'tp2': 2349, 'sl': 823, 'time_stop': 1388} | fx tr   +324 ho  +509 (ETH:P   -220/584 BTC:P  +1053/3976)
+        $800  tr   +20.3%/dd 22.8 ho   +10.5%/dd 11.5 full   +25.3%/dd 22.8 skip_size 620
+        $1500 tr   +24.1%/dd 14.7 ho   +12.0%/dd 12.1 full   +35.9%/dd 14.7 skip_size 0
+        quarters fx [1694, 1185, -3795, 1749]  rep$1500 [np.float64(3.2), np.float64(12.2), np.float64(-5.3), np.float64(13.0)]  (2s)
+[CLAMP] v0 as-is (Phase10 baseline)  n=4539 WR 73.0 res {'tp2': 2228, 'sl': 819, 'time_stop': 1492} | fx tr  +5080 ho +1671 (ETH:P  +1092/581 BTC:P  +5658/3958)
+        $800  tr   +62.2%/dd 20.8 ho   +37.9%/dd  8.9 full  +139.6%/dd 21.2 skip_size 0
+        $1500 tr   +63.8%/dd 22.8 ho   +45.7%/dd  8.6 full  +136.5%/dd 25.0 skip_size 0
+        quarters fx [5902, 2322, -4407, 2933]  rep$1500 [np.float64(47.4), np.float64(30.0), np.float64(-18.3), np.float64(50.0)]  (2s)
+[CLAMP] L  feature_lag               n=4560 WR 72.7 res {'tp2': 2202, 'sl': 842, 'time_stop': 1516} | fx tr  +4201 ho +1569 (ETH:P   +868/584 BTC:P  +4903/3976)
+        $800  tr   +45.3%/dd 16.5 ho   +23.8%/dd  8.0 full   +83.8%/dd 18.6 skip_size 145
+        $1500 tr   +46.0%/dd 17.9 ho   +30.0%/dd  9.5 full   +88.6%/dd 21.0 skip_size 0
+        quarters fx [5186, 1981, -4175, 2779]  rep$1500 [np.float64(19.3), np.float64(31.9), np.float64(-11.9), np.float64(32.7)]  (2s)
+[CLAMP] S  sigma_path                n=4539 WR 76.0 res {'tp2': 3110, 'sl': 810, 'time_stop': 619} | fx tr +13709 ho +2968 (ETH:P  +2023/581 BTC:P +14653/3958)
+        $800  tr  +111.9%/dd 15.5 ho   +38.8%/dd  9.5 full  +209.6%/dd 15.5 skip_size 8
+        $1500 tr  +116.1%/dd 18.6 ho   +49.9%/dd  8.7 full  +222.9%/dd 18.6 skip_size 0
+        quarters fx [8385, 4730, -644, 4205]  rep$1500 [np.float64(48.5), np.float64(50.8), np.float64(-5.2), np.float64(54.7)]  (2s)
+[CLAMP] LS honest                    n=4560 WR 75.8 res {'tp2': 3131, 'sl': 814, 'time_stop': 615} | fx tr +13712 ho +3076 (ETH:P  +1916/584 BTC:P +14872/3976)
+        $800  tr  +115.6%/dd 20.5 ho   +31.8%/dd  8.1 full  +195.3%/dd 20.5 skip_size 26
+        $1500 tr  +116.1%/dd 23.0 ho   +38.9%/dd 10.1 full  +199.7%/dd 23.0 skip_size 0
+        quarters fx [9048, 3642, -151, 4249]  rep$1500 [np.float64(58.2), np.float64(22.4), np.float64(5.6), np.float64(41.3)]  (2s)
+[CLAMP] LS honest spread5            n=4560 WR 75.2 res {'tp2': 3095, 'sl': 844, 'time_stop': 621} | fx tr +12186 ho +2703 (ETH:P  +1814/584 BTC:P +13074/3976)
+        $800  tr  +115.1%/dd 20.3 ho   +33.6%/dd  8.7 full  +197.6%/dd 20.3 skip_size 26
+        $1500 tr  +107.9%/dd 22.8 ho   +42.1%/dd 10.1 full  +193.7%/dd 22.8 skip_size 0
+        quarters fx [8157, 3241, -373, 3865]  rep$1500 [np.float64(56.9), np.float64(22.9), np.float64(4.5), np.float64(45.1)]  (2s)
+[CLAMP] LS honest spread10           n=4560 WR 74.1 res {'tp2': 3047, 'sl': 902, 'time_stop': 611} | fx tr  +9675 ho +2146 (ETH:P  +1493/584 BTC:P +10327/3976)
+        $800  tr   +70.0%/dd 22.0 ho   +26.5%/dd 10.3 full  +129.4%/dd 22.0 skip_size 29
+        $1500 tr   +77.2%/dd 22.4 ho   +35.0%/dd 10.0 full  +142.0%/dd 22.4 skip_size 0
+        quarters fx [7101, 2108, -668, 3279]  rep$1500 [np.float64(46.2), np.float64(17.1), np.float64(1.8), np.float64(36.5)]  (2s)
+saved /Users/styserg/Desktop/Jony/research/results/honest_replay_2026-08-27.json
