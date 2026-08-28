@@ -760,52 +760,107 @@ def _short_symbol(symbol: str) -> str:
     return symbol
 
 
+def _pos_icon(pct: float | None, buf: float | None) -> str:
+    if pct is None:
+        return "⚪"
+    if pct <= -50 or (buf is not None and buf < -3):
+        return "🔴"
+    if pct < -20:
+        return "🟠"
+    if pct >= 20:
+        return "🟢"
+    return "🟡"
+
+
+def _mech_hint(snap: dict) -> str:
+    """Что сделает механика дальше — чтобы человек видел альтернативу
+    ручному действию: порог TP2/SL и когда time-stop."""
+    parts = []
+    pct = snap.get("profit_pct_of_credit")
+    tp2, sl = snap.get("tp2_pct"), snap.get("sl_pct")
+    if pct is not None and pct < 0 and sl is not None:
+        parts.append(f"SL −{sl * 100:.0f}%")
+    elif tp2 is not None:
+        parts.append(f"TP2 +{tp2 * 100:.0f}%")
+    age, hold = snap.get("age_h"), snap.get("hold_h")
+    if age is not None and hold:
+        left = max(0.0, hold - age)
+        parts.append(f"time-stop {left:.0f}ч" if left >= 1 else "time-stop <1ч")
+    return " / ".join(parts)
+
+
+def _pos_line(rec: dict, snap: dict, executed: list[int],
+              vetoed: set[int] | None) -> str:
+    pid = rec.get("id")
+    sym = _short_symbol(snap.get("symbol", f"#{pid}"))
+    pnl = snap.get("unrealized_usd")
+    pct = snap.get("profit_pct_of_credit")
+    buf = snap.get("strike_buffer_pct")
+    pnl_s = (f" {pnl:+.1f}$" if pnl is not None else "") + \
+            (f" ({pct:+.0f}%)" if pct is not None else "")
+    age, hold = snap.get("age_h"), snap.get("hold_h")
+    age_s = f" · {age:.0f}/{hold:.0f}ч" if (age is not None and hold) else ""
+    buf_s = ""
+    if buf is not None:
+        buf_s = f" · ITM {buf:+.1f}%" if buf < 0 else f" · до страйка {buf:.1f}%"
+    brief = (rec.get("brief") or "").strip()
+    action = rec.get("action")
+    head = f"{_pos_icon(pct, buf)} {sym}{pnl_s}{age_s}{buf_s}"
+    if pid in executed:
+        return f"🤖 закрыл {sym}{pnl_s} · {brief}"
+    if action == "CLOSE" and vetoed and pid in vetoed:
+        return f"{head}\n   🔒 CLOSE отклонён политикой · {brief} · механика: {_mech_hint(snap)}"
+    if action == "CLOSE":
+        return (f"{head}\n   ❗ {brief} → закрой сам (бот убыточные не закрывает)"
+                f" · иначе механика: {_mech_hint(snap)}")
+    return f"{head} · {brief or 'держим'} · {_mech_hint(snap)}"
+
+
 def format_tg(advice: dict, pos_by_id: dict, executed: list[int],
               posture_change: tuple[str, str] | None,
               equity: float | None, start_equity: float | None,
-              vetoed: set[int] | None = None) -> str:
-    """Mobile-first push, target ≤6 short lines:
-       header (risk+posture) / one-line model summary /
-       one line per non-HOLD position / account footer.
-       Full reasons stay in advice.jsonl and /advice/recent — not the push.
-       vetoed — CLOSE-советы, отклонённые политикой закрытий: рендерятся
-       информационно («держим»), НЕ как команда человеку «закрой сам» —
-       иначе ветированный ранний харвест исполнялся бы чужими руками
-       (ревью 2026-08-17)."""
+              vetoed: set[int] | None = None,
+              market: dict | None = None) -> str:
+    """Mobile-first push (2026-08-28 redesign по запросу пользователя —
+    ручные закрытия по TG стали штатным каналом, значит в сообщении должно
+    быть всё для решения): шапка (риск/posture/equity) → рынок одной строкой
+    → по одной строке на КАЖДУЮ позицию (PnL, возраст, дистанция до страйка,
+    что сделает механика) → действие/вход. Полные reasons — только в
+    advice.jsonl. vetoed — CLOSE, отклонённые политикой: «держим», не
+    команда человеку (ревью 2026-08-17)."""
     risk = advice.get("market_risk", "?")
     icon = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk, "❔")
-    head = f"{icon} Jony · {risk} · {advice.get('risk_posture', '?')}"
+    posture = advice.get("risk_posture", "?")
+    head = f"{icon} Jony · риск {risk} · {posture}"
     if posture_change:
-        head += f"  ({posture_change[0]}→{posture_change[1]})"
+        head += f" ({posture_change[0]}→{posture_change[1]})"
+    if equity is not None:
+        head += f" · 💰 ${equity:.0f}"
+        if start_equity:
+            head += f" ({(equity - start_equity) / start_equity * 100:+.1f}%)"
     lines = [head]
+    if market:
+        mk = []
+        for coin in ("BTC", "ETH"):
+            m = market.get(coin) or {}
+            if m.get("spot"):
+                chg = m.get("chg_24h_pct")
+                mk.append(f"{coin} {m['spot']:,.0f}".replace(",", " ")
+                          + (f" ({chg:+.1f}%)" if chg is not None else ""))
+        if mk:
+            lines.append("📊 " + " · ".join(mk))
     tg_sum = (advice.get("tg_summary") or "").strip()
     if tg_sum:
-        lines.append(tg_sum[:120])
-    n_hold = 0
+        lines.append(f"💬 {tg_sum[:120]}")
+    seen = set()
     for rec in advice.get("positions", []):
-        pid = rec["id"]
-        snap = pos_by_id.get(pid, {})
-        if rec["action"] == "HOLD" and pid not in executed:
-            n_hold += 1
+        pid = rec.get("id")
+        if pid in seen:
             continue
-        sym = _short_symbol(snap.get("symbol", f"#{pid}"))
-        pnl = snap.get("unrealized_usd")
-        pnl_s = f" {pnl:+.1f}$" if pnl is not None else ""
-        brief = rec.get("brief") or ""
-        if pid in executed:
-            lines.append(f"🤖 закрыл {sym}{pnl_s} · {brief}")
-        elif vetoed and pid in vetoed:
-            lines.append(f"🔒 {sym}{pnl_s} · {brief} — держим (политика)")
-        else:
-            lines.append(f"❗ {sym}{pnl_s} · {brief} — закрой сам")
-    foot = ""
-    if equity is not None:
-        foot = f"💰 ${equity:.0f}"
-        if start_equity:
-            foot += f" ({(equity - start_equity) / start_equity * 100:+.1f}%)"
-    n_open = len(pos_by_id)
-    foot += f" · позиций {n_open}" + (f" (hold {n_hold})" if n_hold else "")
-    lines.append(foot.strip(" ·"))
+        seen.add(pid)
+        lines.append(_pos_line(rec, pos_by_id.get(pid, {}), executed, vetoed))
+    if not advice.get("positions") and not pos_by_id:
+        lines.append("— позиций нет")
     return "\n".join(x for x in lines if x)
 
 
@@ -996,10 +1051,11 @@ def tick(client: BybitClient, wake_reason: str | None = None) -> dict | None:
                 advice, pos_by_id, exec_ids,
                 (cur_posture, new_posture) if new_posture != cur_posture else None,
                 state.get("equity_usd"), state.get("start_equity_usd"),
-                vetoed=vetoed)
+                vetoed=vetoed, market=payload.get("market"))
             if entry:
-                msg += (f"\n🚀 вход {entry['coin']} {entry['side']}"
-                        f" · {entry.get('brief', '')}")
+                msg += (f"\n🚀 Вход {entry['coin']} {entry['side']}"
+                        f" (уверенность {entry.get('confidence', 0):.2f})"
+                        f" · {entry.get('brief', '')} → бот открывает")
             notify(msg)
         except Exception as e:
             print(f"[advisor] telegram failed: {e}", flush=True)

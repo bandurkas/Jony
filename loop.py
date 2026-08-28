@@ -297,6 +297,19 @@ def close_position_now(conn, state: dict, pos_id: int, now_ms: int) -> dict:
     return repo.get_state(conn)
 
 
+EXIT_REASON_RU = {"tp2": "TP2 🎯", "sl": "SL", "time_stop": "time-stop ⏱",
+                  "trail_lock": "trail 🔒", "lockdown_profit_lock": "lockdown 🔒",
+                  "manual_close_one": "вручную ✋", "manual": "вручную ✋",
+                  "close_all": "close-all ✋", "manual_book_flat": "книжка (биржа закрыла)",
+                  "expired": "экспирация"}
+
+
+def short_symbol(symbol: str) -> str:
+    """'ETH-4SEP26-2450-P-USDT' -> 'ETH P2450' (как advisor._short_symbol)."""
+    parts = symbol.split("-")
+    return f"{parts[0]} {parts[3]}{parts[2]}" if len(parts) >= 4 else symbol
+
+
 def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
            reason: str, status: str, arm_cb: bool = True,
            fee_close: float | None = None, commit: bool = True,
@@ -346,11 +359,10 @@ def _close(conn, state: dict, p: dict, now_ms: int, exit_debit: float,
     except Exception:
         conn.rollback()
         raise
-    msg = (f"CLOSE {p['coin']} {p['side']} {p['option_symbol']} {reason} "
-           f"pnl ${pnl_usd:+.2f} ({pnl_pct*100:+.1f}% of premium) | "
-           f"equity ${equity:.2f}"
-           + (f" | CB until +{config.CB_PAUSE_HOURS}h"
-              if pnl_pct <= 0 and arm_cb else ""))
+    msg = (f"{'✅' if pnl_usd >= 0 else '🛑'} Закрыт {short_symbol(p['option_symbol'])}"
+           f" · {EXIT_REASON_RU.get(reason, reason)} · {pnl_usd:+.2f}$"
+           f" ({pnl_pct*100:+.0f}%) · 💰 ${equity:.0f}"
+           + (f" · CB {config.CB_PAUSE_HOURS}ч" if pnl_pct <= 0 and arm_cb else ""))
     if notes is not None:
         notes.append(msg)                   # sent after the caller's commit
     else:
@@ -688,8 +700,9 @@ def try_fire(conn, state: dict, coin: str, ev: dict, now_ms: int) -> None:
         return
     repo.insert_signal_audit(conn, now_ms, coin, side, True, None, spot, ev)
     if executor.live:
-        notify(f"ORDER open {coin} {side} {pick['symbol']} qty {qty:g} @ {px:g} mid "
-               f"(bid {pick['bid']:g}/ask {pick['ask']:g}) mult {mult:g}")
+        notify(f"📥 Открываю {short_symbol(pick['symbol'])} {qty:g} @ {px:g}"
+               f" (bid {pick['bid']:g}/ask {pick['ask']:g})"
+               + (f" · размер ×{mult:g}" if mult != 1.0 else ""))
     _advance_safely(conn, o, now_ms, quote)
 
 
@@ -737,7 +750,7 @@ def process_entry_requests(conn, state: dict, now_ms: int) -> dict:
         ev = {"active_side": side, "spot": k5[-1]["close"],
               "dist_7d_high_pct": dist_7d_high_pct(k1h, k5[-1]["close"]),
               "source": "advisor", **rationale}
-        notify(f"ADVISOR ENTRY {coin} {side} — проверяю лимиты и открываю")
+        notify(f"🚀 Вход советника {coin} {side} — проверяю лимиты и открываю")
         try_fire(conn, state, coin, ev, now_ms)
         state = repo.get_state(conn)
     return state

@@ -247,24 +247,38 @@ class TestFormatTg(unittest.TestCase):
                   {"id": 50, "action": "CLOSE", "reason": "r", "brief": "ITM, режь"},
                   {"id": 49, "action": "HOLD", "reason": "r", "brief": "у страйка"},
                   {"id": 46, "action": "HOLD", "reason": "r", "brief": "ок"}]}
-    POS = {60: {"symbol": "BTC-21AUG26-63000-C-USDT", "unrealized_usd": 0.1},
-           50: {"symbol": "ETH-21AUG26-1925-P-USDT", "unrealized_usd": -4.3},
-           49: {"symbol": "ETH-21AUG26-1900-P-USDT", "unrealized_usd": 1.6},
-           46: {"symbol": "ETH-21AUG26-1875-P-USDT", "unrealized_usd": 2.5}}
+    POS = {60: {"symbol": "BTC-21AUG26-63000-C-USDT", "unrealized_usd": 0.1,
+                "profit_pct_of_credit": 1.0, "age_h": 3.0, "hold_h": 24,
+                "tp2_pct": 0.7, "sl_pct": 0.75, "strike_buffer_pct": 0.4},
+           50: {"symbol": "ETH-21AUG26-1925-P-USDT", "unrealized_usd": -4.3,
+                "profit_pct_of_credit": -62.0, "age_h": 10.0, "hold_h": 120,
+                "tp2_pct": 0.7, "sl_pct": 1.75, "strike_buffer_pct": -2.1},
+           49: {"symbol": "ETH-21AUG26-1900-P-USDT", "unrealized_usd": 1.6,
+                "profit_pct_of_credit": 8.0, "age_h": 40.0, "hold_h": 120,
+                "tp2_pct": 0.7, "sl_pct": 1.75, "strike_buffer_pct": 1.7},
+           46: {"symbol": "ETH-21AUG26-1875-P-USDT", "unrealized_usd": 2.5,
+                "profit_pct_of_credit": 30.0, "age_h": 60.0, "hold_h": 120,
+                "tp2_pct": 0.7, "sl_pct": 1.75}}
+    MARKET = {"BTC": {"spot": 63398.6, "chg_24h_pct": -0.41},
+              "ETH": {"spot": 1886.09, "chg_24h_pct": -0.29}}
 
     def test_compact_structure(self):
         msg = advisor.format_tg(self.ADVICE, self.POS, [60], ("normal", "tight"),
-                                866.07, 800.0)
+                                866.07, 800.0, market=self.MARKET)
         lines = msg.splitlines()
-        self.assertLessEqual(len(lines), 6)          # header+summary+3 pos+foot
-        self.assertLess(len(msg), 350)               # ~3x shorter than old style
-        self.assertIn("🔴 Jony · high · tight  (normal→tight)", lines[0])
-        self.assertIn("🤖 закрыл BTC C63000 +0.1$ · touch 92%", msg)
-        self.assertIn("❗ ETH P1925 -4.3$ · ITM, режь — закрой сам", msg)
+        self.assertLessEqual(len(lines), 9)          # head+market+summary+4 pos(+1 detail)
+        self.assertLess(len(msg), 700)
+        self.assertEqual(lines[0], "🔴 Jony · риск high · tight (normal→tight) · 💰 $866 (+8.3%)")
+        self.assertEqual(lines[1], "📊 BTC 63 399 (-0.4%) · ETH 1 886 (-0.3%)")
+        self.assertTrue(lines[2].startswith("💬 BTC у страйка"))
+        self.assertIn("🤖 закрыл BTC C63000 +0.1$ (+1%) · touch 92%", msg)
+        # неветированный CLOSE — императив + что сделает механика без человека
+        self.assertIn("🔴 ETH P1925 -4.3$ (-62%) · 10/120ч · ITM -2.1%", msg)
+        self.assertIn("❗ ITM, режь → закрой сам (бот убыточные не закрывает) · иначе механика: SL −175% / time-stop 110ч", msg)
+        # HOLD-позиции показаны одной строкой с механикой
+        self.assertIn("🟡 ETH P1900 +1.6$ (+8%) · 40/120ч · до страйка 1.7% · у страйка · TP2 +70% / time-stop 80ч", msg)
+        self.assertIn("🟢 ETH P1875 +2.5$ (+30%) · 60/120ч · ок · TP2 +70% / time-stop 60ч", msg)
         self.assertNotIn("long text", msg)           # full reasons never pushed
-        self.assertNotIn("P1875", msg)               # HOLD omitted
-        self.assertNotIn("P1900", msg)               # HOLD omitted
-        self.assertIn("💰 $866 (+8.3%) · позиций 4 (hold 2)", msg)
 
     def test_short_symbol(self):
         self.assertEqual(advisor._short_symbol("ETH-21AUG26-1875-P-USDT"),
@@ -277,11 +291,10 @@ class TestFormatTg(unittest.TestCase):
         # человека (ревью 2026-08-17)
         msg = advisor.format_tg(self.ADVICE, self.POS, [], None,
                                 866.07, 800.0, vetoed={60})
-        self.assertIn("🔒 BTC C63000 +0.1$ · touch 92% — держим (политика)",
-                      msg)
-        self.assertNotIn("BTC C63000 +0.1$ · touch 92% — закрой сам", msg)
+        self.assertIn("🔒 CLOSE отклонён политикой · touch 92% · механика: TP2 +70% / time-stop 21ч", msg)
+        self.assertNotIn("touch 92% → закрой сам", msg)
         # неветированный CLOSE (аварийный кейс) сохраняет императив человеку
-        self.assertIn("❗ ETH P1925 -4.3$ · ITM, режь — закрой сам", msg)
+        self.assertIn("❗ ITM, режь → закрой сам", msg)
 
 
 def _entry_advice(coin="BTC", side="P", conf=0.8):
