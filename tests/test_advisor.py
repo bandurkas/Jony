@@ -302,6 +302,9 @@ def _entry_advice(coin="BTC", side="P", conf=0.8):
                                "reason": "r", "brief": "b"}}
 
 
+CALL_MKT_OK = {"iv_minus_rv24": 0.05, "vol_accelerating": False, "chg_24h_pct": -1.2,
+               "chg_1h_pct": 0.2, "chg_7d_pct": 4.0, "dist_from_7d_high_pct": -3.1,
+               "funding_rate_pct": 0.01}
 GOOD_MKT = {"BTC": {"iv_minus_rv24": 0.05, "vol_accelerating": False},
             "ETH": {"iv_minus_rv24": 0.05, "vol_accelerating": False}}
 
@@ -493,23 +496,44 @@ class TestCliBackend(unittest.TestCase):
 
     def test_stale_gates_reject_entry(self):
         import advisor
-        stale = {"BTC": {"no_side_allowed": True, "ret_7d": -3.0, "stale": True},
+        stale = {"BTC": {"no_side_allowed": False, "ret_7d": 0.2, "stale": True},
                  "ETH": {"no_side_allowed": False, "ret_7d": 0.0, "stale": True}}
         self.assertIsNone(advisor.decide_entry(
             _entry_advice(), GOOD_MKT, [], "normal", [], 0, mech_gates=stale))
 
-    def test_countertrend_put_needs_stabilization(self):
+    def test_put_rejected_when_mechanics_side_off(self):
+        # Phase 14 (2026-09-02): override-пут REJECTED — даже «выдохшийся слив»
+        # (chg24 > -0.5, dist_lo > 1.5) больше не пропускается
         import advisor
         down = {"BTC": {"no_side_allowed": True, "ret_7d": -3.0, "stale": False},
                 "ETH": {"no_side_allowed": False, "ret_7d": 0.0, "stale": False}}
-        mkt_bad = {"BTC": {**GOOD_MKT["BTC"], "chg_24h_pct": -2.0,
-                           "dist_from_7d_low_pct": 0.3}}
-        self.assertIsNone(advisor.decide_entry(
-            _entry_advice(), mkt_bad, [], "normal", [], 0, mech_gates=down))
         mkt_ok = {"BTC": {**GOOD_MKT["BTC"], "chg_24h_pct": 0.1,
                           "dist_from_7d_low_pct": 2.5}}
-        self.assertIsNotNone(advisor.decide_entry(
+        self.assertIsNone(advisor.decide_entry(
             _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=down))
+        # ровно на границе (-1.0 при пороге 1.0) — ещё разрешено, как в механике
+        edge = {"BTC": {"no_side_allowed": False, "ret_7d": -advisor.RET_7D_THRESHOLD,
+                        "stale": False}}
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=edge))
+        # нет ret_7d в снапшоте — fail closed для пута
+        nor7 = {"BTC": {"no_side_allowed": False, "stale": False}}
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(), mkt_ok, [], "normal", [], 0, mech_gates=nor7))
+        # колл-ветка не тронута: в даунтренде и в умеренном аптренде колл проходит,
+        # в аптренде выше порога + зелёный день (>0.5%) — отказ, как раньше
+        cm = {"BTC": dict(CALL_MKT_OK)}
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(side="C"), cm, [], "normal", [], 0, mech_gates=down, by_key={}))
+        up = {"BTC": {"no_side_allowed": True, "ret_7d": 3.0, "stale": False}}
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(side="C"), cm, [], "normal", [], 0, mech_gates=up, by_key={}))
+        cm_ok = {"BTC": {**CALL_MKT_OK, "chg_24h_pct": 0.4}}      # 0.4 <= 0.5: проходит везде
+        self.assertIsNotNone(advisor.decide_entry(
+            _entry_advice(side="C"), cm_ok, [], "normal", [], 0, mech_gates=up, by_key={}))
+        cm_green = {"BTC": {**CALL_MKT_OK, "chg_24h_pct": 0.6}}   # > 0.5 в аптренде — отказ
+        self.assertIsNone(advisor.decide_entry(
+            _entry_advice(side="C"), cm_green, [], "normal", [], 0, mech_gates=up, by_key={}))
 
 
 class TestWakeCooldown(unittest.TestCase):
@@ -548,11 +572,6 @@ class TestWakeCooldown(unittest.TestCase):
         self.assertEqual(advisor.pick_wake([a, b], 0), "BTC +2%")
         self.assertIsNone(advisor.pick_wake([b], 10 * m))  # b видел модель вместе с a
         self.assertIsNotNone(advisor.pick_wake([b], 30 * m))
-
-
-CALL_MKT_OK = {"iv_minus_rv24": 0.05, "vol_accelerating": False, "chg_24h_pct": -1.2,
-               "chg_1h_pct": 0.2, "chg_7d_pct": 4.0, "dist_from_7d_high_pct": -3.1,
-               "funding_rate_pct": 0.01}
 
 
 class TestCallGuard(unittest.TestCase):

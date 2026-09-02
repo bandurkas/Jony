@@ -801,3 +801,59 @@ class TestAdvisorTrailAlways(unittest.TestCase):
         pid = _mk_pos(self.conn, side="C", entry=30.0)
         row = self._run(pid, '{"ready": true, "active_side": "C"}', 21.0)
         self.assertEqual(row["status"], "open")
+
+
+class TestAdvisorStaleAlert(unittest.TestCase):
+    """2026-09-02: dead-advisor heartbeat alert (loop side, once per outage)."""
+    def setUp(self):
+        self.conn = repo.connect()
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_alert_once_then_recovery(self):
+        h = 3_600_000
+        alerted: list = []
+        with patch("loop.notify") as mock_notify:
+            # advisor never ran -> no guard, no alert
+            repo.set_risk_posture(self.conn, "normal", 0)
+            self.assertFalse(jony_loop.advisor_stale_alert(self.conn, 100 * h, alerted))
+            mock_notify.assert_not_called()
+            # fresh heartbeat -> quiet
+            repo.set_risk_posture(self.conn, "normal", 99 * h)
+            self.assertFalse(jony_loop.advisor_stale_alert(self.conn, 100 * h, alerted))
+            mock_notify.assert_not_called()
+            # stale (> ADVISOR_STALE_H=3h): one alert, repeated ticks stay silent
+            self.assertTrue(jony_loop.advisor_stale_alert(self.conn, 104 * h, alerted))
+            self.assertTrue(jony_loop.advisor_stale_alert(self.conn, 105 * h, alerted))
+            self.assertEqual(mock_notify.call_count, 1)
+            self.assertIn("ADVISOR STALE", mock_notify.call_args[0][0])
+            # heartbeat back -> single recovery message, state reset
+            repo.set_risk_posture(self.conn, "normal", 105 * h)
+            self.assertFalse(jony_loop.advisor_stale_alert(self.conn, 105 * h + 1, alerted))
+            self.assertEqual(mock_notify.call_count, 2)
+            self.assertIn("ADVISOR BACK", mock_notify.call_args[0][0])
+            self.assertEqual(alerted, [])
+
+    def test_disabled_by_config(self):
+        h = 3_600_000
+        alerted: list = []
+        repo.set_risk_posture(self.conn, "normal", 1 * h)
+        with patch("loop.notify") as mock_notify, \
+                patch.object(jony_loop.config, "ADVISOR_STALE_H", 0):
+            self.assertFalse(jony_loop.advisor_stale_alert(self.conn, 100 * h, alerted))
+            mock_notify.assert_not_called()
+
+    def test_safe_wrapper_never_raises(self):
+        with patch("loop.advisor_stale_alert", side_effect=RuntimeError("locked")), \
+                patch("loop.notify") as mock_notify:
+            jony_loop._stale_alert_safe(self.conn, 0)   # must not propagate
+            mock_notify.assert_not_called()
+
+    def test_message_reports_effective_posture(self):
+        h = 3_600_000
+        alerted: list = []
+        repo.set_risk_posture(self.conn, "lockdown", 96 * h)
+        with patch("loop.notify") as mock_notify:
+            jony_loop.advisor_stale_alert(self.conn, 99 * h + 1, alerted)  # 3h+: stale, lockdown holds (<4h)
+            self.assertIn("эффективная lockdown", mock_notify.call_args[0][0])

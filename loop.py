@@ -89,6 +89,44 @@ _mark_logged_min: dict[int, int] = {}  # pos_id -> последняя минут
 _exit_deferred_since: dict[int, int] = {}  # pos_id -> ms первого отложенного выхода
 
 
+_advisor_stale_alerted: list = []
+
+
+def advisor_stale_alert(conn, now_ms: int, alerted: list | None = None) -> bool:
+    """TG once per outage when the advisor heartbeat (posture_updated_ms) is
+    older than ADVISOR_STALE_H — covers a dead/hung advisor container, which
+    advisor.py's own ADVISOR DOWN alert cannot report. Recovery notified
+    once. Returns True while stale. updated_ms==0 = advisor never ran.
+    State is in-memory (review 2026-09-02, accepted): a loop restart while
+    stale repeats the STALE alert once; a restart between alert and
+    recovery loses the BACK message. Never raises (see _stale_alert_safe)."""
+    alerted = _advisor_stale_alerted if alerted is None else alerted
+    posture, upd = repo.get_risk_posture(conn)
+    if not upd or config.ADVISOR_STALE_H <= 0:
+        return False
+    stale_h = (now_ms - upd) / 3_600_000
+    if stale_h > config.ADVISOR_STALE_H:
+        if not alerted:
+            alerted.append(True)
+            eff = portfolio.effective_posture(posture, upd, now_ms)
+            notify(f"⚠️ ADVISOR STALE: heartbeat {stale_h:.1f}ч назад "
+                   f"(порог {config.ADVISOR_STALE_H:g}ч) — posture {posture}, "
+                   f"эффективная {eff}; проверь jony_advisor")
+        return True
+    if alerted:
+        alerted.clear()
+        notify(f"✅ ADVISOR BACK: heartbeat свежий, posture {posture}")
+    return False
+
+
+def _stale_alert_safe(conn, now_ms: int) -> None:
+    """A notification helper must never pre-empt the exit pass: swallow."""
+    try:
+        advisor_stale_alert(conn, now_ms)
+    except Exception as e:  # noqa: BLE001
+        print(f"[jony] advisor_stale_alert failed: {e}", flush=True)
+
+
 def manage_exits(conn, state: dict, now_ms: int,
                  stuck_alerted: set[int] | None = None) -> dict:
     """TP2 / SL / time-stop / expiry settlement for every open position.
@@ -823,6 +861,7 @@ def main() -> None:
             if last_exit_min != epoch_min:
                 last_exit_min = epoch_min
                 state = manage_exits(conn, state, now_ms, stuck_alerted)
+                _stale_alert_safe(conn, now_ms)
 
             # Mission Control "close all": API sets the flag, loop executes
             # (position writes stay with the single writer). Runs even when

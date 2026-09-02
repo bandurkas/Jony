@@ -1,5 +1,6 @@
 """Unit tests: sizing/caps/CB/fees mirror the basket backtest's engine."""
 import unittest
+from unittest.mock import patch
 
 from services import config, portfolio
 from services.bybit_client import pick_atm_option
@@ -57,7 +58,13 @@ class TestSizing(unittest.TestCase):
     def test_effective_posture(self):
         h = 3_600_000
         now = 100 * h
+        # updated_ms=0: advisor never ran -> no dead-advisor guard
         self.assertEqual(portfolio.effective_posture("normal", 0, now), "normal")
+        self.assertEqual(portfolio.effective_posture("normal", now - h, now), "normal")
+        # 2026-09-02: dead advisor at normal (> ADVISOR_STALE_H=3h) -> tight
+        self.assertEqual(portfolio.effective_posture("normal", now - 5 * h, now), "tight")
+        with patch.object(config, "ADVISOR_STALE_H", 0):
+            self.assertEqual(portfolio.effective_posture("normal", now - 5 * h, now), "normal")
         # tight is fail-safe and never degrades on staleness
         self.assertEqual(portfolio.effective_posture("tight", 0, now), "tight")
         # fresh lockdown holds; stale (> LOCKDOWN_STALE_H=4h) degrades to tight

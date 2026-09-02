@@ -1,0 +1,39 @@
+honest candidates 4560
+fidelity OK; entry_ok_fn no-op identical
+
+-- R2 descriptive (fixed-lot pnl in USD, 1 lot) --
+ETH  ITM(strike>spot)     n= 309 share= 52.9% avg_lot_pnl= -0.879 sum=  -271.7 WR= 63.1% avg_pnl%= -5.52 mny= +24.4bp
+ETH  barely_OTM(0..25bp)  n= 143 share= 24.5% avg_lot_pnl= +0.109 sum=   +15.7 WR= 70.6% avg_pnl%= +7.24 mny= -13.3bp
+ETH  OTM(>25bp)           n= 132 share= 22.6% avg_lot_pnl= +0.113 sum=   +14.9 WR= 73.5% avg_pnl%= +8.74 mny= -39.9bp
+BTC  ITM(strike>spot)     n=2044 share= 51.4% avg_lot_pnl= +1.402 sum= +2865.0 WR= 71.4% avg_pnl%= +9.76 mny= +14.7bp
+BTC  barely_OTM(0..25bp)  n=1684 share= 42.4% avg_lot_pnl= +0.842 sum= +1418.6 WR= 70.5% avg_pnl%= +7.37 mny= -12.2bp
+BTC  OTM(>25bp)           n= 248 share=  6.2% avg_lot_pnl= +2.285 sum=  +566.7 WR= 75.8% avg_pnl%=+19.12 mny= -30.0bp
+ALL  ITM(strike>spot)     n=2353 share= 51.6% avg_lot_pnl= +1.102 sum= +2593.2 WR= 70.3% avg_pnl%= +7.75 mny= +15.9bp
+ALL  barely_OTM(0..25bp)  n=1827 share= 40.1% avg_lot_pnl= +0.785 sum= +1434.3 WR= 70.5% avg_pnl%= +7.36 mny= -12.3bp
+ALL  OTM(>25bp)           n= 380 share=  8.3% avg_lot_pnl= +1.531 sum=  +581.6 WR= 75.0% avg_pnl%=+15.52 mny= -33.4bp
+
+-- baseline replay composition (reached sizing=175, taken=175, skipped_size=0) --
+ETH ITM n= 21 sum_lot_pnl=  +43.0 WR= 71.4%
+ETH OTM n= 30 sum_lot_pnl=  -12.5 WR= 66.7%
+BTC ITM n= 63 sum_lot_pnl= +261.5 WR= 76.2%
+BTC OTM n= 61 sum_lot_pnl=  -98.3 WR= 65.6%
+
+-- replay --
+baseline                     n=4560 taken 175 | tr   +9.7/dd23.3 ho  +16.6/dd11.1 full  +24.7/dd29.4 | Q [8.7, 22.9, -14.9, 20.3]
+R2a_filter_itm               n=2207 taken 167 | tr  +11.2/dd18.4 ho  +12.9/dd11.1 full  +21.9/dd24.7 | Q [9.5, 20.0, -13.3, 17.2] skip=0 hits=None 
+R2b_size0.5_itm              n=4560 taken 174 | tr   +9.9/dd18.7 ho  +10.4/dd11.0 full  +16.6/dd26.0 | Q [11.2, 18.9, -12.7, 12.6] skip=0 hits=None 
+R2b_size0.25_itm             n=4560 taken 171 | tr   +8.3/dd19.2 ho  +16.5/dd11.0 full  +21.6/dd25.0 | Q [10.7, 16.8, -14.6, 19.1] skip=0 hits=None 
+R2c_filter_itm_tol10bp       n=1472 taken 164 | tr   +9.9/dd19.8 ho  +13.0/dd11.7 full  +19.7/dd26.6 | Q [8.9, 19.4, -13.3, 15.2] skip=0 hits=None 
+R2c_filter_itm_tol25bp       n= 380 taken  98 | tr   +4.4/dd13.9 ho   +7.2/dd13.8 full  +11.6/dd15.5 | Q [5.9, 7.0, -4.8, 9.3] skip=0 hits=None 
+R2c_filter_itm_tol50bp       n=  25 taken  10 | tr   -1.5/dd 5.1 ho   +0.5/dd 4.5 full   -1.2/dd 5.7 | Q [1.5, -1.3, -1.4] skip=0 hits=None 
+R3a_skip_anycoin_itm         n=4560 taken 163 | tr   +8.3/dd15.9 ho  +10.1/dd11.4 full  +19.4/dd21.7 | Q [-1.6, 19.9, -15.4, 16.0] skip=209 hits=209 
+R3b_skip_samecoin_itm        n=4560 taken 175 | tr   +9.7/dd23.3 ho  +16.6/dd11.1 full  +24.7/dd29.4 | Q [8.7, 22.9, -14.9, 20.3] skip=0 hits=0 PASS
+R3c_size0.5_anycoin_itm      n=4560 taken 175 | tr  +11.1/dd16.6 ho  +12.4/dd11.3 full  +21.6/dd23.9 | Q [3.8, 19.9, -14.2, 16.3] skip=0 hits=48 
+R3c_size0.25_anycoin_itm     n=4560 taken 172 | tr   +9.2/dd15.6 ho   +8.7/dd11.3 full  +18.2/dd21.0 | Q [0.3, 18.7, -15.1, 14.0] skip=0 hits=113 
+R3d_skip_anycoin_itm>=0.5%   n=4560 taken 165 | tr  +11.6/dd16.9 ho  +12.7/dd11.4 full  +23.9/dd22.7 | Q [0.7, 22.7, -15.4, 17.2] skip=186 hits=186 
+R3d_skip_anycoin_itm>=1%     n=4560 taken 170 | tr  +13.5/dd17.4 ho  +14.3/dd11.1 full  +26.0/dd24.6 | Q [6.8, 22.9, -15.4, 18.1] skip=136 hits=136 
+R3d_skip_anycoin_itm>=2%     n=4560 taken 173 | tr   +8.8/dd22.1 ho  +16.7/dd11.1 full  +24.4/dd29.2 | Q [8.0, 22.9, -16.5, 20.4] skip=10 hits=10 PASS
+R2a+R3a                      n=2207 taken 158 | tr  +11.6/dd13.7 ho  +20.5/dd11.1 full  +29.9/dd19.4 | Q [1.7, 18.8, -13.0, 24.0] skip=68 hits=68 
+POSTHOC_R2a_filter_itm_ETHonly n=4251 taken 171 | tr   +9.8/dd19.6 ho  +14.7/dd11.0 full  +21.9/dd26.0 | Q [11.6, 20.6, -18.0, 18.5] skip=0 hits=None 
+POSTHOC_R2b_size0.5_itm_ETHonly n=4560 taken 175 | tr   +9.7/dd22.3 ho  +17.1/dd11.0 full  +24.0/dd28.5 | Q [10.5, 19.2, -17.1, 20.7] skip=0 hits=None 
+wrote /Users/styserg/Desktop/Jony/research/results/entry_guards_sweep_2026-09-02.json

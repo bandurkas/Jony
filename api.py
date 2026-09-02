@@ -410,4 +410,29 @@ def advice_score():
             src, {"n": 0, "wins": 0, "pnl_usd": 0.0})
         k["n"] += 1; k["wins"] += p["pnl_usd"] > 0; k["pnl_usd"] = round(k["pnl_usd"] + p["pnl_usd"], 2)
     return {"n_advices": len(records), "aggregate": agg, "entries": entries,
-            "by_key": by_key, "details": details[-100:]}
+            "by_key": by_key, "confidence_calibration": confidence_calibration(all_pos),
+            "details": details[-100:]}
+
+
+def confidence_calibration(all_pos: list[dict]) -> dict | None:
+    """Advisor entry confidence vs outcome (2026-09-02: live proposals all
+    carried 0.72 = threshold-fitting). Brier over closed advisor entries;
+    distinct_conf==1 means the number carries no information."""
+    cal = []
+    for p in all_pos:
+        sp = p.get("signal_payload") or ""
+        if p.get("status") == "open" or p.get("pnl_usd") is None or '"source": "advisor"' not in sp:
+            continue
+        try:
+            c = json.loads(sp).get("confidence")
+        except (ValueError, AttributeError):
+            c = None
+        if isinstance(c, (int, float)) and not isinstance(c, bool) and 0 <= c <= 1:
+            cal.append((float(c), p["pnl_usd"] > 0))
+    if not cal:
+        return None
+    n = len(cal)
+    return {"n": n, "brier": round(sum((c - w) ** 2 for c, w in cal) / n, 3),
+            "mean_conf": round(sum(c for c, _ in cal) / n, 3),
+            "win_rate": round(sum(w for _, w in cal) / n, 3),
+            "distinct_conf": len({round(c, 2) for c, _ in cal})}

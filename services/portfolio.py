@@ -57,9 +57,16 @@ def trail_exit_due(peak_pct: float, pnl_pct: float,
 def effective_posture(posture: str, updated_ms: int, now_ms: int) -> str:
     """Degrade a stale lockdown to tight: lockdown blocks entries, so a dead
     advisor must not freeze the bot forever. Tight only tightens exits —
-    fail-safe direction — so it may persist stale."""
-    if posture == "lockdown" and \
-            now_ms - updated_ms > config.LOCKDOWN_STALE_H * 3_600_000:
+    fail-safe direction — so it may persist stale. Stale 'normal' (advisor
+    dead > ADVISOR_STALE_H, heartbeat present) degrades to tight too, so
+    the trail layer stays armed without an advisor."""
+    stale_h = (now_ms - updated_ms) / 3_600_000
+    if posture == "lockdown" and stale_h > config.LOCKDOWN_STALE_H:
+        return "tight"
+    # 2026-09-02: dead advisor at 'normal' left the bot without the trail
+    # layer for 9h unnoticed. updated_ms==0 = advisor never ran (no guard).
+    if posture == "normal" and updated_ms > 0 and \
+            config.ADVISOR_STALE_H > 0 and stale_h > config.ADVISOR_STALE_H:
         return "tight"
     return posture if posture in ("normal", "tight", "lockdown") else "normal"
 

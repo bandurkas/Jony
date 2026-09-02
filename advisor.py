@@ -105,15 +105,19 @@ your_previous_advice — твоя рекомендация в прошлый р�
   платят); волатильность НЕ ускоряется; funding умеренный; спот не у 7д
   экстремума. Особо следи за окном для BTC P — исторически лучший ключ.
   mechanical_gates показывает состояние механики: если по монете
-  no_side_allowed=true (side-off: |ret_7d| за трендовой границей при
-  puts-only книге) — механический бот НЕ войдёт вообще, твоё предложение —
-  ЕДИНСТВЕННЫЙ источник входа. Это твоя главная зона пользы: механика
-  режет все даунтренды скопом, а ты видишь контекст. Пут в умеренном
-  даунтренде допустим, когда слив явно выдохся: 1ч/24ч изменение около
-  нуля или плюс, дистанция от 7д-лоу заметная (>1.5%), вола не ускоряется,
-  IV−RV жирный. Продолжающийся слив (24ч минус, у 7д-лоу) — не предлагать.
+  no_side_allowed=true (side-off: ret_7d ниже −границы тренда) — пут по
+  этой монете НЕ предлагай. Контртрендовый пут «на выдохшемся сливе»
+  проверен на честном движке (Phase 14, 2026-09-02): минус в обеих монетах
+  при любом hold/размере/страйке; код такое предложение отклонит. Твоя
+  зона — момент входа ВНУТРИ разрешённого механикой окна (тайминг, отказ
+  от входа у 7д-экстремума), не обход трендового фильтра.
   Качество важнее частоты: обычно entry_proposal = null, максимум 1-2
   предложения в сутки.
+  confidence — твоя калиброванная вероятность, что позиция закроется в
+  плюс; она сверяется с фактом (confidence_calibration в your_track_record,
+  Brier). Одно и то же число в каждом предложении = нет информации; не
+  подгоняй под порог. Трек-рекорд по ключу с n<10 — не аргумент ни за,
+  ни против.
 
 SHORT CALL (ETH:C, BTC:C) — ИСПЫТАТЕЛЬНЫЕ advisor-only ключи. Механика их
 не торгует (live ETH:C −$41/WR 18%, бэктест минус во всех конфигах, хвост —
@@ -636,7 +640,9 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     - VRP must be paid (iv_minus_rv24 > 0) and vol must not be accelerating
     - rate: <= MAX_ENTRIES_PER_DAY / rolling 24h, >= ENTRY_MIN_GAP_H apart
     - revenge window: no advisor entries REVENGE_WINDOW_H after a losing
-      close (advisor entries only — mechanical entries stay as validated)"""
+      close (advisor entries only — mechanical entries stay as validated)
+    - puts only inside the mechanics' trend window (ret_7d >= -RET_7D_THRESHOLD);
+      the counter-trend override was REJECTED on the honest engine (Phase 14)"""
     prop = advice.get("entry_proposal")
     if ENTRIES_MODE != "on" or not isinstance(prop, dict):
         return None
@@ -674,11 +680,13 @@ def decide_entry(advice: dict, market: dict, positions: list[dict],
     if g.get("stale", True):
         return None
     r7 = g.get("ret_7d")
+    if side == "P" and (r7 is None or r7 < -RET_7D_THRESHOLD):
+        # Phase 14 (2026-09-02): override-пут против side-off механики —
+        # REJECTED на честном движке (13 вариантов hold/size/OTM/зона).
+        # Пут только внутри разрешённого окна; нет ret_7d — отказ.
+        print("[advisor] put entry rejected: mechanics side-off", flush=True)
+        return None
     if r7 is not None:
-        if side == "P" and r7 < -RET_7D_THRESHOLD:
-            if ((mkt.get("chg_24h_pct") or -99) < -0.5
-                    or (mkt.get("dist_from_7d_low_pct") or 0) < 1.5):
-                return None
         if side == "C" and r7 > RET_7D_THRESHOLD:
             if ((mkt.get("chg_24h_pct") or 99) > 0.5
                     or abs(mkt.get("dist_from_7d_high_pct") or 0) < 1.5):
@@ -896,10 +904,11 @@ def track_record_block() -> dict | None:
         r = requests.get(f"{API_BASE}/advice/score", timeout=5)
         j = r.json()
         _last_by_key = j.get("by_key") or {}
-        agg = j.get("aggregate")
-        if agg and j.get("by_key"):
-            agg = dict(agg, by_key=j["by_key"])
-        return agg or None
+        out = dict(j.get("aggregate") or {})
+        for k in ("by_key", "confidence_calibration"):
+            if j.get(k):
+                out[k] = j[k]
+        return out or None
     except Exception as e:
         print(f"[advisor] track_record unavailable: {e}", flush=True)
         _last_by_key = None

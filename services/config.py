@@ -122,6 +122,11 @@ TRAIL_GIVEBACK = float(os.getenv("JONY_TRAIL_GIVEBACK", "0.10"))  # retrace from
 # ≥25% кредита). "0" = прежнее поведение (откат без деплоя).
 TRAIL_REQUIRE_ENDGAME = os.getenv("JONY_TRAIL_REQUIRE_ENDGAME", "1") == "1"
 LOCKDOWN_STALE_H = float(os.getenv("JONY_LOCKDOWN_STALE_H", "4"))  # dead-advisor guard
+# 2026-09-02 (инцидент 01–02.09: советник лежал 9ч при posture=normal — бот без
+# trail-слоя, никто не узнал). Heartbeat старше N ч: normal -> tight + TG раз за
+# простой. 0 = выключено. Не трогает записи с posture_updated_ms=0 (советник
+# никогда не запускался).
+ADVISOR_STALE_H = float(os.getenv("JONY_ADVISOR_STALE_H", "3"))
 
 # ── Account-level circuit breaker (2026-08-15) ──
 # Mechanical brake on REALIZED PnL, computed in code above the LLM advisor:

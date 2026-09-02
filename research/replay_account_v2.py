@@ -44,7 +44,8 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
               start_equity: float = jc.START_EQUITY_USD,
               cb_mode: str = "per_key", size_mult_fn=None,
               credit_at: str = "exit", cb_at: str | None = None,
-              per_key_cap: int | None = None) -> dict:
+              per_key_cap: int | None = None,
+              entry_ok_fn=None) -> dict:
     """credit_at: 'exit' (correct, event-ordered) or 'entry' (v1-compatible
     ordering, used only by the self-check).
 
@@ -58,7 +59,12 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
     off (live behavior — only mo/cap apply, so the book can stack N identical
     same-side positions, which is what the live account does today). This is
     an IMPLEMENTABLE stand-in for what v1's clairvoyant CB accidentally
-    enforced: it throttles same-key stacking using only present information."""
+    enforced: it throttles same-key stacking using only present information.
+
+    entry_ok_fn (2026-09-02, entry_guards_sweep): optional book-aware entry
+    guard, entry_ok_fn(trade, open_positions, now_ms) -> size multiplier
+    (0 = skip). Open positions carry coin/side/strike/entry_ts. None = off,
+    output unchanged."""
     cb_at = credit_at if cb_at is None else cb_at
     trades = sorted(trades, key=lambda t: t["entry_ts"])
     equity = start_equity
@@ -71,6 +77,7 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
     n_skipped_cap = 0
     n_skipped_cb = 0
     n_skipped_size = 0      # qty==0: equity/free-margin too small to afford a lot
+    n_skipped_guard = 0
     max_concurrent = 0
     concurrency_sum = 0
     equity_curve = []
@@ -125,6 +132,12 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
             continue
         used_margin = sum(p["margin"] for p in open_positions)
         mult = size_mult_fn(t) if size_mult_fn is not None else 1.0
+        if entry_ok_fn is not None:
+            g = entry_ok_fn(t, open_positions, now)
+            if g <= 0:
+                n_skipped_guard += 1
+                continue
+            mult *= g
         qty, margin = jc.size_position(equity, used_margin, recent_pnls,
                                        t["strike"], t["entry_credit"], t["lot"],
                                        size_mult=mult,
@@ -140,7 +153,8 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
         pnl_usd = (t["entry_credit"] - exit_credit) * qty - fee_open - fee_close
         n_taken += 1
         pos = {"coin": t["coin"], "exit_ts": t["exit_ts"], "margin": margin,
-               "pnl_usd": pnl_usd, "pnl_pct": t["pnl_pct"], "cb_key": cb_key}
+               "pnl_usd": pnl_usd, "pnl_pct": t["pnl_pct"], "cb_key": cb_key,
+               "side": t["side"], "strike": t["strike"], "entry_ts": now}
         open_positions.append(pos)
         if t["pnl_pct"] <= 0 and cb_at == "entry":
             # v1 behavior: the CB is armed while processing the losing trade's
@@ -168,12 +182,17 @@ def replay_v2(trades: list[dict], mo: int, cap: int,
         settle(float("inf"))
 
     n_considered = n_taken + n_skipped_cap + n_skipped_size
-    return {"final": equity, "max_dd": max_dd, "n_taken": n_taken,
+    if entry_ok_fn is not None:
+        n_considered += n_skipped_guard
+    out = {"final": equity, "max_dd": max_dd, "n_taken": n_taken,
             "n_skipped_cap": n_skipped_cap, "n_skipped_cb": n_skipped_cb,
             "n_skipped_size": n_skipped_size, "max_concurrent": max_concurrent,
             "avg_concurrent": concurrency_sum / n_considered if n_considered else 0.0,
             "curve": equity_curve,
             "return_pct": (equity - start_equity) / start_equity * 100}
+    if entry_ok_fn is not None:
+        out["n_skipped_guard"] = n_skipped_guard
+    return out
 
 
 def _selfcheck() -> int:

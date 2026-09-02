@@ -9,3 +9,4 @@ __pycache__/
 research/fresh_data/
 research/*.pkl
 research/*.csv
+research/results/*.pkl
