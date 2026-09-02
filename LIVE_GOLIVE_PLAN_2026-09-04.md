@@ -53,7 +53,7 @@
 - [ ] Trail в tight (20%/10пп), spread-guard выхода (10%/5%/10 мин), wake-cooldown 30 мин — на месте.
 - [ ] `near d=1.5×0.5` — включён/выключен по решению; проверить env читается.
 - [ ] Advisor: backend cli, OAuth-токен валиден, `ADVISOR_EXECUTE=profit_only`, self-lock fix задеплоен, тик проходит, TG приходит.
-- [ ] **Решение (02.09, открыто): `ADVISOR_ENTRIES` на live.** Рекомендация — `off` (override-путы REJECTED Phase 14, коллы n=3, A/B продолжает paper); если `on` — только с Track B 02.09 (override запрещён кодом) и `JONY_ADVISOR_STALE_H=3`.
+- [x] **Решение пользователя 02.09: `ADVISOR_ENTRIES=off` на live («пока не ставим»).** Override-путы REJECTED Phase 14, коллы n=4; A/B входов советника продолжается ТОЛЬКО в paper. В live-`.env` прописать `ADVISOR_ENTRIES=off` (советник остаётся: posture/HOLD-CLOSE/TG, `JONY_ADVISOR_STALE_H=3`).
 Paper-выход
 - [ ] Открытые paper-позиции закрыты или осознанно перенесены (в live их нет — стартуем с пустой книгой).
 - [ ] Paper-итог зафиксирован (на 26.08: $902–911, 72 закрытых, WR 65%, maxDD 4.04%).
